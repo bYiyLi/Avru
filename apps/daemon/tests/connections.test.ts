@@ -218,3 +218,23 @@ describe('connection abuse limits', () => {
     hub.close();
   });
 });
+
+it('accepts bounded metadata only after authentication and clears it on disconnect', () => {
+  const { hub } = setup();
+  const metadata = {
+    browserName: 'Chrome',
+    browserVersion: '140.0.0.0',
+    versionSource: 'userAgent',
+    extensionVersion: '0.0.1',
+  };
+  const unauthenticated = client(hub);
+  unauthenticated.send({ type: 'metadata', metadata });
+  expect(unauthenticated.messages.at(-1)?.code).toBe('unauthorized');
+  const { peer } = pair(hub);
+  expect(peer.messages.at(-1)?.metadataSupported).toBe(true);
+  expect(hub.browsers()[0]?.metadata).toBeNull();
+  peer.send({ type: 'metadata', metadata });
+  expect(hub.browsers()[0]?.metadata).toEqual(metadata);
+  peer.disconnect();
+  expect(hub.browsers()[0]?.metadata).toBeNull();
+});

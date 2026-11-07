@@ -15,17 +15,23 @@ const pending = {
   origin: 'chrome-extension://test',
 };
 function setup() {
-  const request = vi
-    .fn<typeof fetch>()
-    .mockImplementation((input) =>
-      Promise.resolve(
-        Response.json(
-          (input as string).endsWith('browsers')
-            ? { browsers: [profile] }
-            : { pairings: [pending] },
-        ),
+  const request = vi.fn<typeof fetch>().mockImplementation((input) =>
+    Promise.resolve(
+      Response.json(
+        (input as string).endsWith('browsers')
+          ? { browsers: [profile] }
+          : (input as string).endsWith('pairings')
+            ? { pairings: [pending] }
+            : {
+                daemonVersion: '0.1.0-dev.1',
+                expectedExtensionVersion: '0.0.1',
+                mcp: 'notImplemented',
+                chatgpt: 'notImplemented',
+                frpc: 'notImplemented',
+              },
       ),
-    );
+    ),
+  );
   const clear = vi.fn();
   return {
     request,
@@ -46,13 +52,13 @@ it('polls sequentially, stops and ignores stale results', async () => {
   await vi.advanceTimersByTimeAsync(0);
   expect(controller.snapshot().browsers).toEqual([profile]);
   expect(controller.snapshot().pairings).toEqual([pending]);
-  expect(request).toHaveBeenCalledTimes(2);
+  expect(request).toHaveBeenCalledTimes(3);
   expect(request.mock.calls[0]?.[1]).toMatchObject({
     cache: 'no-store',
     headers: { Authorization: 'Bearer secret' },
   });
   await vi.advanceTimersByTimeAsync(2000);
-  expect(request).toHaveBeenCalledTimes(4);
+  expect(request).toHaveBeenCalledTimes(6);
   unsubscribe();
   controller.stop();
   await vi.advanceTimersByTimeAsync(2000);
@@ -60,7 +66,7 @@ it('polls sequentially, stops and ignores stale results', async () => {
   controller.start();
   controller.stop();
   await vi.advanceTimersByTimeAsync(0);
-  expect(request).toHaveBeenCalledTimes(6);
+  expect(request).toHaveBeenCalledTimes(9);
 });
 it('approves, rejects and revokes only through explicit actions', async () => {
   vi.useFakeTimers();
@@ -74,7 +80,7 @@ it('approves, rejects and revokes only through explicit actions', async () => {
   await controller.reject('pending');
   await controller.revoke('one');
   expect(controller.snapshot().browsers).toEqual([]);
-  expect(request.mock.calls[2]).toEqual([
+  expect(request.mock.calls[3]).toEqual([
     '/api/pairings/pending/approve',
     expect.objectContaining({ method: 'POST', body: '{}' }),
   ]);

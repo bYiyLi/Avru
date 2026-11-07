@@ -30,14 +30,12 @@ export async function pairProfile(popup: Page, management: Page, name: string) {
   await popup.getByRole('button', { name: '配对', exact: true }).click();
   const request = management
     .getByRole('region', { name: '配对请求' })
-    .filter({ hasText: `${name} 请求配对` });
+    .filter({ hasText: name });
   await expect(request).toBeVisible();
   const code = await request.locator('code').innerText();
   await expect(popup.getByRole('status')).toContainText(code);
   await request.getByRole('button', { name: '核对一致，批准配对' }).click();
-  await expect(
-    management.getByRole('heading', { name, exact: true }),
-  ).toBeVisible();
+  await expect(management.getByText(name, { exact: true })).toBeVisible();
 }
 export async function openObservedTab(context: BrowserContext, title: string) {
   const tab = await context.newPage();
@@ -49,4 +47,24 @@ export async function openObservedTab(context: BrowserContext, title: string) {
   });
   await tab.goto('https://avru.example/observed?private=value#secret');
   return tab;
+}
+
+export async function readProfiles(page: Page, managementUrl: string) {
+  const key = new URLSearchParams(new URL(managementUrl).hash.slice(1)).get(
+    'key',
+  );
+  const response = await page.request.get(`${endpoint}/api/browsers`, {
+    headers: { Authorization: `Bearer ${key ?? ''}` },
+  });
+  expect(response.ok()).toBe(true);
+  return (await response.json()) as {
+    browsers: {
+      name: string;
+      connected: boolean;
+      metadata: null | {
+        browserVersion: string;
+        extensionVersion: string;
+      };
+    }[];
+  };
 }

@@ -14,7 +14,9 @@ export interface Socket {
   send: (data: string) => void;
   close(): void;
 }
+import type { Metadata } from './metadata';
 export interface Ports {
+  metadata?: () => Promise<Metadata>;
   read: () => Promise<unknown>;
   save: (value: Credentials) => Promise<void>;
   clear: () => Promise<void>;
@@ -200,6 +202,11 @@ export class Connection {
     this.ready = true;
     this.attempt = 0;
     this.state = '已连接';
+    if (message.metadataSupported === true && this.ports.metadata) {
+      const metadata = await this.ports.metadata();
+      if (generation !== this.generation) return;
+      this.send({ v: 1, type: 'metadata', metadata });
+    }
     await this.publish();
     if (generation === this.generation) this.heartbeat();
   }

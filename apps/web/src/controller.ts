@@ -4,6 +4,12 @@ export interface BrowserProfile {
   connected: boolean;
   connectionId: string | null;
   tabs: { id: number; title: string; url: string }[];
+  metadata?: {
+    browserName: string;
+    browserVersion: string;
+    versionSource: 'clientHints' | 'userAgent' | 'unknown';
+    extensionVersion: string;
+  } | null;
 }
 export interface Pairing {
   id: string;
@@ -12,7 +18,15 @@ export interface Pairing {
   expiresAt: number;
   origin: string;
 }
+export interface SystemStatus {
+  daemonVersion: string;
+  expectedExtensionVersion: string;
+  mcp: 'notImplemented';
+  chatgpt: 'notImplemented';
+  frpc: 'notImplemented';
+}
 export interface ViewState {
+  system?: SystemStatus | null;
   browsers: BrowserProfile[];
   pairings: Pairing[];
   message: string;
@@ -44,6 +58,7 @@ function createApi(
         authorized: false,
         browsers: [],
         pairings: [],
+        system: null,
         message: '会话已失效，请重新打开守护进程提供的管理链接。',
       });
       throw new Error('会话已失效');
@@ -95,6 +110,7 @@ export function createController(
     try {
       const result = (await api('browsers')) as { browsers: BrowserProfile[] };
       const pending = (await api('pairings')) as { pairings: Pairing[] };
+      const system = (await api('status')) as SystemStatus;
       if (
         running &&
         epoch === generation &&
@@ -102,6 +118,7 @@ export function createController(
         started === revision
       )
         update({
+          system,
           browsers: result.browsers,
           pairings: pending.pairings,
           message: '',
@@ -116,6 +133,7 @@ export function createController(
         update({
           browsers: [],
           pairings: [],
+          system: null,
           message: '无法连接守护进程，正在重试…',
         });
     }
@@ -160,6 +178,13 @@ export function createController(
       generation++;
       clearTimeout(timer);
     },
+    ...actions(action),
+  };
+}
+export type Controller = ReturnType<typeof createController>;
+
+function actions(action: (path: string, method: string) => Promise<void>) {
+  return {
     approve: (id: string) =>
       action(`pairings/${encodeURIComponent(id)}/approve`, 'POST'),
     reject: (id: string) =>
@@ -168,4 +193,3 @@ export function createController(
       action(`browsers/${encodeURIComponent(id)}`, 'DELETE'),
   };
 }
-export type Controller = ReturnType<typeof createController>;

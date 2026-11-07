@@ -32,6 +32,19 @@ describe('local daemon HTTP trust boundary', () => {
       state: 'browser-connection',
       browserControl: false,
     });
+    expect(
+      (await instance.inject({ url: '/api/status', headers: { host } }))
+        .statusCode,
+    ).toBe(401);
+    expect(
+      (await instance.inject({ url: '/api/status', headers })).json<unknown>(),
+    ).toEqual({
+      daemonVersion: '0.1.0-dev.1',
+      expectedExtensionVersion: '0.0.1',
+      mcp: 'notImplemented',
+      chatgpt: 'notImplemented',
+      frpc: 'notImplemented',
+    });
     expect(health.headers['cache-control']).toBe('no-store');
     expect(health.headers['content-security-policy']).toContain(
       "frame-ancestors 'none'",

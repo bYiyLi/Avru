@@ -75,3 +75,29 @@ describe('untrusted protocol messages', () => {
       expect(() => parse({ v: 1, type: 'tabs', tabs: items })).toThrow();
   });
 });
+
+it('validates metadata types and bounds without accepting arbitrary source labels', () => {
+  const metadata = {
+    browserName: 'Chrome',
+    browserVersion: '140',
+    extensionVersion: '0.0.1',
+    versionSource: 'clientHints',
+  };
+  expect(
+    parseMessage(JSON.stringify({ v: 1, type: 'metadata', metadata })),
+  ).toEqual({ v: 1, type: 'metadata', metadata });
+  for (const invalid of [
+    null,
+    { ...metadata, browserName: '' },
+    { ...metadata, browserVersion: 'x'.repeat(65) },
+    { ...metadata, extensionVersion: 5 },
+    { ...metadata, versionSource: 'trusted' },
+    { ...metadata, versionSource: ['clientHints'] },
+  ]) {
+    expect(() =>
+      parseMessage(
+        JSON.stringify({ v: 1, type: 'metadata', metadata: invalid }),
+      ),
+    ).toThrow('Invalid browser metadata');
+  }
+});

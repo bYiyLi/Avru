@@ -1,6 +1,6 @@
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { parseMessage } from './messages.js';
-import type { Tab } from './messages.js';
+import type { BrowserMetadata, Tab } from './messages.js';
 import type { BrowserStore } from './store.js';
 
 export interface Peer {
@@ -29,7 +29,7 @@ export class Connections {
   private readonly pending = new Map<string, Pairing>();
   private readonly active = new Map<
     string,
-    { session: Session; tabs: Tab[] }
+    { session: Session; tabs: Tab[]; metadata?: BrowserMetadata }
   >();
   constructor(
     private readonly store: BrowserStore,
@@ -78,6 +78,7 @@ export class Connections {
         connected: Boolean(live),
         connectionId: live?.session.connectionId ?? null,
         tabs: live?.tabs ?? [],
+        metadata: live?.metadata ?? null,
       };
     });
   }
@@ -161,6 +162,7 @@ export class Connections {
     this.active.set(browserId, { session, tabs: [] });
     this.send(session, {
       type: 'ready',
+      metadataSupported: true,
       browserId,
       connectionId: session.connectionId,
     });
@@ -230,6 +232,7 @@ export class Connections {
     }
     session.deadline = this.now() + 60_000;
     if (message.type === 'ping') this.send(session, { type: 'pong' });
+    else if (message.type === 'metadata') live.metadata = message.metadata;
     else if (message.type === 'tabs') live.tabs = message.tabs;
     else this.fail(session, 'invalid');
   }
