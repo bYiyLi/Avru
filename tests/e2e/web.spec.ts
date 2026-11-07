@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { randomBytes } from 'node:crypto';
-import { buildApp } from '../../apps/daemon/src/app.js';
+import { join } from 'node:path';
+import { startDaemon } from './daemon-fixture.js';
 import {
   endpoint,
   openObservedTab,
@@ -15,17 +14,10 @@ test('two real extension profiles pair, observe, reconnect and revoke', async ({
   page,
 }) => {
   const directory = await mkdtemp(join(tmpdir(), 'avru-e2e-'));
-  let key = randomBytes(32).toString('hex');
-  const options = {
-    databasePath: join(directory, 'state.sqlite'),
-    webRoot: resolve('apps/web/dist'),
-    port: 43822,
-  };
-  let daemon = buildApp({ ...options, adminKey: key });
+  let daemon = await startDaemon(join(directory, 'data'));
   const profiles: Awaited<ReturnType<typeof openProfile>>[] = [];
   try {
-    await daemon.listen({ host: '127.0.0.1', port: 43822 });
-    await page.goto(`${endpoint}/#key=${key}`);
+    await page.goto(daemon.url);
     await expect(page).toHaveURL(`${endpoint}/`);
     const first = await openProfile(join(directory, 'first'));
     profiles.push(first);
@@ -56,11 +48,9 @@ test('two real extension profiles pair, observe, reconnect and revoke', async ({
     await expect(
       page.getByText('Restored profile page', { exact: true }),
     ).toBeVisible();
-    await daemon.close();
-    key = randomBytes(32).toString('hex');
-    daemon = buildApp({ ...options, adminKey: key });
-    await daemon.listen({ host: '127.0.0.1', port: 43822 });
-    await page.goto(`${endpoint}/#key=${key}`);
+    await daemon.stop();
+    daemon = await startDaemon(join(directory, 'data'));
+    await page.goto(daemon.url);
     await expect(
       page.getByText('Restored profile page', { exact: true }),
     ).toBeVisible({ timeout: 20_000 });
@@ -81,7 +71,7 @@ test('two real extension profiles pair, observe, reconnect and revoke', async ({
     );
   } finally {
     for (const profile of profiles) await profile.context.close();
-    await daemon.close();
+    await daemon.stop();
     await rm(directory, { recursive: true, force: true });
   }
 });
