@@ -1,0 +1,29 @@
+{
+  "name": "avru-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=24.22.1 <25"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p tsconfig.tooling.json",
+    "test": "vitest run",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "check": "pnpm format:check && pnpm typecheck && pnpm test && pnpm build",
+    "dev:web": "pnpm --filter @avru/web dev",
+    "dev:daemon": "pnpm --filter @avru/daemon dev",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15",
+    "prettier": "3.9.10",
+    "vitest": "5.1.0",
+    "@playwright/test": "1.65.0"
+  }
+}

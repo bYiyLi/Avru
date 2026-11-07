@@ -1,0 +1,19 @@
+{
+  "name": "@avru/daemon",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "fastify": "5.12.8",
+    "ws": "8.22.1",
+    "@modelcontextprotocol/sdk": "1.32.2"
+  },
+  "devDependencies": {
+    "@types/ws": "8.18.2"
+  }
+}

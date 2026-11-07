@@ -1,0 +1,15 @@
+{
+  "name": "@avru/extension",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "wxt prepare",
+    "build": "wxt build",
+    "typecheck": "wxt prepare && tsc --noEmit"
+  },
+  "devDependencies": {
+    "wxt": "0.21.5",
+    "vite": "8.3.6"
+  }
+}
