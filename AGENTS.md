@@ -17,7 +17,7 @@
 - `apps/daemon`：可信权限、连接与路由中心；拥有本机连接、认证生命周期与管理页托管。
 - `apps/web`：本地管理界面，不拥有授权决定。
 - `apps/extension`：WXT 扩展，负责 WS，未来负责获准 CDP/扩展 API 操作；当前有最小标签与配对权限，尚无网页控制。
-- `packages/runner` 仍待实现；`packages/protocol` 保存连接协议合同。
+- `packages/runner` 提供独立执行基础及 mock 测试，未接入 daemon/MCP 或真实浏览器动作；`packages/protocol` 保存连接协议合同。
 - `tests/e2e`：Web 和后续跨组件验收；不得以静态 UI 测试代替真实浏览器控制验收。
 
 查看适用代码、测试和 Git 状态后再改动，保留无关用户改动。新增跨组件合同先落实到现有设计，避免维护平行事实来源。未知结果的浏览器副作用不得盲重试。
