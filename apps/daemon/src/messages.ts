@@ -3,10 +3,17 @@ export interface Tab {
   title: string;
   url: string;
 }
+export interface BrowserMetadata {
+  browserName: string;
+  browserVersion: string;
+  versionSource: 'clientHints' | 'userAgent' | 'unknown';
+  extensionVersion: string;
+}
 export type Message =
   | { v: 1; type: 'pair'; profileId: string; name: string }
   | { v: 1; type: 'authenticate'; browserId: string; token: string }
   | { v: 1; type: 'tabs'; tabs: Tab[] }
+  | { v: 1; type: 'metadata'; metadata: BrowserMetadata }
   | { v: 1; type: 'ping' };
 
 export function record(value: unknown): value is Record<string, unknown> {
@@ -46,6 +53,24 @@ function tabs(value: unknown): Tab[] {
     throw new Error('Duplicate tab');
   return items;
 }
+function metadata(value: unknown): BrowserMetadata {
+  if (
+    !record(value) ||
+    !text(value.browserName, 80) ||
+    !text(value.browserVersion, 64) ||
+    !text(value.extensionVersion, 64) ||
+    (value.versionSource !== 'clientHints' &&
+      value.versionSource !== 'userAgent' &&
+      value.versionSource !== 'unknown')
+  )
+    throw new Error('Invalid browser metadata');
+  return {
+    browserName: value.browserName,
+    browserVersion: value.browserVersion,
+    extensionVersion: value.extensionVersion,
+    versionSource: value.versionSource,
+  };
+}
 export function parseMessage(raw: string): Message {
   if (Buffer.byteLength(raw, 'utf8') > 8_388_608)
     throw new Error('Message too large');
@@ -74,6 +99,8 @@ export function parseMessage(raw: string): Message {
         browserId: value.browserId,
         token: value.token,
       };
+    case 'metadata':
+      return { v: 1, type: 'metadata', metadata: metadata(value.metadata) };
     case 'tabs':
       return { v: 1, type: 'tabs', tabs: tabs(value.tabs) };
     case 'ping':

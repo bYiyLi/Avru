@@ -13,7 +13,7 @@
 | [MCP 与授权](design/mcp.md)                | 对外接口候选、同机 OAuth 与公网/本机隔离                 | R-05–R-10                  |
 | [运行器](design/runner.md)                 | QuickJS WASM 独立复用进程、受控 SDK 与资源隔离边界       | R-16                       |
 | [安装运行](design/installation.md)         | 稳定目录、更新事务、恢复、认证生命周期、登录启动         | R-11–R-14                  |
-| [管理 Web](design/web.md)                  | 人的管理交互、状态及原型/实现边界                        | R-04、R-15、R-18           |
+| [管理 Web](design/web.md)                  | 人的管理交互、状态及原型/实现边界                        | R-04、R-15、R-18–R-21      |
 | [数据与安全](design/security.md)           | 数据保留、隐私、安全反例及尚待验证范围                   | R-04–R-10、R-16–R-17       |
 | [决定与开放问题](design/decisions.md)      | D 编号、来源、取舍和 Q 编号剩余缺口                      | 全部需求                   |
 

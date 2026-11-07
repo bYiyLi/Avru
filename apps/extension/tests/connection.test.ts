@@ -282,3 +282,42 @@ it('recovers when a socket closes between readiness and send', async () => {
   expect(h.sockets).toHaveLength(2);
   await h.connection.disconnect();
 });
+
+it('sends metadata only after negotiated ready and ignores a superseded collection', async () => {
+  vi.useFakeTimers();
+  const h = setup(saved);
+  const metadata = {
+    browserName: 'Chrome',
+    browserVersion: '140',
+    versionSource: 'userAgent' as const,
+    extensionVersion: '0.0.1',
+  };
+  h.ports.metadata = vi.fn().mockResolvedValue(metadata);
+  await h.connection.start();
+  await h.receive({
+    v: 1,
+    type: 'ready',
+    browserId: 'browser',
+    connectionId: 'c',
+    metadataSupported: true,
+  });
+  expect(h.current().send).toHaveBeenCalledWith(
+    JSON.stringify({ v: 1, type: 'metadata', metadata }),
+  );
+  let resolve: ((value: typeof metadata) => void) | undefined;
+  h.ports.metadata = () =>
+    new Promise((done) => {
+      resolve = done;
+    });
+  await h.receive({
+    v: 1,
+    type: 'ready',
+    browserId: 'browser',
+    connectionId: 'c',
+    metadataSupported: true,
+  });
+  await h.connection.disconnect();
+  resolve?.(metadata);
+  await Promise.resolve();
+  expect(h.connection.status()).toBe('未配对');
+});

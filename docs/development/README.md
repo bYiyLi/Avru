@@ -10,9 +10,11 @@
 | [01 本机连接](phases/01-browser-connection.md)     | 配对、双配置标签、真实浏览器/daemon 进程重启恢复已通过 CI                  | 真实网页动作、最终品牌浏览器全矩阵、系统休眠 |
 | [02 安装生命周期](phases/02-installer.md)          | Clack、bundle 安装修复卸载、稳定 launcher、平台适配已实现；Win/Mac CI 通过 | npm/扩展发行、真实 OS 注销登录、用户机器安装 |
 
+| [03 管理界面](phases/03-management-web.md) | 真实状态/版本切片已实现，云端109测试通过，Win/Mac本次CI待验 | 当前配置自动识别、扩展发行及完整 MCP/通道/链路后端 |
+
 基线为 `cace4672679ccb45a50ac093715cb3e34b4a403b`；它的 [CI 42382850187](https://github.com/bYiyLi/Avru/actions/runs/42382850187) 本次已按精确 SHA 查询为 success；这只证明该基线，不替代后续提交实时结果。各阶段记录原始验收 SHA/日志范围。
 
-远程 MCP/OAuth、FRPC/通道接入、网页动作、QuickJS 运行器及完整管理 Web 仍未实现。管理 Web 最新方向为当前浏览器单页（未装扩展引导、已装总览），尚未实现；旧多页视觉原型被用户纠正，不是上述能力的实现证据；这些后续单元尚不虚构排期或独立 Phase 数量。
+远程 MCP/OAuth、FRPC/通道接入、网页动作、QuickJS 运行器及完整管理 Web 仍未实现。管理 Web 最新方向为欢迎、当前浏览器本地安装引导、全系统总览三页，按管理界面阶段实现；原型不是后端能力证据。
 
 ## 共同完成条件
 

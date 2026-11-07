@@ -1,3 +1,4 @@
+import { releaseInfo } from './release-info.js';
 import { randomBytes } from 'node:crypto';
 import Fastify from 'fastify';
 import { BrowserStore } from './store.js';
@@ -22,6 +23,12 @@ export function buildApp(options: AppOptions = {}) {
     service: 'avru',
     state: 'browser-connection',
     browserControl: false,
+  }));
+  app.get('/api/status', () => ({
+    ...releaseInfo,
+    mcp: 'notImplemented',
+    chatgpt: 'notImplemented',
+    frpc: 'notImplemented',
   }));
   app.get('/api/browsers', () => ({ browsers: connections.browsers() }));
   app.get('/api/pairings', () => ({ pairings: connections.pairings() }));

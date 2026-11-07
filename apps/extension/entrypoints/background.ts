@@ -1,10 +1,13 @@
 import { browser } from 'wxt/browser';
 import { defineBackground } from 'wxt/utils/define-background';
 import { Connection } from '../utils/connection';
+import { browserMetadata } from '../utils/metadata';
 import { record } from '../utils/protocol';
 
 export default defineBackground(() => {
   const connection = new Connection({
+    metadata: () =>
+      browserMetadata(navigator, browser.runtime.getManifest().version),
     read: async () =>
       (await browser.storage.local.get('connection')).connection,
     save: async (value) => {

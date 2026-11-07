@@ -27,3 +27,9 @@ export function managementSession(host: SessionHost) {
     },
   };
 }
+
+// A private link reopened in an existing tab can be a same-document navigation.
+// Reload only an explicit well-formed capability fragment so startup imports it.
+export function reloadManagementLink(hash: string, reload: () => void) {
+  if (/^#key=[a-f0-9]{64}$/.test(hash)) reload();
+}

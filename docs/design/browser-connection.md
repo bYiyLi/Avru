@@ -89,7 +89,8 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 
 所有接口要求 `Authorization: Bearer <启动 capability>`，响应不缓存。
 
-- `GET /api/browsers`：连接配置、在线状态、连接代次、标签清单。
+- `GET /api/browsers`：连接配置、在线状态、连接代次、标签清单及可空 `metadata`（浏览器名称、版本、版本来源、扩展版本）。离线时元数据清空，不将旧版本冒充实时。
+- `GET /api/status`：同样需要本机管理认证，返回 `daemonVersion`、`expectedExtensionVersion` 与 MCP/ChatGPT/FRPC 的 `notImplemented` 状态，不提供公网通道。
 - `DELETE /api/browsers/:id`：撤销配置与内部凭据。
 - `GET /api/pairings`：尚有效的请求、名称、Origin、核对码、截止时间。
 - `POST /api/pairings/:id/approve`：批准当前请求，成功 204。
@@ -98,3 +99,11 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 ### 数据与恢复
 
 配置身份及内部凭据哈希持久保存到当前 OS 用户的数据目录；标签仅在内存，不写数据库或日志。扩展限制普通 HTTP/HTTPS、排除无痕，去除 URL 查询、fragment 和用户信息。最多 500 标签；标题最多 256 字符、URL 最多 2048 字符。连接断开即清空旧标签，重新连接后重新查询。扩展使用事件、心跳、退避与 alarm 恢复，不重放网页副作用，因为本阶段没有动作接口。
+
+### 可选版本元数据扩展
+
+新版 daemon 的 `ready` 包含 `metadataSupported: true`；新版扩展只在此协商成功后发送 `{v:1,type:"metadata",metadata:{browserName,browserVersion,versionSource,extensionVersion}}`。旧扩展不发送仍可连接，新扩展对旧 daemon 不发送未知消息。元数据仅从已认证当前 socket 接受，与标签同样由连接代次隔离，不持久保存。
+
+`versionSource` 为 `clientHints`、`userAgent` 或 `unknown`。Client Hints 全版本可用时优先，失败退回 UA；UA 版本可能降精度，UI 不承诺完整版本。扩展版本来自自身 manifest。所有名称与版本受类型/长度校验；这只是认证客户端自报，不是浏览器安装证明或代码签名验证。
+
+`release-info.ts` 声明当前发行与预期扩展版本；测试核对 CLI 包身份及 WXT 清单防止常量漂移。当前 `0.1.0-dev.1` daemon 与 `0.0.1` 扩展分别是应用发行和浏览器清单版本，不拿二者直接判插件不一致；插件比较目标为 `expectedExtensionVersion`。

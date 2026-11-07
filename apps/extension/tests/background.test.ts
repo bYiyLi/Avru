@@ -47,6 +47,7 @@ vi.mock('wxt/browser', () => ({
     alarms: { create: mock.create, onAlarm: { addListener: mock.alarm } },
     runtime: {
       id: 'extension',
+      getManifest: () => ({ version: '0.0.1' }),
       getURL: (path: string) => `chrome-extension://extension${path}`,
       onMessage: { addListener: mock.message },
     },
@@ -78,6 +79,7 @@ it('wires the browser adapter, popup-only requests, events and retry alarm', asy
   });
   await ports.clear();
   await ports.tabs();
+  expect((await ports.metadata?.())?.extensionVersion).toBe('0.0.1');
   expect(ports.uuid()).toMatch(/-/);
   expect(ports.socket('ws://127.0.0.1')).toBeDefined();
   const timer = ports.later(vi.fn(), 100);

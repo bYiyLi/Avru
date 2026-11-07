@@ -32,6 +32,19 @@ describe('local daemon HTTP trust boundary', () => {
       state: 'browser-connection',
       browserControl: false,
     });
+    expect(
+      (await instance.inject({ url: '/api/status', headers: { host } }))
+        .statusCode,
+    ).toBe(401);
+    expect(
+      (await instance.inject({ url: '/api/status', headers })).json<unknown>(),
+    ).toEqual({
+      daemonVersion: '0.1.0-dev.1',
+      expectedExtensionVersion: '0.0.1',
+      mcp: 'notImplemented',
+      chatgpt: 'notImplemented',
+      frpc: 'notImplemented',
+    });
     expect(health.headers['cache-control']).toBe('no-store');
     expect(health.headers['content-security-policy']).toContain(
       "frame-ancestors 'none'",
@@ -134,4 +147,21 @@ describe('management Web assets', () => {
     rmSync(root, { recursive: true });
     expect((await instance.inject({ url: '/', headers })).statusCode).toBe(503);
   });
+});
+
+it('rejects an empty JSON DELETE but accepts a bodyless mutation without content type', async () => {
+  const instance = app();
+  const bad = await instance.inject({
+    method: 'DELETE',
+    url: '/api/browsers/missing',
+    headers: { ...headers, 'content-type': 'application/json' },
+  });
+  expect(bad.statusCode).toBe(400);
+  expect(bad.json<{ code: string }>().code).toBe('FST_ERR_CTP_EMPTY_JSON_BODY');
+  const valid = await instance.inject({
+    method: 'DELETE',
+    url: '/api/browsers/missing',
+    headers,
+  });
+  expect(valid.statusCode).toBe(404);
 });

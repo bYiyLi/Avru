@@ -1,94 +1,44 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Controller, ViewState } from './controller.js';
-
+import { language, translate as t } from './presentation.js';
+import type { Language } from './presentation.js';
+import { Welcome } from './Welcome.js';
+import { Install } from './Install.js';
+import { Overview } from './Overview.js';
+import { Pairings } from './Pairings.js';
+import type { Actions } from './Pairings.js';
 export function Dashboard({
   state,
   approve,
   reject,
   revoke,
-}: {
-  state: ViewState;
-  approve: (id: string) => void;
-  reject: (id: string) => void;
-  revoke: (id: string) => void;
-}) {
+  locale = 'zh',
+}: { state: ViewState; locale?: Language } & Actions) {
   return (
-    <main>
-      <p>Avru · 本机管理</p>
-      <h1>浏览器控制工作台</h1>
-      <p>
-        连接本机浏览器，查看已配对的浏览器配置与标签页。此阶段不提供远程 MCP
-        或网页操作。
-      </p>
-      {state.message && <p role="status">{state.message}</p>}
-      {!state.authorized ? (
-        <p>请重新打开守护进程启动时提供的管理链接。</p>
-      ) : (
-        <>
-          <p>
-            请在浏览器扩展中点击连接，再在此核对并批准请求。无需输入或复制凭据。
-          </p>
-          {state.pairings.map((pairing) => (
-            <section key={pairing.id} aria-label="配对请求">
-              <h2>{pairing.name} 请求配对</h2>
-              <p>
-                核对扩展弹窗与此处的六位码完全一致，再批准。不要批准不认识的请求。
-              </p>
-              <code>{pairing.code}</code>
-              <p>扩展来源：{pairing.origin}</p>
-              <p>有效期至 {new Date(pairing.expiresAt).toLocaleTimeString()}</p>
-              <button
-                disabled={state.busy}
-                onClick={() => {
-                  approve(pairing.id);
-                }}
-              >
-                核对一致，批准配对
-              </button>
-              <button
-                disabled={state.busy}
-                onClick={() => {
-                  reject(pairing.id);
-                }}
-              >
-                拒绝请求
-              </button>
-            </section>
-          ))}
-          {!state.browsers.length && (
-            <p>尚未连接浏览器，请先安装扩展并配对。</p>
-          )}
-          {state.browsers.map((browser) => (
-            <section key={browser.id}>
-              <h2>{browser.name}</h2>
-              <p>{browser.connected ? '在线' : '离线，等待浏览器重新连接'}</p>
-              <p>配置标识：{browser.id}</p>
-              <button
-                disabled={state.busy}
-                onClick={() => {
-                  revoke(browser.id);
-                }}
-              >
-                撤销此浏览器配对
-              </button>
-              {browser.connected && (
-                <ul>
-                  {browser.tabs.map((tab) => (
-                    <li key={tab.id}>
-                      <strong>{tab.title}</strong>
-                      <p>{tab.url}</p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          ))}
-        </>
-      )}
-    </main>
+    <>
+      <Pairings
+        state={state}
+        locale={locale}
+        approve={approve}
+        reject={reject}
+      />
+      <Overview state={state} locale={locale} revoke={revoke} />
+    </>
   );
 }
-export function App({ controller }: { controller: Controller }) {
+export function App({
+  controller,
+  preferredLanguage = navigator.language,
+  agent = navigator.userAgent,
+}: {
+  controller: Controller;
+  preferredLanguage?: string;
+  agent?: string;
+}) {
+  const locale = language(preferredLanguage);
+  const [page, setPage] = useState<'welcome' | 'install' | 'overview'>(
+    'welcome',
+  );
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.snapshot,
@@ -98,18 +48,138 @@ export function App({ controller }: { controller: Controller }) {
     controller.start();
     return controller.stop;
   }, [controller]);
+  const actions = {
+    approve: (id: string) => {
+      controller.approve(id).catch(controller.stop);
+    },
+    reject: (id: string) => {
+      controller.reject(id).catch(controller.stop);
+    },
+    revoke: (id: string) => {
+      controller.revoke(id).catch(controller.stop);
+    },
+  };
   return (
-    <Dashboard
-      state={state}
-      approve={(id) => {
-        controller.approve(id).catch(controller.stop);
-      }}
-      reject={(id) => {
-        controller.reject(id).catch(controller.stop);
-      }}
-      revoke={(id) => {
-        controller.revoke(id).catch(controller.stop);
-      }}
-    />
+    <div className="shell" lang={locale}>
+      <Header locale={locale} />
+      <main>
+        <Navigation locale={locale} page={page} setPage={setPage} />
+        <Notices locale={locale} state={state} />
+        {page === 'welcome' && (
+          <Welcome
+            locale={locale}
+            next={() => {
+              setPage('install');
+            }}
+          />
+        )}
+        {page === 'install' && (
+          <>
+            <Install
+              locale={locale}
+              agent={agent}
+              next={() => {
+                setPage('overview');
+              }}
+            />
+            {state.authorized && (
+              <Pairings state={state} locale={locale} {...actions} />
+            )}
+          </>
+        )}
+        {page === 'overview' && state.authorized && (
+          <Dashboard state={state} locale={locale} {...actions} />
+        )}
+      </main>
+      <footer>
+        <span>
+          {t(
+            locale,
+            '外观随系统 · 语言随浏览器首选语言',
+            'System appearance · Browser language',
+          )}
+        </span>
+        <span>AVRU / LOCAL</span>
+      </footer>
+    </div>
+  );
+}
+
+function Header({ locale }: { locale: Language }) {
+  return (
+    <header>
+      <div className="wordmark">
+        <span className="mark" aria-hidden="true">
+          Λ
+        </span>{' '}
+        avru
+      </div>
+      <span className="local">
+        ● {t(locale, '本地优先', 'LOCAL BY DESIGN')}
+      </span>
+    </header>
+  );
+}
+
+function Navigation({
+  locale,
+  page,
+  setPage,
+}: {
+  locale: Language;
+  page: string;
+  setPage: (page: 'welcome' | 'install' | 'overview') => void;
+}) {
+  return (
+    <nav aria-label={t(locale, '安装步骤', 'Setup steps')}>
+      <button
+        onClick={() => {
+          setPage('welcome');
+        }}
+      >
+        {t(locale, '欢迎', 'Welcome')}
+      </button>
+      <button
+        onClick={() => {
+          setPage('install');
+        }}
+      >
+        {t(locale, '安装扩展', 'Install extension')}
+      </button>
+      <button
+        onClick={() => {
+          setPage('overview');
+        }}
+      >
+        {t(locale, '总览', 'Overview')}
+      </button>
+      <span>
+        {page === 'welcome' ? '1' : page === 'install' ? '2' : '3'} / 3
+      </span>
+    </nav>
+  );
+}
+
+function Notices({ locale, state }: { locale: Language; state: ViewState }) {
+  return (
+    <>
+      {' '}
+      {!state.authorized && (
+        <p role="alert" className="notice">
+          {t(
+            locale,
+            '请重新打开守护进程启动时提供的管理链接。',
+            'Reopen the private management link provided by the daemon.',
+          )}
+        </p>
+      )}
+      {state.message && (
+        <p role="status" className="notice">
+          {locale === 'zh'
+            ? state.message
+            : 'Connection or request could not be confirmed. Check the daemon and reopen its management link if needed.'}
+        </p>
+      )}
+    </>
   );
 }
