@@ -1,0 +1,16 @@
+{
+  "threshold": 0,
+  "minLines": 8,
+  "minTokens": 80,
+  "format": ["typescript", "tsx", "javascript"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.output/**",
+    "**/.wxt/**",
+    "**/tests/**",
+    "**/*.test.*",
+    "**/*.spec.*"
+  ],
+  "reporters": ["console"]
+}

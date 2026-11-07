@@ -2,7 +2,10 @@ import { buildApp } from './app.js';
 const app = buildApp();
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
-    void app.close();
+    app.close().catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    });
   });
 }
 try {

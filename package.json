@@ -13,17 +13,37 @@
     "test": "vitest run",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "check": "pnpm format:check && pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm check:types && pnpm check:boundaries && pnpm check:duplicates && pnpm check:secrets && pnpm test:coverage && pnpm build",
     "dev:web": "pnpm --filter @avru/web dev",
     "dev:daemon": "pnpm --filter @avru/daemon dev",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "lint": "eslint . --max-warnings 0",
+    "test:coverage": "vitest run --coverage",
+    "check:boundaries": "depcruise --config config/quality/dependency-cruiser.cjs apps packages",
+    "check:duplicates": "jscpd --config config/quality/jscpd.json apps packages",
+    "check:secrets": "secretlint \"**/*\" \".github/**/*\" \".npmrc\" --secretlintignore .secretlintignore",
+    "check:types": "type-coverage --project tsconfig.quality.json --at-least 99 --strict --detail && type-coverage --project apps/extension/tsconfig.json --at-least 99 --strict --detail",
+    "check:audit": "pnpm audit --audit-level high",
+    "validate": "pnpm check && pnpm test:gates && pnpm check:audit && pnpm test:e2e",
+    "test:gates": "node --test tests/quality/gates.test.mjs"
   },
   "devDependencies": {
-    "typescript": "5.9.3",
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.0",
+    "@secretlint/secretlint-rule-preset-recommend": "13.1.0",
     "@types/node": "24.19.2",
-    "tsx": "4.23.15",
+    "@vitest/coverage-v8": "5.1.0",
+    "dependency-cruiser": "18.7.2",
+    "eslint": "10.14.0",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "globals": "17.14.0",
+    "jscpd": "5.4.2",
     "prettier": "3.9.10",
-    "vitest": "5.1.0",
-    "@playwright/test": "1.65.0"
+    "secretlint": "13.1.0",
+    "tsx": "4.23.15",
+    "type-coverage": "2.31.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.1.0"
   }
 }

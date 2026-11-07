@@ -18,13 +18,13 @@ SQLite 已选但 schema/驱动/迁移未实现；QuickJS WASM 已选但具体包
 
 ## 开发命令与验证方法
 
-命令均从仓库根目录运行。`pnpm install --frozen-lockfile` 安装后，用 `pnpm check` 依次完成 Prettier 只读检查、TypeScript、Vitest、构建。单独命令见根 package.json 和 README。`pnpm format` 是修复格式，不是检查。
+命令均从仓库根目录运行。`pnpm install --frozen-lockfile` 安装后，用 `pnpm check` 完成基础门禁和构建；当前完整顺序见 [工程质量门禁](quality.md)。单独命令见根 package.json 和 README。`pnpm format` 是修复格式，不是检查。
 
 `pnpm --filter @avru/cli dev --help` 只显示开发帮助。缺省、安装/卸载和未知参数返回非零，不改变宿主系统。`pnpm dev:daemon` 只监听 127.0.0.1 随机端口的 health 服务，Ctrl+C 关闭。`pnpm dev:web` 是独立开发服务器，不是正式 daemon 托管管理页面。
 
 `pnpm test:e2e` 需要 Playwright Chromium；可先运行 `pnpm exec playwright install chromium`。现有测试 Chromium 可通过 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定。测试创建临时 profile，不能使用用户日常 profile；测试浏览器与产品扩展控制是两个不同用途。
 
-## 本轮证据与状态
+## 初始骨架证据与状态（门禁增量前）
 
 检查针对本次工程文件、固定依赖与锁文件，在云端 Linux（Node 24.22.1 / pnpm 11.25.0）执行；不是 Windows/macOS 实机验收。
 
@@ -40,7 +40,7 @@ SQLite 已选但 schema/驱动/迁移未实现；QuickJS WASM 已选但具体包
 | 格式及最终文件检查 | 通过，最终 `pnpm check` 包含 Prettier 检查；发布前核对版本、链接与生成文件排除                                                                   |
 | CI                 | 配置 Ubuntu/Windows/macOS 的同一 `pnpm check`，Linux 另执行 Playwright；配置存在不等于运行通过，实际提交的状态单独回执                           |
 
-已做独立源码/配置审查，修复扩展全零 Manifest 版本；没有将 UI 占位、依赖声明或目录存在记为产品功能。当前范围不设置未经需求支持的覆盖率、文件长度或目录数量阈值；后续质量门禁以获准规范为准。
+已做独立源码/配置审查，修复扩展全零 Manifest 版本；没有将 UI 占位、依赖声明或目录存在记为产品功能。后续已获准的覆盖率、文件长度等门禁及增量验证见 [工程质量门禁](quality.md)，不将下述初始证据冒充最新测试结果。
 
 ## 下一步与真实阻塞
 

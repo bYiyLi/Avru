@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { command } from '../src/command.js';
 describe('scaffold CLI', () => {
-  it('provides help without claiming installation', () => {
-    expect(command(['--help']).code).toBe(0);
-    expect(command(['--help']).message).toContain('not implemented');
+  it.each(['--help', '-h'])(
+    'provides help for %s without claiming installation',
+    (flag) => {
+      expect(command([flag]).code).toBe(0);
+      expect(command([flag]).message).toContain('not implemented');
+    },
+  );
+  it('reports an unreleased version', () => {
+    expect(command(['--version'])).toEqual({
+      code: 0,
+      message: '0.0.0 (unreleased scaffold)',
+    });
   });
   it.each([[], ['install'], ['uninstall'], ['--help', 'uninstall']])(
     'rejects unsupported arguments %j',

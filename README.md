@@ -30,6 +30,7 @@ Avru 是一个独立的浏览器控制项目：让 ChatGPT 等 AI 通过 MCP，�
 | [产品需求](docs/requirements.md)                       | 已确认需求、来源及可观察的验收标准                 |
 | [技术设计](docs/design.md)                             | 系统边界、逻辑架构、连接与授权流程、安全与故障设计 |
 | [初始化范围与验证](docs/development/initialization.md) | 工程目录、开发命令、已验证范围与阻塞               |
+| [工程质量门禁](docs/development/quality.md)            | 阈值、源码范围、CI 与验证限制                      |
 | [决定与开放问题](docs/decisions.md)                    | 已确认决定、重要待定项及实现前的阻塞条件           |
 
 需求文档拥有产品承诺，设计文档拥有技术方案，决定清单记录确认程度。设计建议不能自动升级为已批准需求，验收标准也不表示测试已经通过。
