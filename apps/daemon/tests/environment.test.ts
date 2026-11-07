@@ -1,4 +1,11 @@
-import { mkdtemp, rm, writeFile, readFile, symlink } from 'node:fs/promises';
+import {
+  mkdtemp,
+  rm,
+  writeFile,
+  readFile,
+  symlink,
+  mkdir,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
@@ -47,22 +54,22 @@ it('rejects legacy and cross-channel roots without changing data', async () => {
   }
 });
 
-it.skipIf(process.platform === 'win32')(
-  'refuses linked state before opening the other environment database',
-  async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'avru-linked-'));
-    try {
-      const dev = join(dir, 'dev');
-      await verifyDataRoot(dev, 'dev');
-      const prod = join(dir, 'prod.sqlite');
-      await writeFile(prod, 'prod preserved');
-      await symlink(prod, join(dev, 'browsers.sqlite'));
-      await expect(verifyDataRoot(dev, 'dev')).rejects.toThrow(
-        'Linked Avru state',
-      );
-      expect(await readFile(prod, 'utf8')).toBe('prod preserved');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  },
-);
+it('refuses linked state before opening the other environment database', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'avru-linked-'));
+  try {
+    const dev = join(dir, 'dev');
+    await verifyDataRoot(dev, 'dev');
+    const prodRoot = join(dir, 'prod');
+    await mkdir(prodRoot);
+    const prod = join(prodRoot, 'browsers.sqlite');
+    await writeFile(prod, 'prod preserved');
+    // Directory junctions require no Windows symlink privilege.
+    await symlink(prodRoot, join(dev, 'browsers.sqlite'), 'junction');
+    await expect(verifyDataRoot(dev, 'dev')).rejects.toThrow(
+      'Linked Avru state',
+    );
+    expect(await readFile(prod, 'utf8')).toBe('prod preserved');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
