@@ -83,7 +83,6 @@
 
 官方依据（2026-11-07 核对）：[新包支持公告](https://github.blog/changelog/2026-10-02-npm-staged-publishing-now-supports-creating-new-packages/)、[stage 命令/标签](https://docs.npmjs.com/cli/v11/commands/npm-stage/)、[token 创建界面](https://docs.npmjs.com/creating-and-viewing-access-tokens/)、[stage-only 权限边界](https://docs.npmjs.com/about-access-tokens/)。
 
-
 ## 一次性直接 CI 发布（0.1.0-dev.1）
 
 用户已明确批准固定候选直接公开到 `dev`，无需 npm 人工审批。两次 staging 分别在运行 `42397893155`、`42400572399` 返回 `Version uniqueness check failed unexpectedly`，根因未确定，不能保证改走直接发布能够解决。不得自行重复上传、改包名、抬高版本或改为 latest。
