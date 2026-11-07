@@ -31,4 +31,6 @@ macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.plist`，Windows 写用�
 
 `pnpm package:cli` 构建自包含 CLI、launcher、daemon payload 与 Web，输出 `artifacts/avru`。`pnpm test:installer` 在临时数据目录运行实际 bundle；测试自启动文件只写临时 home，不改 CI 宿主的真实登录入口。正式 npm 发布、真实 OS 注销登录、用户电脑安装另行验收。
 
-2026-11-07 云端 Linux 的完整 `pnpm check` 通过：93 项测试，逐模块覆盖维持 ≥90%；7 项门禁反例通过，audit 仍有既有 1 个 moderate 开发依赖告警。真实 bundle 生命周期测试通过。Windows/macOS CI 结果待核验，不能由 Linux 推断 OS 登录已验收。
+2026-11-07 云端 Linux 的完整 `pnpm check` 通过：100 项测试，逐模块覆盖维持 ≥90%；7 项门禁反例通过，audit 仍有既有 1 个 moderate 开发依赖告警。真实 bundle 生命周期测试通过。提交 `74d610ae46c1a1ca7ab0afc94f90e5d195c74def` 的 [CI 42382474135](https://github.com/bYiyLi/Avru/actions/runs/42382474135) 已通过 Windows、macOS 和 audit 三个 job，已读取步骤与日志。两平台验证真实 bundle 安装、修复、保留数据、删除临时包后从自定义目录 launcher 恢复、卸载，以及既有真实 Chromium 双配置配对/重连 E2E。Windows 跳过不稳定权限前提的符号链接创建测试，其他安全用例继续执行。首次 Windows 验证发现普通文件被当父目录时系统返回 ENOENT 而非 ENOTDIR，已改为显式父目录类型校验后重跑通过；没有降低质量阈值。CI 未实际注销/登录或注册宿主自启动项，因此 OS 登录触发仍需单独验收。
+
+登录入口从自身稳定路径推导数据根，不依赖临时 npx 环境变量。launcher 随 release 保存，切换失败恢复旧版本 launcher；注册失败原子撤销本次 launcher 替换。
