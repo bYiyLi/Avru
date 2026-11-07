@@ -24,7 +24,9 @@ test('staging checks exact source, dev metadata and tarball checksum', async () 
     };
     await writeFile(manifestPath, JSON.stringify(manifest));
     const file = 'avru-0.1.0-dev.1.tgz';
-    execFileSync('tar', ['-czf', join(input, file), '-C', root, 'package']);
+    execFileSync('tar', ['-czf', `artifacts/stage-input/${file}`, 'package'], {
+      cwd: root,
+    });
     const hash = createHash('sha256')
       .update(await readFile(join(input, file)))
       .digest('hex');
