@@ -15,18 +15,18 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: github.repository == 'bYiyLi/Avru' && github.event.repository.private == true && github.ref == 'refs/heads/main' && inputs.confirm_public_release
+    if: github.repository == 'bYiyLi/Avru' && github.ref == 'refs/heads/main' && inputs.confirm_public_release
     runs-on: macos-latest
     timeout-minutes: 15
     defaults:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: 1d05014768a12efba0bc249c2b4b5faf3ba8246e
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24.22.1'
       - name: Install pinned npm without lifecycle scripts
@@ -47,7 +47,7 @@ jobs:
             if (!jobs.some(job => job.name === name && job.conclusion === 'success')) throw Error('Platform validation missing');
           }
           NODE
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           artifact-ids: '13582611914'
           run-id: '42394455061'
