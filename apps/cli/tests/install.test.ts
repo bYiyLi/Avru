@@ -19,6 +19,9 @@ import {
   rejectLinks,
   writeActive,
 } from '../src/install-files.js';
+const manifestKeys = JSON.parse(
+  await readFile('apps/extension/manifest-keys.json', 'utf8'),
+) as Record<'dev' | 'prod', string>;
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(
@@ -34,6 +37,15 @@ async function fixture() {
   await mkdir(join(sourceRoot, 'web'), { recursive: true });
   await writeFile(join(sourceRoot, 'daemon.cjs'), '// payload');
   await writeFile(join(sourceRoot, 'web/index.html'), 'web');
+  await mkdir(join(sourceRoot, 'extension'));
+  await writeFile(
+    join(sourceRoot, 'extension/manifest.json'),
+    JSON.stringify({
+      manifest_version: 3,
+      version: '0.0.1',
+      key: manifestKeys.dev,
+    }),
+  );
   const hooks = {
     stop: vi.fn<() => Promise<void>>().mockResolvedValue(),
     start: vi

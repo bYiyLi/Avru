@@ -1,4 +1,6 @@
 import { build } from 'esbuild';
+import { fileURLToPath } from 'node:url';
+import { releaseChannel } from '../packages/protocol/environment.js';
 import { cp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { obfuscationPlugin } from './release/obfuscate.mjs';
 import { collectLicenses } from './release/licenses.mjs';
@@ -54,6 +56,11 @@ metas.push(
 );
 await cp(`${out}/launcher.mjs`, `${out}/payload/launcher.mjs`);
 await cp('apps/web/dist', `${out}/payload/web`, { recursive: true });
+await cp(
+  `apps/extension/.output/${releaseChannel()}/chrome-mv3`,
+  `${out}/payload/extension`,
+  { recursive: true },
+);
 await writeFile(
   `${out}/package.json`,
   JSON.stringify(
@@ -85,10 +92,40 @@ const web = await build({
   loader: { '.css': 'css' },
 });
 metas.push(web.metafile);
+const extension = await build({
+  entryPoints: [
+    'apps/extension/entrypoints/background.ts',
+    'apps/extension/entrypoints/popup/main.ts',
+    'apps/extension/entrypoints/consent/main.ts',
+  ],
+  bundle: true,
+  write: false,
+  metafile: true,
+  outdir: 'artifacts/extension-license-analysis',
+  external: ['wxt/browser'],
+  loader: { '.css': 'css' },
+});
+metas.push(extension.metafile);
+// WXT's generated bootstrap bundles its browser API shim.
+const browserShim = await build({
+  entryPoints: ['wxt/browser'],
+  absWorkingDir: fileURLToPath(new URL('../apps/extension/', import.meta.url)),
+  bundle: true,
+  write: false,
+  metafile: true,
+});
+metas.push({
+  inputs: Object.fromEntries(
+    Object.entries(browserShim.metafile.inputs).map(([path, value]) => [
+      `apps/extension/${path}`,
+      value,
+    ]),
+  ),
+});
 await writeFile(`${out}/THIRD_PARTY_NOTICES.txt`, await collectLicenses(metas));
 await writeFile(
   `${out}/README.md`,
-  'Avru 0.1.0-dev.1 private test package. Windows/macOS, Node >=24.22.1 <25.\nLocal CLI/daemon/Web only. Browser extension must be built/loaded separately. MCP, QuickJS and local extension installation guide are not included.\nNot a public npm release. Bundling and obfuscation are not secrecy guarantees.\n',
+  'Avru 0.1.0-dev.1 private test package. Windows/macOS, Node >=24.22.1 <25.\nLocal CLI/daemon/Web only. Includes prebuilt browser extension; user must manually Load unpacked from the stable installation directory. QuickJS and remote transport setup are not included.\nNot a public npm release. Bundling and obfuscation are not secrecy guarantees.\n',
 );
 await verifyPackage(out);
 console.log('Local package prepared; no npm publication performed.');

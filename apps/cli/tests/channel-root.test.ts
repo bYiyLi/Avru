@@ -10,6 +10,9 @@ import {
 } from '../src/channel-root.js';
 import { install, uninstall } from '../src/install.js';
 import { planAutostart } from '../src/autostart.js';
+const manifestKeys = JSON.parse(
+  await readFile('apps/extension/manifest-keys.json', 'utf8'),
+) as Record<'dev' | 'prod', string>;
 const roots: string[] = [];
 afterEach(async () => {
   await Promise.all(
@@ -136,16 +139,29 @@ it('parallel channel installs and one uninstall preserve the other installation'
         ['dev', dev],
         ['prod', prod],
       ] as const
-    ).map(([channel, path]) =>
-      install({
+    ).map(async ([channel, path]) => {
+      const payload = join(base, `payload-${channel}`);
+      await mkdir(join(payload, 'web'), { recursive: true });
+      await mkdir(join(payload, 'extension'));
+      await writeFile(join(payload, 'daemon.cjs'), '// fixture');
+      await writeFile(join(payload, 'web/index.html'), '<html>fixture</html>');
+      await writeFile(
+        join(payload, 'extension/manifest.json'),
+        JSON.stringify({
+          manifest_version: 3,
+          version: '0.0.1',
+          key: manifestKeys[channel],
+        }),
+      );
+      return install({
         root: path,
         channel,
-        sourceRoot,
+        sourceRoot: payload,
         version: '0.1.0',
         execPath: process.execPath,
         hooks,
-      }),
-    ),
+      });
+    }),
   );
   const saved = await readFile(join(prod, 'program/active.json'), 'utf8');
   await writeFile(join(prod, 'browsers.sqlite'), 'prod data');

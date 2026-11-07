@@ -31,6 +31,11 @@ test('candidate whitelist and negative leakage probes', async () => {
     await writeFile(manifestPath, manifest.replace('0.1.0-dev.1', '0.1.0'));
     await assert.rejects(verifyPackage(dir), /Unexpected release identity/);
     await writeFile(manifestPath, manifest);
+    const localePath = join(dir, 'payload/extension/_locales/en/messages.json');
+    const locale = await readFile(localePath, 'utf8');
+    await rm(localePath);
+    await assert.rejects(verifyPackage(dir), /Missing package file/);
+    await writeFile(localePath, locale);
     await rm(join(dir, 'THIRD_PARTY_NOTICES.txt'));
     await assert.rejects(verifyPackage(dir), /Missing package file/);
   } finally {

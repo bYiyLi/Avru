@@ -9,6 +9,13 @@ const exact = new Set([
   'payload/daemon.cjs',
   'payload/launcher.mjs',
   'payload/web/index.html',
+  'payload/extension/manifest.json',
+  'payload/extension/background.js',
+  'payload/extension/popup.html',
+  'payload/extension/consent.html',
+  'payload/extension/_locales/en/messages.json',
+  'payload/extension/_locales/zh_CN/messages.json',
+  'payload/extension/_locales/zh_TW/messages.json',
 ]);
 export async function verifyPackage(root, channel = 'private') {
   const manifest = JSON.parse(
@@ -41,7 +48,11 @@ export async function verifyPackage(root, channel = 'private') {
   for (const path of files) {
     if (
       !exact.has(path) &&
-      !/^payload\/web\/assets\/[\w-]+\.(js|css)$/.test(path)
+      !/^payload\/web\/assets\/[\w-]+\.(js|css)$/.test(path) &&
+      !/^payload\/extension\/(?:chunks|assets)\/[\w-]+\.(js|css)$/.test(path) &&
+      !/^payload\/extension\/_locales\/(?:en|zh_CN|zh_TW)\/messages\.json$/.test(
+        path,
+      )
     )
       throw new Error(`Unexpected package file: ${path}`);
     const body = await readFile(join(root, path), 'utf8');

@@ -27,16 +27,18 @@ async function licenseText(id, dir) {
   return texts.join('\n\n');
 }
 async function overrideLicense(id) {
-  if (id !== 'abstract-logging@2.0.1')
-    throw new Error(`Missing third-party license: ${id}`);
+  const names = {
+    'abstract-logging@2.0.1': 'abstract-logging-2.0.1',
+    '@wxt-dev/browser@0.3.7': 'wxt-browser-0.3.7',
+    'wxt@0.21.5': 'wxt-0.21.5',
+  };
+  const name = names[id];
+  if (!name) throw new Error(`Missing third-party license: ${id}`);
   const root = 'scripts/release/license-overrides';
   const metadata = JSON.parse(
-    await readFile(join(root, 'abstract-logging-2.0.1.json'), 'utf8'),
+    await readFile(join(root, `${name}.json`), 'utf8'),
   );
-  const text = await readFile(
-    join(root, 'abstract-logging-2.0.1.LICENSE.txt'),
-    'utf8',
-  );
+  const text = await readFile(join(root, `${name}.LICENSE.txt`), 'utf8');
   const sha = createHash('sha256').update(text).digest('hex');
   if (
     `${metadata.package}@${metadata.version}` !== id ||

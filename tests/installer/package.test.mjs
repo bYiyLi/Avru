@@ -36,6 +36,21 @@ async function unusedPort() {
   return address.port;
 }
 
+async function verifyPreparedExtension(root, url) {
+  const key = new URLSearchParams(new URL(url).hash.slice(1)).get('key');
+  const status = await fetch(new URL('/api/status', url), {
+    headers: { authorization: `Bearer ${key}` },
+  });
+  const extension = (await status.json()).extensionFiles;
+  assert.equal(extension.directory, join(root, 'extension'));
+  assert.equal(extension.extensionId, 'cbjgomelhiahmdadpkeijpbkldblanei');
+  assert.equal(extension.version, '0.0.1');
+  assert.match(
+    await readFile(join(extension.directory, 'background.js'), 'utf8'),
+    /chrome|browser/,
+  );
+}
+
 async function exerciseInstall(root, cache, port) {
   const registration = join(root, 'autostart-test.txt');
   const hooks = {
@@ -69,6 +84,7 @@ async function exerciseInstall(root, cache, port) {
   assert.equal(first.browserOpened, true);
   const before = await inspectRuntime(root);
   assert.ok(before);
+  await verifyPreparedExtension(root, before.url);
   const denied = await fetch(new URL('/api/runtime', before.url));
   assert.equal(denied.status, 401);
   await writeFile(join(root, 'user-settings-test.json'), 'preserve me');
@@ -82,6 +98,7 @@ async function exerciseInstall(root, cache, port) {
     'preserve me',
   );
   await rm(cache, { recursive: true });
+  assert.ok(await readFile(join(root, 'extension', 'manifest.json'), 'utf8'));
   await stopRuntime(root);
   // Survives removal of the entire temporary npx-style package location.
   await copyFile(

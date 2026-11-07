@@ -1,13 +1,16 @@
+import type { ExtensionFiles } from './controller.js';
 import type { Language } from './presentation.js';
 import { browserGuide } from './presentation.js';
 import { translate as t } from './i18n.js';
 export function Install({
   locale,
   agent,
+  files = null,
   next,
 }: {
   locale: Language;
   agent: string;
+  files?: ExtensionFiles | null;
   next: () => void;
 }) {
   const guide = browserGuide(agent);
@@ -19,7 +22,11 @@ export function Install({
         {guide.name || t(locale, 'install.unknownBrowser')} ·{' '}
         {t(locale, 'install.detectionNotice')}
       </p>
-      <p className="notice">{t(locale, 'install.packageNotice')}</p>
+      <p className="notice">
+        {files
+          ? t(locale, 'install.prepared', { version: files.version })
+          : t(locale, 'install.packageNotice')}
+      </p>
       <ol className="install-steps">
         <li>
           <h2>{t(locale, 'install.openManager')}</h2>
@@ -31,6 +38,18 @@ export function Install({
         <li>
           <h2>{t(locale, 'install.load')}</h2>
           <p>{t(locale, 'install.loadInstructions')}</p>
+          {files && (
+            <>
+              <code
+                className="selectable"
+                aria-label={t(locale, 'install.directory')}
+              >
+                {files.directory}
+              </code>
+              <p>{t(locale, 'install.pathHelp')}</p>
+              <p>{t(locale, 'install.reload')}</p>
+            </>
+          )}
         </li>
         <li>
           <h2>{t(locale, 'install.connect')}</h2>

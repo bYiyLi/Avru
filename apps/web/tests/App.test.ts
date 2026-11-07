@@ -99,7 +99,11 @@ it('renders welcome and honest local installation guidance in both languages', (
       const install = Install({ locale, agent, next });
       clickButtons(install);
       const html = renderToStaticMarkup(install);
-      expect(html).toContain('chrome-mv3');
+      expect(html).toContain(
+        locale === 'zh'
+          ? '未检测到已准备的扩展目录'
+          : 'No prepared extension folder',
+      );
       expect(html).toContain('npx');
     }
   }
@@ -332,5 +336,31 @@ it('renders distinct localized errors instead of generic English or raw exceptio
       expect(html).toContain(preferredLanguage === 'zh' ? chinese : english);
       expect(html).not.toContain(message);
     }
+  }
+});
+
+it('shows the real prepared directory without claiming browser installation', () => {
+  const files = {
+    directory: '/custom/Avru/dev/extension',
+    version: '0.0.1',
+    extensionId: 'cbjgomelhiahmdadpkeijpbkldblanei',
+  };
+  for (const locale of ['zh', 'en'] as const) {
+    const html = renderToStaticMarkup(
+      Install({ locale, agent: 'Edg/150', files, next: vi.fn() }),
+    );
+    expect(html).toContain(files.directory);
+    expect(html).toContain(files.version);
+    expect(html).toContain('edge://extensions');
+    expect(html).not.toContain('chrome://extensions');
+    expect(html).toContain(
+      locale === 'zh'
+        ? '不代表当前浏览器已安装'
+        : 'does not mean the browser has installed',
+    );
+    expect(html).toContain(locale === 'zh' ? '重新加载' : 'Reload');
+    expect(html).not.toContain(
+      locale === 'zh' ? '未检测到已准备' : 'No prepared extension',
+    );
   }
 });

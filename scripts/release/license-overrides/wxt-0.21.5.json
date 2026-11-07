@@ -1,0 +1,10 @@
+{
+  "package": "wxt",
+  "version": "0.21.5",
+  "license": "MIT",
+  "textFile": "wxt-0.21.5.LICENSE.txt",
+  "sourceUrl": "https://github.com/wxt-dev/wxt/blob/abfdd7fe1c4faf0f72658f8a860d792dc9692a6c/LICENSE",
+  "packageEvidence": "https://github.com/wxt-dev/wxt/blob/abfdd7fe1c4faf0f72658f8a860d792dc9692a6c/packages/wxt/package.json",
+  "sha256": "7b0b00fcdbc6a036078aad84d0bc0fae240ac67144b86c911149c2daa37c9f85",
+  "note": "Upstream package includes only src and omits its repository MIT license. Exact version package.json and root LICENSE verified at pinned commit; applies to this dependency only."
+}

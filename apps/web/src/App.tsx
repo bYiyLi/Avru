@@ -79,6 +79,7 @@ export function App({
             <Install
               locale={locale}
               agent={agent}
+              files={state.system?.extensionFiles ?? null}
               next={() => {
                 setPage('overview');
               }}
