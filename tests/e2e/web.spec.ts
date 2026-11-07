@@ -1,10 +1,87 @@
 import { expect, test } from '@playwright/test';
-test('management scaffold does not claim browser readiness', async ({
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { buildApp } from '../../apps/daemon/src/app.js';
+import {
+  endpoint,
+  openObservedTab,
+  openProfile,
+  pairProfile,
+} from './browser-fixture.js';
+
+test('two real extension profiles pair, observe, reconnect and revoke', async ({
   page,
 }) => {
-  await page.goto('/');
-  await expect(
-    page.getByRole('heading', { name: '浏览器控制工作台' }),
-  ).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('尚未实现');
+  const directory = await mkdtemp(join(tmpdir(), 'avru-e2e-'));
+  let key = randomBytes(32).toString('hex');
+  const options = {
+    databasePath: join(directory, 'state.sqlite'),
+    webRoot: resolve('apps/web/dist'),
+    port: 43822,
+  };
+  let daemon = buildApp({ ...options, adminKey: key });
+  const profiles: Awaited<ReturnType<typeof openProfile>>[] = [];
+  try {
+    await daemon.listen({ host: '127.0.0.1', port: 43822 });
+    await page.goto(`${endpoint}/#key=${key}`);
+    await expect(page).toHaveURL(`${endpoint}/`);
+    const first = await openProfile(join(directory, 'first'));
+    profiles.push(first);
+    await pairProfile(first.popup, page, 'Profile One');
+    const second = await openProfile(join(directory, 'second'));
+    profiles.push(second);
+    await pairProfile(second.popup, page, 'Profile Two');
+    await openObservedTab(first.context, 'First observed page');
+    await openObservedTab(second.context, 'Second observed page');
+    await expect(
+      page.getByText('First observed page', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Second observed page', { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('https://avru.example/observed', { exact: true }),
+    ).toHaveCount(2);
+    await expect(page.locator('body')).not.toContainText('private=value');
+    await first.context.close();
+    profiles.shift();
+    await expect(
+      page.getByText('First observed page', { exact: true }),
+    ).toHaveCount(0);
+    const restored = await openProfile(join(directory, 'first'));
+    profiles.push(restored);
+    await openObservedTab(restored.context, 'Restored profile page');
+    await expect(
+      page.getByText('Restored profile page', { exact: true }),
+    ).toBeVisible();
+    await daemon.close();
+    key = randomBytes(32).toString('hex');
+    daemon = buildApp({ ...options, adminKey: key });
+    await daemon.listen({ host: '127.0.0.1', port: 43822 });
+    await page.goto(`${endpoint}/#key=${key}`);
+    await expect(
+      page.getByText('Restored profile page', { exact: true }),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByText('Second observed page', { exact: true }),
+    ).toBeVisible();
+    const firstSection = page.locator('section').filter({
+      has: page.getByRole('heading', { name: 'Profile One', exact: true }),
+    });
+    await firstSection
+      .getByRole('button', { name: '撤销此浏览器配对' })
+      .click();
+    await expect(
+      page.getByRole('heading', { name: 'Profile One', exact: true }),
+    ).toHaveCount(0);
+    await expect(restored.popup.getByRole('status')).not.toContainText(
+      '已连接',
+    );
+  } finally {
+    for (const profile of profiles) await profile.context.close();
+    await daemon.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });

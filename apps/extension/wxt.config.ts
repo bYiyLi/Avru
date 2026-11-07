@@ -1,11 +1,11 @@
 import { defineConfig } from 'wxt';
 export default defineConfig({
   manifest: {
-    name: 'Avru Development Scaffold',
-    description:
-      'Engineering scaffold. Browser connection and control are not implemented.',
+    name: 'Avru Browser Connection',
+    description: 'Connect browser tabs to your local Avru daemon.',
     version: '0.0.1',
-    permissions: [],
-    host_permissions: [],
+    minimum_chrome_version: '116',
+    permissions: ['storage', 'tabs', 'alarms'],
+    host_permissions: ['http://127.0.0.1/*'],
   },
 });

@@ -15,3 +15,36 @@ h1 {
 p {
   line-height: 1.8;
 }
+section {
+  background: white;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  border-radius: 12px;
+}
+button {
+  cursor: pointer;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #536478;
+  background: #fff;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+code,
+li p {
+  overflow-wrap: anywhere;
+}
+li {
+  padding: 0.5rem;
+}
+@media (max-width: 600px) {
+  main {
+    margin: 1rem auto;
+    padding: 1rem;
+  }
+  h1 {
+    font-size: 1.8rem;
+  }
+}

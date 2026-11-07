@@ -4,7 +4,7 @@ Avru 是一个独立的浏览器控制项目：让 ChatGPT 等 AI 通过 MCP，�
 
 ## 当前状态
 
-本仓库已建立开发骨架：CLI 帮助入口、Fastify 健康检查、React 管理界面占位页和 WXT 无权限扩展可构建。浏览器连接、MCP/OAuth、QuickJS 执行器、安装升级和自启动尚未实现；未发布 npm 包或浏览器扩展，也没有完成产品与跨平台运行验收。
+本仓库正在实现第一阶段本机连接：Fastify daemon 托管管理 Web，Chromium MV3 扩展经管理页批准配对，同步多个浏览器配置的普通网页标签并在断线后恢复。实现与验证范围见[本机连接记录](docs/development/browser-connection.md)。MCP/OAuth、网页操作、QuickJS 执行器、安装升级和自启动尚未实现；未发布 npm 包或浏览器扩展，不代表完整产品验收。
 
 项目名称已确定为 **Avru**。仓库名不代表 npm 包名、域名或商标已取得。
 
@@ -49,18 +49,23 @@ Avru 独立设计和维护。Kivo 等项目可以作为参考，不默认继承�
 pnpm install --frozen-lockfile
 pnpm check
 pnpm --filter @avru/cli dev --help
+pnpm build
 pnpm dev:daemon
 ```
 
-最后一条仅启动随机 loopback 端口上的 `/health` 开发服务，并打印 URL；Ctrl+C 停止。不安装服务、不创建数据库或配置自启动，也不开放 MCP、OAuth、配对或浏览器控制接口。
+最后一条启动 `127.0.0.1:43821` 本机服务，并在终端给出本次启动的管理链接。打开该链接；请不要分享链接。重启后需重新打开新链接。Ctrl+C 停止。此为开发入口，不安装系统服务、不配置自启动，也不开放 MCP/OAuth。
 
-`pnpm dev:web` 启动独立的本地开发页面。正式版由 daemon 托管 Web 的流程尚未实现。`pnpm --filter @avru/extension build` 生成 `.output/chrome-mv3`，目前只有无权限提示页，不能控制浏览器。
+开发扩展产物位于 `apps/extension/.output/chrome-mv3`。在受支持的 Chromium 测试浏览器扩展管理页启用开发者模式并加载该目录，然后打开 Avru 扩展弹窗，输入配置名称并点击“配对”。比较弹窗与管理页的六位核对码，在管理页批准。无需复制或填写内部凭据。其他浏览器配置重复该步骤。
 
-端到端开发检查需要浏览器：正常开发环境先 `pnpm exec playwright install chromium`，再 `pnpm test:e2e`。也可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定现有测试 Chromium；此选项不改变产品接入用户浏览器的方案。当前云端浏览器启动受限，详见初始化记录，不将测试配置视作通过。
+管理页显示普通 HTTP/HTTPS 标签的标题和去掉查询参数/片段的地址；不采集无痕、浏览器系统或文件页面，不读取页面正文。关闭浏览器后显示离线，重新打开会使用内部凭据恢复连接。需要停止访问时，在管理页撤销该浏览器配对。扩展弹窗“断开并清除本地凭据”只清除扩展端，服务端登记需在管理页撤销。
+
+daemon 默认使用当前 OS 用户的数据目录保存配对身份与凭据哈希（不保存标签）。可用 `AVRU_DATA_DIR` 指定专用开发目录；不要指向含其他应用数据的目录。`AVRU_PORT` 可调整开发端口，扩展弹窗需使用相同端口。`pnpm dev:web` 只用于界面开发；完整配对须使用 daemon 同源托管页面，而不是 Vite 的独立端口。
+
+端到端开发检查需要浏览器：正常开发环境先 `pnpm exec playwright install chromium`，再 `pnpm test:e2e`。也可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定现有测试 Chromium；此选项不改变产品接入用户浏览器的方案。实际端到端执行证据见本机连接记录；测试配置存在不等于通过。
 
 ```text
 apps/cli         npx 生命周期入口（当前仅帮助/版本）
-apps/daemon      可信服务与路由中心（当前仅健康检查）
+apps/daemon      本机可信配对、Web 托管与标签会话
 apps/web         React 管理界面
 apps/extension   WXT 浏览器扩展
 packages/runner  独立 QuickJS WASM 进程边界，待实现

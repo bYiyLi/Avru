@@ -48,3 +48,9 @@ SQLite 已选但 schema/驱动/迁移未实现；QuickJS WASM 已选但具体包
 2. 完成同机 OAuth、首次配对和 OS 用户隔离合同后，才能实现对外 MCP 和扩展控制入口。
 3. 固定最小动作与权限、WS 消息及 runner IPC、QuickJS 包/资源限制，然后建立真实浏览器到 daemon 的完整链路测试。
 4. 安装升级、用户登录自启动、数据库迁移、扩展分发与 npm 发布均未实现。不得用本轮基础检查替代这些产品验收。
+
+## 第一阶段连接增量
+
+本机配对与多配置标签同步现在按 [本机连接合同](browser-connection.md) 实施。前述“无权限扩展/仅健康检查”是历史骨架证据，不再描述本次源码；原 CI Ubuntu 项亦为历史，当前工作流仅 Windows/macOS。配对身份存储由 daemon 创建，标签仍仅在内存。开发者使用 `pnpm build` 后 `pnpm dev:daemon`，按 README 打开本次管理链接及加载扩展。
+
+本次真实 Chromium 云端启动仍在测试逻辑前受到 `socket() failed: Operation not permitted` 限制，未绕过。Windows/macOS 的实际 CI 结果须独立核验；本机连接不等同于远程授权、网页操作或安装能力完成。

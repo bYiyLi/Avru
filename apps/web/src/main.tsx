@@ -1,3 +1,5 @@
+import { createController } from './controller.js';
+import { managementSession } from './session.js';
 import { App } from './App.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -6,6 +8,6 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <App controller={createController(managementSession(window))} />
   </StrictMode>,
 );

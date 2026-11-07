@@ -22,6 +22,12 @@ jobs:
       - run: pnpm test:gates
       - run: pnpm exec playwright install chromium
       - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-connection-${{ matrix.os }}
+          path: test-results/
+          retention-days: 7
   audit:
     runs-on: macos-latest
     steps:
