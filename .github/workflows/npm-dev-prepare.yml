@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   prepare:
-    if: github.repository == 'bYiyLi/Avru' && github.event.repository.private == true && github.ref == 'refs/heads/main'
+    if: github.repository == 'bYiyLi/Avru' && github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -40,14 +40,14 @@ jobs:
       - run: pnpm test:release
       - name: Prepare public-runtime candidate without publishing
         run: |
-          node scripts/release/npm-candidate.mjs
+          node scripts/release/npm-candidate.mjs --scope
           mkdir -p artifacts/npm-distribution
           npm pack ./artifacts/npm-dev --ignore-scripts --pack-destination artifacts/npm-distribution
-          npm publish ./artifacts/npm-distribution/avru-0.1.0-dev.1.tgz --dry-run --ignore-scripts --tag dev --access public --registry https://registry.npmjs.org/ --provenance=false
+          npm publish ./artifacts/npm-distribution/avru-setup-0.1.0-dev.1.tgz --dry-run --ignore-scripts --tag dev --access public --registry https://registry.npmjs.org/ --provenance=false
           rm -rf artifacts/avru
           mkdir -p artifacts/avru
-          tar -xzf artifacts/npm-distribution/avru-0.1.0-dev.1.tgz -C artifacts/avru --strip-components=1
-          node --input-type=module -e "import {verifyPackage} from './scripts/release/verify.mjs'; await verifyPackage('artifacts/avru','npm-dev');"
+          tar -xzf artifacts/npm-distribution/avru-setup-0.1.0-dev.1.tgz -C artifacts/avru --strip-components=1
+          node --input-type=module -e "import {verifyPackage} from './scripts/release/verify.mjs'; await verifyPackage('artifacts/avru','npm-scoped-dev');"
           pnpm test:installer
       - run: pnpm exec playwright install chromium
       - run: pnpm test:e2e
@@ -56,17 +56,17 @@ jobs:
           node --input-type=module <<'NODE'
           import { readFile, writeFile } from 'node:fs/promises';
           import { createHash } from 'node:crypto';
-          const file = 'avru-0.1.0-dev.1.tgz';
+          const file = 'avru-setup-0.1.0-dev.1.tgz';
           const hash = createHash('sha256').update(await readFile(`artifacts/npm-distribution/${file}`)).digest('hex');
           await writeFile('artifacts/npm-distribution/SHA256SUMS', `${hash}  ${file}\n`);
-          await writeFile('artifacts/npm-distribution/release.json', JSON.stringify({sourceCommit:process.env.GITHUB_SHA, run:process.env.GITHUB_RUN_ID, platform:process.env.RUNNER_OS, version:'0.1.0-dev.1', channel:'dev', publishedToNpm:false, sha256:hash},null,2));
+          await writeFile('artifacts/npm-distribution/release.json', JSON.stringify({sourceCommit:process.env.GITHUB_SHA, run:process.env.GITHUB_RUN_ID, platform:process.env.RUNNER_OS, version:'0.1.0-dev.1', channel:'dev', publishedToNpm:false, packageName:'@avru/setup', extensionIncluded:true, sha256:hash},null,2));
           NODE
-      - name: Upload candidate only to private Actions storage
+      - name: Upload candidate to Actions (no npm publication)
         uses: actions/upload-artifact@v4
         with:
           name: npm-dev-candidate-${{ matrix.os }}-${{ github.sha }}-${{ github.run_id }}
           path: |
-            artifacts/npm-distribution/avru-0.1.0-dev.1.tgz
+            artifacts/npm-distribution/avru-setup-0.1.0-dev.1.tgz
             artifacts/npm-distribution/SHA256SUMS
             artifacts/npm-distribution/release.json
           if-no-files-found: error

@@ -1,41 +1,41 @@
-import { readdir, readFile, lstat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readdir, readFile, lstat } from "node:fs/promises";
+import { join } from "node:path";
 const exact = new Set([
-  'cli.mjs',
-  'launcher.mjs',
-  'package.json',
-  'THIRD_PARTY_NOTICES.txt',
-  'README.md',
-  'payload/daemon.cjs',
-  'payload/launcher.mjs',
-  'payload/web/index.html',
-  'payload/extension/manifest.json',
-  'payload/extension/background.js',
-  'payload/extension/popup.html',
-  'payload/extension/consent.html',
-  'payload/extension/_locales/en/messages.json',
-  'payload/extension/_locales/zh_CN/messages.json',
-  'payload/extension/_locales/zh_TW/messages.json',
+  "cli.mjs",
+  "launcher.mjs",
+  "package.json",
+  "THIRD_PARTY_NOTICES.txt",
+  "README.md",
+  "payload/daemon.cjs",
+  "payload/launcher.mjs",
+  "payload/web/index.html",
+  "payload/extension/manifest.json",
+  "payload/extension/background.js",
+  "payload/extension/popup.html",
+  "payload/extension/consent.html",
+  "payload/extension/_locales/en/messages.json",
+  "payload/extension/_locales/zh_CN/messages.json",
+  "payload/extension/_locales/zh_TW/messages.json",
 ]);
-export async function verifyPackage(root, channel = 'private') {
+export async function verifyPackage(root, channel = "private") {
   const manifest = JSON.parse(
-    await readFile(join(root, 'package.json'), 'utf8'),
+    await readFile(join(root, "package.json"), "utf8"),
   );
   if (
-    manifest.name !== 'avru' ||
-    manifest.version !== '0.1.0-dev.1' ||
-    (channel === 'private'
+    manifest.name !== (channel === "npm-scoped-dev" ? "@avru/setup" : "avru") ||
+    manifest.version !== "0.1.0-dev.1" ||
+    (channel === "private"
       ? manifest.private !== true
-      : channel !== 'npm-dev' ||
+      : !["npm-dev", "npm-scoped-dev"].includes(channel) ||
         manifest.private !== false ||
-        manifest.publishConfig?.tag !== 'dev' ||
-        manifest.publishConfig?.access !== 'public' ||
-        manifest.publishConfig?.registry !== 'https://registry.npmjs.org/' ||
-        manifest.repository?.url !== 'git+https://github.com/bYiyLi/Avru.git')
+        manifest.publishConfig?.tag !== "dev" ||
+        manifest.publishConfig?.access !== "public" ||
+        manifest.publishConfig?.registry !== "https://registry.npmjs.org/" ||
+        manifest.repository?.url !== "git+https://github.com/bYiyLi/Avru.git")
   )
-    throw new Error('Unexpected release identity or publication guard');
+    throw new Error("Unexpected release identity or publication guard");
   const files = [];
-  async function walk(dir, prefix = '') {
+  async function walk(dir, prefix = "") {
     for (const name of await readdir(dir)) {
       const path = prefix + name;
       const info = await lstat(join(dir, name));
@@ -55,7 +55,7 @@ export async function verifyPackage(root, channel = 'private') {
       )
     )
       throw new Error(`Unexpected package file: ${path}`);
-    const body = await readFile(join(root, path), 'utf8');
+    const body = await readFile(join(root, path), "utf8");
     if (
       /sourceMappingURL|sourcesContent|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9]{30,}/.test(
         body,
