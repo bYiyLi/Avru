@@ -49,3 +49,5 @@
 验收：授权拒绝不出现分派；协议错误不显示成功；内部异常不泄漏内容；调用方参数/凭据/响应不进入记录；最近 200 条有界留存且快照不可外部修改；未经本机管理授权不能读取；管理页显示关联 span/日志并在失联清空。完整质量门禁、Win/mac CI 与实际提交证据仍须完成，当前改动尚未提交/验收。
 
 当前本地观测工作树基于 `2b1fcd359c2917f617c37183f17353d3d139960d`，保留 dev/prod 隔离与 npm 发布流程。Linux / Node 24.22.1 / pnpm 11.25.0 的 `pnpm check` 已通过：180 测试，逐文件 90% 覆盖门禁通过；总体 statements 99.03%、branches 97.81%、functions 98.85%、lines 99.37%。审计 high/critical 门禁通过，仍有原有 1 moderate 告警。独立 review 发现无 ID 通知原先被描述为工具完成，已修为 notification_accepted、tool=null，并用不调用 snapshot 的测试和中英文 UI 测试复验。精确提交 Win/mac CI 尚待完成，不能称完整产品验收或实际 ChatGPT 连接成功。
+
+公开仓库交付核验：观测提交 `d6dc7081bfc134aaa2c1c90ef46a0ad0df744595` 的 [CI 42402662453](https://github.com/bYiyLi/Avru/actions/runs/42402662453) 已全部通过：标准 Windows/macOS runner 的质量门禁、门禁负向样本、安装包及真实浏览器 E2E，以及审计。新增 E2E 在实际扩展批准 OAuth 后发起 MCP 调用，核对 Web 工具记录、Trace ID、授权与分派事件；这不是实际 ChatGPT/FRPC 连接。Linux 本地 E2E 因 Chromium socket 权限失败，未绕过限制。公开前仅对本次 18 文件做了独立敏感内容审查与 Secretlint，未发现真凭据/个人数据；不代表完整 Git 历史安全审计。
