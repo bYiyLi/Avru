@@ -4,7 +4,7 @@
 
 ## 目录、事务与恢复
 
-`~/.avru` 是私有数据根：`browsers.sqlite` 为配对数据；`program/releases/<uuid>` 保存完整 bundle 与 Web；`program/active.json` 原子切换当前版本；`program/launcher.mjs` 为稳定登录入口。daemon 不依赖 npx 缓存。`runtime.json` 保存当前实例与私密管理链接，权限 0600；日志同样私有，不能将原始日志或链接贴到公开报告。
+数据根按[dev/prod环境合同](environments.md)选择；原`~/.avru`仅为拒绝自动采用的旧版根。各环境根内：`browsers.sqlite` 为配对数据；`program/releases/<uuid>` 保存完整 bundle 与 Web；`program/active.json` 原子切换当前版本；`program/launcher.mjs` 为稳定登录入口。daemon 不依赖 npx 缓存。`runtime.json` 保存当前实例与私密管理链接，权限 0600；日志同样私有，不能将原始日志或链接贴到公开报告。
 
 安装持有 `.install.lock` 排他锁，拒绝未知 program 归属及符号链接。候选完整后停止旧实例，再切换指针、启动并认证就绪，然后配置登录入口。失败恢复旧指针并重启旧实例；停止失败时不删除可能仍在使用的版本。旧 release 暂保留，不自动清理或迁移用户数据。崩溃遗留锁不自动抢占，先确认没有安装进程再人工处理，不能盲重试。浏览器打开失败不会回滚健康实例，而是给出本机私密链接。
 
@@ -12,7 +12,7 @@ runtime 描述符中的 PID 不是杀进程依据。CLI 验证 loopback 地址�
 
 ## 登录启动
 
-macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.plist`，Windows 写用户 Startup `Avru.cmd`，支持 APPDATA 重定向。只改 Avru 标记文件，拒绝覆盖外部文件。不是系统级服务，不需要管理员，不承诺登录前运行；当前启动由 CLI 完成，下一次登录由 OS 触发。macOS launcher 在 launchd 所属进程加载当前 daemon，不提前退出后遗留子进程；Windows launcher 启动后台子进程后退出。Windows 命令窗口可能短暂出现。关闭管理页不停止 daemon。
+macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.<channel>.plist`，Windows 写用户 Startup `Avru-<channel>.cmd`，支持 APPDATA 重定向。只改 Avru 标记文件，拒绝覆盖外部文件。不是系统级服务，不需要管理员，不承诺登录前运行；当前启动由 CLI 完成，下一次登录由 OS 触发。macOS launcher 在 launchd 所属进程加载当前 daemon，不提前退出后遗留子进程；Windows launcher 启动后台子进程后退出。Windows 命令窗口可能短暂出现。关闭管理页不停止 daemon。
 
 这是受当前 OS 用户保护的本机边界，不抵抗同用户恶意程序。macOS/Windows 文件权限和登录策略差异需实际机器验收，不能从 Unix mode 推断 Windows ACL。
 

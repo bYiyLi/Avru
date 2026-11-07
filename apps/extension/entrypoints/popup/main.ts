@@ -1,7 +1,13 @@
+import { defaultEndpoint } from '../../utils/channel';
 import { browser } from 'wxt/browser';
 import { record } from '../../utils/protocol';
 const status = document.querySelector<HTMLElement>('#status');
 const form = document.querySelector<HTMLFormElement>('form');
+const endpoint = document.querySelector<HTMLInputElement>('[name=endpoint]');
+if (endpoint) {
+  endpoint.value = defaultEndpoint();
+  endpoint.readOnly = true;
+}
 async function request(message: unknown): Promise<void> {
   try {
     const response = record(await browser.runtime.sendMessage(message));

@@ -1,3 +1,4 @@
+import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import type { Consent } from './oauth/authority.js';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { parseMessage } from './messages.js';
@@ -40,6 +41,7 @@ export class Connections {
       browserId: string,
       decision: { requestId: string; nonce: string; approved: boolean },
     ) => void,
+    private readonly channel?: ReleaseChannel,
   ) {}
 
   attach(
@@ -149,7 +151,9 @@ export class Connections {
   }
   private send(session: Session, value: Record<string, unknown>): boolean {
     try {
-      session.peer.send(JSON.stringify({ v: 1, ...value }));
+      session.peer.send(
+        JSON.stringify({ v: 1, channel: this.channel, ...value }),
+      );
       return true;
     } catch {
       this.disconnect(session);
@@ -223,6 +227,14 @@ export class Connections {
     }
     try {
       const message = parseMessage(raw);
+      if (
+        (message.type === 'pair' || message.type === 'authenticate') &&
+        this.channel &&
+        message.channel !== this.channel
+      ) {
+        this.fail(session, 'channel-mismatch');
+        return;
+      }
       if (session.browserId) {
         this.receiveAuthenticated(session, message);
       } else if (session.pendingId) {

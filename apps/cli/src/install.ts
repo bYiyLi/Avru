@@ -1,3 +1,5 @@
+import { releaseChannel } from '../../../packages/protocol/environment.js';
+import { claimRoot, type ReleaseChannel } from './channel-root.js';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -20,6 +22,7 @@ export interface InstallHooks {
 }
 export interface InstallOptions {
   root: string;
+  channel?: ReleaseChannel;
   sourceRoot: string;
   version: string;
   execPath: string;
@@ -90,6 +93,7 @@ async function activate(
 export async function install(options: InstallOptions): Promise<InstallResult> {
   const unlock = await lockRoot(options.root);
   try {
+    await claimRoot(options.root, options.channel ?? releaseChannel());
     const program = await ownedProgram(options.root);
     const previous = await readActive(program);
     const active = await stage(options, program);
@@ -116,12 +120,14 @@ export async function install(options: InstallOptions): Promise<InstallResult> {
 }
 export interface UninstallOptions {
   root: string;
+  channel?: ReleaseChannel;
   removeData?: boolean;
   hooks: { stop(): Promise<void>; removeAutostart(): Promise<void> };
 }
 export async function uninstall(options: UninstallOptions): Promise<void> {
   const unlock = await lockRoot(options.root);
   try {
+    await claimRoot(options.root, options.channel ?? releaseChannel());
     const program = await ownedProgram(options.root);
     await options.hooks.stop();
     await options.hooks.removeAutostart();

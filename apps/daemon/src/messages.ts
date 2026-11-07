@@ -10,8 +10,14 @@ export interface BrowserMetadata {
   extensionVersion: string;
 }
 export type Message =
-  | { v: 1; type: 'pair'; profileId: string; name: string }
-  | { v: 1; type: 'authenticate'; browserId: string; token: string }
+  | { v: 1; type: 'pair'; channel?: string; profileId: string; name: string }
+  | {
+      v: 1;
+      type: 'authenticate';
+      channel?: string;
+      browserId: string;
+      token: string;
+    }
   | { v: 1; type: 'tabs'; tabs: Tab[] }
   | { v: 1; type: 'metadata'; metadata: BrowserMetadata }
   | {
@@ -90,6 +96,9 @@ export function parseMessage(raw: string): Message {
       return {
         v: 1,
         type: 'pair',
+        ...(typeof value.channel === 'string'
+          ? { channel: value.channel }
+          : {}),
         profileId: value.profileId,
         name: value.name,
       };
@@ -103,6 +112,9 @@ export function parseMessage(raw: string): Message {
       return {
         v: 1,
         type: 'authenticate',
+        ...(typeof value.channel === 'string'
+          ? { channel: value.channel }
+          : {}),
         browserId: value.browserId,
         token: value.token,
       };

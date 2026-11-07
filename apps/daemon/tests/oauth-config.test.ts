@@ -21,6 +21,10 @@ it('loads an explicit HTTPS public origin and allowlisted clients, otherwise fai
     };
     await writeFile(path, JSON.stringify(valid));
     expect(await loadOAuthConfig(path)).toEqual(valid);
+    await expect(loadOAuthConfig(path, 'dev')).rejects.toThrow();
+    await writeFile(path, JSON.stringify({ ...valid, channel: 'dev' }));
+    expect(await loadOAuthConfig(path, 'dev')).toEqual(valid);
+    await expect(loadOAuthConfig(path, 'prod')).rejects.toThrow();
     for (const value of [
       null,
       { ...valid, port: 80 },

@@ -1,8 +1,19 @@
 import { defineConfig } from 'wxt';
+import { releaseChannel } from '../../packages/protocol/environment.js';
+import { parseChannel } from './utils/channel';
+import manifestKeys from './manifest-keys.json';
+const channel = parseChannel(
+  process.env.AVRU_BUILD_CHANNEL ?? releaseChannel(),
+);
 export default defineConfig({
+  vite: () => ({ define: { __AVRU_CHANNEL__: JSON.stringify(channel) } }),
   manifest: {
-    name: 'Avru Browser Connection',
+    name:
+      channel === 'dev'
+        ? 'Avru Dev Browser Connection'
+        : 'Avru Browser Connection',
     description: 'Connect browser tabs to your local Avru daemon.',
+    key: manifestKeys[channel],
     version: '0.0.1',
     minimum_chrome_version: '116',
     permissions: ['storage', 'tabs', 'alarms'],

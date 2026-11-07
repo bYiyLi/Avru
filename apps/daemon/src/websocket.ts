@@ -1,3 +1,5 @@
+import { extensionId } from '../../../packages/protocol/environment.js';
+import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
 import type { Server } from 'node:http';
@@ -13,6 +15,7 @@ export function connectWebSockets(
   server: Server,
   connections: Connections,
   port: number,
+  channel?: ReleaseChannel,
 ): () => void {
   const sockets = new WebSocketServer({
     noServer: true,
@@ -26,7 +29,9 @@ export function connectWebSockets(
       request.url !== '/extension' ||
       request.headers.host !== `127.0.0.1:${String(port)}` ||
       !origin ||
-      !/^chrome-extension:\/\/[a-p]{32}$/.test(origin)
+      !/^chrome-extension:\/\/[a-p]{32}$/.test(origin) ||
+      (channel !== undefined &&
+        origin !== `chrome-extension://${extensionId(channel)}`)
     ) {
       socket.destroy();
       return;

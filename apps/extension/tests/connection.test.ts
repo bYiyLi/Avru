@@ -8,9 +8,10 @@ const saved = {
   browserId: 'browser',
   token: 'secret',
 };
-function setup(initial?: unknown) {
+function setup(initial?: unknown, channel?: 'dev' | 'prod') {
   const sockets: Socket[] = [];
   const ports: Ports = {
+    ...(channel ? { channel } : {}),
     read: vi.fn().mockResolvedValue(initial),
     save: vi.fn().mockResolvedValue(undefined),
     clear: vi.fn().mockResolvedValue(undefined),
@@ -393,4 +394,60 @@ it('supports older adapters without consent UI without auto approving', async ()
   });
   await h.receive({ v: 1, type: 'oauth-close', requestId: 'id' });
   expect(h.connection.status()).toBe('已连接');
+});
+
+it('binds pairing and saved credentials to the immutable extension channel', async () => {
+  const wrong = setup({ ...saved, channel: 'prod' }, 'dev');
+  await wrong.connection.start();
+  expect(wrong.sockets).toHaveLength(0);
+  await expect(
+    wrong.connection.pair({ endpoint: saved.endpoint, name: 'Work' }),
+  ).rejects.toThrow('环境');
+  expect(wrong.sockets).toHaveLength(0);
+  const h = setup(undefined, 'dev');
+  await h.connection.pair({ endpoint: 'http://127.0.0.1:43822', name: 'Dev' });
+  h.current().onopen?.(new Event('open'));
+  expect(h.current().send).toHaveBeenCalledWith(
+    expect.stringContaining('"channel":"dev"'),
+  );
+  await h.receive({
+    v: 1,
+    type: 'paired',
+    channel: 'prod',
+    browserId: 'b',
+    token: 't',
+  });
+  expect(h.connection.status()).toContain('协议错误');
+  expect(h.ports.save).not.toHaveBeenCalled();
+  await h.connection.pair({ endpoint: 'http://127.0.0.1:43822', name: 'Dev' });
+  await h.receive({
+    v: 1,
+    type: 'paired',
+    channel: 'dev',
+    browserId: 'b',
+    token: 't',
+  });
+  expect(h.ports.save).toHaveBeenCalledWith(
+    expect.objectContaining({ channel: 'dev' }),
+  );
+  await h.receive({ v: 1, type: 'ready', browserId: 'b', connectionId: 'c' });
+  expect(h.connection.status()).toContain('协议错误');
+});
+it('authenticates only same-channel credentials before publishing tabs', async () => {
+  vi.useFakeTimers();
+  const h = setup({ ...saved, channel: 'prod' }, 'prod');
+  await h.connection.start();
+  h.current().onopen?.(new Event('open'));
+  expect(h.current().send).toHaveBeenCalledWith(
+    expect.stringContaining('"channel":"prod"'),
+  );
+  await h.receive({
+    v: 1,
+    type: 'ready',
+    channel: 'prod',
+    browserId: saved.browserId,
+    connectionId: 'c',
+  });
+  expect(h.connection.status()).toBe('已连接');
+  await h.connection.disconnect();
 });

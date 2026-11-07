@@ -1,3 +1,4 @@
+import { extensionChannel } from '../utils/channel';
 import type { ConsentRequest } from '../utils/oauth-consent';
 import { ConsentController } from '../utils/oauth-consent';
 import { browser } from 'wxt/browser';
@@ -37,6 +38,7 @@ export default defineBackground(() => {
     connection.decideOAuth(request, approved);
   });
   const connection = new Connection({
+    channel: extensionChannel(),
     onOAuthRequest: (request) => consent.show(request),
     onOAuthClose: (id) => {
       consent.close(id);

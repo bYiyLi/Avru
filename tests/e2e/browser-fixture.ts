@@ -25,7 +25,11 @@ export async function openProfile(directory: string) {
   return { context, popup };
 }
 export async function pairProfile(popup: Page, management: Page, name: string) {
-  await popup.locator('[name="endpoint"]').fill(endpoint);
+  await expect(popup.locator('[name="endpoint"]')).toHaveValue(endpoint);
+  await expect(popup.locator('[name="endpoint"]')).toHaveAttribute(
+    'readonly',
+    '',
+  );
   await popup.locator('[name="name"]').fill(name);
   await popup.getByRole('button', { name: '配对', exact: true }).click();
   const request = management
