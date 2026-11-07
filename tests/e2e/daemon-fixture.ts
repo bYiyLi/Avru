@@ -2,9 +2,14 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { resolve } from 'node:path';
 
-export async function startDaemon(dataDirectory: string) {
+export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
   const child = spawn(process.execPath, [resolve('apps/daemon/dist/main.js')], {
-    env: { ...process.env, AVRU_PORT: '43822', AVRU_DATA_DIR: dataDirectory },
+    env: {
+      ...process.env,
+      AVRU_PORT: '43822',
+      AVRU_DATA_DIR: dataDirectory,
+      ...(oauthConfig ? { AVRU_OAUTH_CONFIG: oauthConfig } : {}),
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   child.stderr.resume();

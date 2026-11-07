@@ -1,3 +1,5 @@
+import { consentRequest } from './oauth-consent';
+import type { ConsentRequest } from './oauth-consent';
 import {
   credentials,
   record,
@@ -16,6 +18,9 @@ export interface Socket {
 }
 import type { Metadata } from './metadata';
 export interface Ports {
+  onOAuthRequest?: (request: ConsentRequest) => Promise<void>;
+  onOAuthClose?: (requestId: string) => void;
+  resetOAuth?: () => void;
   metadata?: () => Promise<Metadata>;
   read: () => Promise<unknown>;
   save: (value: Credentials) => Promise<void>;
@@ -94,6 +99,16 @@ export class Connection {
     if (generation === this.generation && sequence === this.snapshotSequence)
       this.send({ v: 1, type: 'tabs', tabs });
   }
+  decideOAuth(request: ConsentRequest, approved: boolean): void {
+    if (this.ready)
+      this.send({
+        v: 1,
+        type: 'oauth-decision',
+        requestId: request.requestId,
+        nonce: request.nonce,
+        approved,
+      });
+  }
   private write(operation: () => Promise<void>): Promise<void> {
     this.writes = this.writes.then(operation, operation);
     return this.writes;
@@ -108,6 +123,7 @@ export class Connection {
   private stop(): void {
     this.generation++;
     this.ready = false;
+    this.ports.resetOAuth?.();
     this.pendingPong = false;
     if (this.timer) this.ports.cancel(this.timer);
     this.timer = undefined;
@@ -152,6 +168,7 @@ export class Connection {
       this.fail();
       return;
     }
+    if (await this.receiveOAuth(message)) return;
     if (message.type === 'error') {
       await this.reject(message.code);
       return;
@@ -184,6 +201,22 @@ export class Connection {
     }
     if (message.type === 'pong') this.pendingPong = false;
     if (message.type === 'ready') await this.acceptReady(message, generation);
+  }
+  private async receiveOAuth(
+    message: Record<string, unknown>,
+  ): Promise<boolean> {
+    if (message.type === 'oauth-request') {
+      if (!this.ready) throw new Error('Unauthenticated consent');
+      await this.ports.onOAuthRequest?.(consentRequest(message));
+      return true;
+    }
+    if (message.type === 'oauth-close') {
+      if (!this.ready || typeof message.requestId !== 'string')
+        throw new Error('Invalid consent close');
+      this.ports.onOAuthClose?.(message.requestId);
+      return true;
+    }
+    return false;
   }
   private async acceptReady(
     message: Record<string, unknown>,

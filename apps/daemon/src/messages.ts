@@ -14,6 +14,13 @@ export type Message =
   | { v: 1; type: 'authenticate'; browserId: string; token: string }
   | { v: 1; type: 'tabs'; tabs: Tab[] }
   | { v: 1; type: 'metadata'; metadata: BrowserMetadata }
+  | {
+      v: 1;
+      type: 'oauth-decision';
+      requestId: string;
+      nonce: string;
+      approved: boolean;
+    }
   | { v: 1; type: 'ping' };
 
 export function record(value: unknown): value is Record<string, unknown> {
@@ -98,6 +105,20 @@ export function parseMessage(raw: string): Message {
         type: 'authenticate',
         browserId: value.browserId,
         token: value.token,
+      };
+    case 'oauth-decision':
+      if (
+        !text(value.requestId, 64) ||
+        !text(value.nonce, 64) ||
+        typeof value.approved !== 'boolean'
+      )
+        throw new Error('Invalid consent');
+      return {
+        v: 1,
+        type: 'oauth-decision',
+        requestId: value.requestId,
+        nonce: value.nonce,
+        approved: value.approved,
       };
     case 'metadata':
       return { v: 1, type: 'metadata', metadata: metadata(value.metadata) };

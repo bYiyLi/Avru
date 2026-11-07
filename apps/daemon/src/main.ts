@@ -1,3 +1,4 @@
+import { loadOAuthConfig } from './oauth/load-config.js';
 import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import { dirname, resolve } from 'node:path';
@@ -10,7 +11,9 @@ async function bootstrap(): Promise<void> {
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw new Error('Invalid AVRU_PORT');
   const adminKey = randomBytes(32).toString('hex');
+  const oauth = await loadOAuthConfig(process.env.AVRU_OAUTH_CONFIG);
   const app = buildApp({
+    ...(oauth ? { oauth } : {}),
     adminKey,
     port,
     databasePath: resolve(dataRoot, 'browsers.sqlite'),
