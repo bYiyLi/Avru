@@ -46,3 +46,25 @@
 固定 `javascript-obfuscator@4.1.1`，其 `postinstall` 募资脚本明确禁用；只调用同步本地 `obfuscate`，不采用带云 API 的新版本。保守选项和唯一首方模块位于 `scripts/release/obfuscate.mjs`。升级依赖必须重新检查依赖闭包、脚本、许可证及行为，不将“本地包”当作无出网证明。
 
 支持 Linux/libseccomp 的隔离审查机可运行 `python tests/release/offline-linux.py node scripts/package-cli.mjs`：进程级过滤拒绝网络 socket/connect/send 类系统调用并关闭继承描述符，不改变宿主网络设置。先用同一封装运行 `node -e "require('node:net').connect(443,'1.1.1.1').on('error', e => { console.error(e.code); process.exit(1); })"`，必须确认为 EPERM，而非网络不可达；再运行构建。此验证只证明该次被隔离构建的出网边界，不是 Windows/macOS 的网络沙箱或 Linux 产品支持。CI 的平台验收不自动等同于该断网实验。
+
+## npm dev 通道准备（尚未公开发布）
+
+目标入口是 `npx -y avru@dev`，首个目标版本为 `0.1.0-dev.1`；用户指定的 npm 账号是 `baiyihuan`，已告知启用 2FA；实际登录身份、2FA 状态、包名归属和发布权限仍需操作时核验。当前已实现候选生成和只做 dry-run 的 CI，正式发布仍是后续方案：没有公开发布、没有保存 Trusted Publisher、没有改变认证或权限。现有私有 CI 继续按上文工作。
+
+### 先生成可公开的候选包
+
+默认 `scripts/package-cli.mjs` 仍生成 `private:true`；现有私有 tgz **不能直接用于 npm 发布**。运行 `pnpm package:cli` 后，显式执行 `node scripts/release/npm-candidate.mjs`，才会在独立的 `artifacts/npm-dev` 生成候选：`private:false`、固定 `dev` tag、public access 和 npm 官方 registry，workspace 与默认包仍私有。校验器要求显式 `npm-dev` 模式，拒绝 `latest`、正式版本以及源码、map、凭据及未批准文件。公开元数据 `repository.url` 指向 `https://github.com/bYiyLi/Avru`，不改变仓库私有性。
+
+`.github/workflows/npm-dev-prepare.yml` 在 main 相关发行脚本变更或手动触发时，仅执行双平台门禁、候选打包、`npm publish --dry-run`、真实 tgz 安装回归和 Chromium E2E。没有发布凭据、`id-token:write` 或实际上传 npm 的命令。成功后将候选 tgz、SHA256SUMS、release.json 保存在私有 Actions artifact；须核对同一 SHA 的 Windows/macOS 两项都成功，不能凭某一平台 artifact 判定全部通过。产物仍不含浏览器扩展，不能承诺一键完成完整浏览器能力。
+
+元数据变化也会改变 tgz 摘要。候选须重新打包、逐项比较包内容、检查第三方许可及敏感数据，重新计算摘要并完成 Win/mac 安装测试和对应提交 CI；不能临时修改旧 tgz 后沿用旧校验结果。候选可公开性和首次发布获得明确授权之前停止在这里。
+
+### 最小首次发布与 CI 信任接续
+
+1. **核对身份和包名。** 在 npm 官方登录流程中确认账号与用户指定身份一致、2FA 可用，并核验 `avru` 可创建或账号确有写权限。404 不代表包名已保留给本账号；身份/权限未确认则不发布。不把登录凭据、2FA 秘密或长期发布 token 放入聊天、仓库或工作流。
+2. **初始化 npm 包。** 如果包尚不存在，需要一次经过授权的初始化，之后才能在包设置中配置 Trusted Publisher。[npm trust 前置条件](https://docs.npmjs.com/cli/v11/commands/npm-trust/) 明确要求包已存在。建议首次由维护者通过官方交互认证发布已重新验收的公开候选，显式使用 `dev` tag；不是发布现有 `private:true` 私有包。不要为“占名”擅自公开占位版本。`npm stage publish` 对全新包也会公开 `0.0.0-stage` 占位版本，不能当成无公开副作用的演练。[npm staged publishing](https://docs.npmjs.com/staged-publishing/)
+3. **配置限定的信任。** 包初始化成功后，在 npm 的 `avru` 设置中添加 GitHub Actions Trusted Publisher：GitHub owner 为 `bYiyLi`、repository 为 `Avru`、workflow filename 为届时已提交的专用 npm 发布文件名（不是路径）；若使用 GitHub environment，名称必须准确一致。保存信任及其允许操作属于权限变更，需要针对该配置的授权。不要把当前仅生成私有 artifact 的工作流误认为已经获得 npm 发布权限。
+4. **接续专用发布 job。** 后续实现须保留双平台质量/产物门禁和明确的发布触发点，仅发布 job 申请 `id-token: write`，其余维持最小只读权限；使用 GitHub-hosted runner 和满足 OIDC 要求且固定版本的 npm，不配置长期写 token。信任配置中的直接发布与独立 dist-tag 管理权限分别按实际所需授权，不顺手扩大权限。此 job 及权限尚未在本次实现。[npm Trusted Publisher 配置](https://docs.npmjs.com/trusted-publishers/)
+5. **核验后才给出安装入口。** 发布获准并完成后，回读 registry 中 `avru@0.1.0-dev.1` 的完整元数据、tarball integrity 和 `dev` 指向，再从 registry 包核验版本/安装路径。只成功构建、`npm whoami` 成功或信任设置已保存都不能证明发布成功。确认后才能告知 `npx -y avru@dev` 可用；不自动改 `latest`，也不覆盖已发布的相同版本。[npm 发布与标签规则](https://docs.npmjs.com/cli/v11/commands/npm-publish/)
+
+截至 2026-11-07 官方说明，私有 GitHub 仓库可使用 OIDC Trusted Publishing，但不能生成 npm provenance；**不要为了 provenance 将仓库改公开，也不要把内部 SHA/摘要记录称作 npm provenance**。本方案保留私有仓库与内部构建证据，并在后续发布结果中注明该限制。[npm provenance 限制](https://docs.npmjs.com/trusted-publishers/#automatic-provenance-generation)

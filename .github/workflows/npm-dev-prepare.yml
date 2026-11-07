@@ -1,0 +1,73 @@
+name: Prepare npm dev candidate (no publication)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/release/**
+      - tests/release/**
+      - .github/workflows/npm-dev-prepare.yml
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.repository == 'bYiyLi/Avru' && github.event.repository.private == true && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: npm install --global --ignore-scripts pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: |
+          pnpm rebuild esbuild
+          pnpm --filter @avru/extension exec wxt prepare
+      - run: pnpm check
+      - run: pnpm test:gates
+      - run: pnpm check:audit
+      - run: pnpm package:cli
+      - run: pnpm test:release
+      - name: Prepare public-runtime candidate without publishing
+        run: |
+          node scripts/release/npm-candidate.mjs
+          mkdir -p artifacts/npm-distribution
+          npm pack ./artifacts/npm-dev --ignore-scripts --pack-destination artifacts/npm-distribution
+          npm publish ./artifacts/npm-distribution/avru-0.1.0-dev.1.tgz --dry-run --ignore-scripts --tag dev --access public --registry https://registry.npmjs.org/ --provenance=false
+          rm -rf artifacts/avru
+          mkdir -p artifacts/avru
+          tar -xzf artifacts/npm-distribution/avru-0.1.0-dev.1.tgz -C artifacts/avru --strip-components=1
+          node --input-type=module -e "import {verifyPackage} from './scripts/release/verify.mjs'; await verifyPackage('artifacts/avru','npm-dev');"
+          pnpm test:installer
+      - run: pnpm exec playwright install chromium
+      - run: pnpm test:e2e
+      - name: Record candidate checksum
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          const file = 'avru-0.1.0-dev.1.tgz';
+          const hash = createHash('sha256').update(await readFile(`artifacts/npm-distribution/${file}`)).digest('hex');
+          await writeFile('artifacts/npm-distribution/SHA256SUMS', `${hash}  ${file}\n`);
+          await writeFile('artifacts/npm-distribution/release.json', JSON.stringify({sourceCommit:process.env.GITHUB_SHA, run:process.env.GITHUB_RUN_ID, platform:process.env.RUNNER_OS, version:'0.1.0-dev.1', channel:'dev', publishedToNpm:false, sha256:hash},null,2));
+          NODE
+      - name: Upload candidate only to private Actions storage
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-dev-candidate-${{ matrix.os }}-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            artifacts/npm-distribution/avru-0.1.0-dev.1.tgz
+            artifacts/npm-distribution/SHA256SUMS
+            artifacts/npm-distribution/release.json
+          if-no-files-found: error
+          retention-days: 14

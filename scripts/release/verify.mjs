@@ -10,14 +10,21 @@ const exact = new Set([
   'payload/launcher.mjs',
   'payload/web/index.html',
 ]);
-export async function verifyPackage(root) {
+export async function verifyPackage(root, channel = 'private') {
   const manifest = JSON.parse(
     await readFile(join(root, 'package.json'), 'utf8'),
   );
   if (
     manifest.name !== 'avru' ||
     manifest.version !== '0.1.0-dev.1' ||
-    manifest.private !== true
+    (channel === 'private'
+      ? manifest.private !== true
+      : channel !== 'npm-dev' ||
+        manifest.private !== false ||
+        manifest.publishConfig?.tag !== 'dev' ||
+        manifest.publishConfig?.access !== 'public' ||
+        manifest.publishConfig?.registry !== 'https://registry.npmjs.org/' ||
+        manifest.repository?.url !== 'git+https://github.com/bYiyLi/Avru.git')
   )
     throw new Error('Unexpected release identity or publication guard');
   const files = [];
