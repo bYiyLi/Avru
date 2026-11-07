@@ -64,7 +64,7 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 ### 信任与配对
 
 - daemon 仅监听 `127.0.0.1:43821`。管理 API 需要本次 daemon 启动生成的随机管理 capability；开发启动链接以 fragment 携带，Web 读取到 sessionStorage 后立即移除 fragment。重启后旧链接失效。该入口不能暴露到隧道。
-- 扩展主动发起待批准请求；服务器绑定当前 WebSocket、扩展 Origin、配置身份与有效期，在扩展和管理页展示同一六位核对码。用户比较后在可信管理页点击批准。不复制、输入或保存配对码。
+- 旧版本兼容配对由扩展主动发起待批准请求；服务器绑定当前 WebSocket、扩展 Origin、配置身份与有效期，在扩展和管理页展示同一六位核对码。用户比较后在可信管理页点击批准。不复制、输入或保存配对码。
 - 六位码仅供识别当前请求，不是可以兑换凭据的密码。批准只向发起请求的原连接发送随机内部凭据；扩展自动保存。管理 API 不返回长期凭据。
 - 浏览器 ID 和连接 ID 只是路由标识，不是凭据。恢复连接必须验证内部凭据及原扩展 Origin。服务端仅保存凭据哈希。撤销配对关闭连接并使后续认证失败。
 - 限制 Host、WebSocket Origin、消息尺寸、消息形状和认证等待时间；管理写接口校验同源及 bearer。普通网页不能请求或批准连接。
@@ -107,3 +107,29 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 `versionSource` 为 `clientHints`、`userAgent` 或 `unknown`。Client Hints 全版本可用时优先，失败退回 UA；UA 版本可能降精度，UI 不承诺完整版本。扩展版本来自自身 manifest。所有名称与版本受类型/长度校验；这只是认证客户端自报，不是浏览器安装证明或代码签名验证。
 
 `release-info.ts` 声明当前发行与预期扩展版本；测试核对 CLI 包身份及 WXT 清单防止常量漂移。当前 `0.1.0-dev.1` daemon 与 `0.0.1` 扩展分别是应用发行和浏览器清单版本，不拿二者直接判插件不一致；插件比较目标为 `expectedExtensionVersion`。
+
+### 当前浏览器免短码连接
+
+新版默认安装引导使用当前浏览器内的 external messaging，而不是从全部在线浏览器猜测本页身份。管理页须先持有本次 daemon 的管理 capability；打开普通地址、知道扩展 ID 或伪造 WS Origin 都不能批准连接。欢迎页只探测；用户进入安装页后，新安装且允许自动连接的扩展才开始以下握手：
+
+1. 页面定向调用当前环境的固定扩展 ID；扩展逐次校验 sender 的 origin、精确根 URL、顶层 frameId、documentId、tab.id 和非隐私上下文，禁止其他扩展调用。扩展只返回实际版本、连接状态与非凭据 browserId，不返回长期凭据。
+2. 当前配置扩展经原 WS 发 `auto-probe`，daemon 生成 256 位随机 challenge，绑定原 socket、扩展 Origin、profileId 与 channel，30 秒失效。探测不授予标签读取或 OAuth 权限，也不进入六位码列表。
+3. 可信管理页面把 challenge 提交到受 bearer、Host、同源校验保护的 `POST /api/connection-ticket`，得到 256 位随机单次 ticket。同一 challenge 再申请替换旧票据，不延长截止时间。
+4. 页面将 ticket 仅交回当前浏览器扩展。扩展核对原 tab/document/challenge 且20秒内有效，再由原 WS 发 `auto-redeem`。daemon 原子消费，只有原连接收到内部随机凭据和 ready；票据不经 URL、日志、存储或远程 MCP 传输。
+
+不同 socket、环境、document、过期、重复兑换均失败；断线/daemon重启清除待定授权。扩展等待挑战8秒超时关闭该连接，管理页面每次进入后只尝试一次，不盲重放未知结果。撤销、拒绝旧凭据或用户断开会在扩展持久写入自动连接禁用标记；刷新页面、扩展重启不会静默重授。用户可通过原插件显式配对流程重新启用；旧版本兼容路径仍保留，不作为默认新安装引导。浏览器没有响应只能说明无法探测，不能区分未安装、禁用、隐私模式或不支持。
+
+manifest 的 `externally_connectable.matches` 限为 `http://127.0.0.1/*`；匹配规则不限定端口，因此运行时继续精确校验当前 channel 固定端口。缺少 sender 字段时拒绝，而非降低校验。该链路与远程 OAuth 分离，不把本机管理接口暴露给 FRPC/ChatGPT。公开 manifest key、ID 和 Origin 不是代码签名；恶意同 OS 用户可读取用户存储或替换 unpacked 代码，不在本方案隔离承诺内。
+
+依据（2026-11-08查阅）：[Chrome match patterns](https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns)、[externally_connectable](https://developer.chrome.com/docs/extensions/reference/manifest/externally-connectable)、[MessageSender](https://developer.chrome.com/docs/extensions/reference/api/runtime#type-MessageSender)。固定 [Chromium 142.0.7444.59 parser](https://github.com/chromium/chromium/blob/142.0.7444.59/extensions/common/manifest_handlers/externally_connectable.cc) 接受解析成功的loopback模式；文档与源码证据不代表所有 Chrome/Edge 版本实际验收。真实浏览器结果归连接阶段记录。
+
+### 管理入口 fragment 与真实文档隔离
+
+Chromium 的外部消息 `MessageSender.url` 可能缓存文档初始 URL，
+`history.replaceState` 不能保证清除其初始 capability fragment。
+Web 导入 capability 到本标签页 sessionStorage 并清除地址 fragment 后，
+必须真正 reload；旧文档不挂载 controller，也不发送任何扩展消息。
+仅新加载的无 fragment 文档可以开始检测。扩展仍严格检查根 URL、
+精确 origin/端口、顶层 frame、documentId、tabId 与非隐私模式，不放宽规则。
+Windows Chromium 158.0.8127.18 的诊断已复现该缓存行为，回归测试断言
+实际外部消息无 fragment，禁止日志记录完整 sender URL 或 capability。

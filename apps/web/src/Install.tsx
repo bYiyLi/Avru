@@ -1,3 +1,4 @@
+import type { CurrentBrowser } from './current-browser.js';
 import type { ExtensionFiles } from './controller.js';
 import type { Language } from './presentation.js';
 import { browserGuide } from './presentation.js';
@@ -6,11 +7,13 @@ export function Install({
   locale,
   agent,
   files = null,
+  current,
   next,
 }: {
   locale: Language;
   agent: string;
   files?: ExtensionFiles | null;
+  current?: CurrentBrowser | undefined;
   next: () => void;
 }) {
   const guide = browserGuide(agent);
@@ -53,7 +56,16 @@ export function Install({
         </li>
         <li>
           <h2>{t(locale, 'install.connect')}</h2>
-          <p>{t(locale, 'install.pairInstructions')}</p>
+          <p role="status">
+            {t(locale, `install.current.${current?.status ?? 'unavailable'}`)}
+          </p>
+          {current?.version && (
+            <p>
+              {t(locale, 'install.currentVersion', {
+                version: current.version,
+              })}
+            </p>
+          )}
         </li>
       </ol>
       <button className="primary" onClick={next}>

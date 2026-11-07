@@ -1,3 +1,4 @@
+import { AutoPairing } from './auto-pairing.js';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import type { Consent } from './oauth/authority.js';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
@@ -27,6 +28,7 @@ interface Pairing {
   session: Session;
 }
 export class Connections {
+  private readonly automatic: AutoPairing<Session>;
   private readonly sessions = new Set<Session>();
   private readonly pending = new Map<string, Pairing>();
   private readonly active = new Map<
@@ -42,7 +44,9 @@ export class Connections {
       decision: { requestId: string; nonce: string; approved: boolean },
     ) => void,
     private readonly channel?: ReleaseChannel,
-  ) {}
+  ) {
+    this.automatic = new AutoPairing(now);
+  }
 
   attach(
     peer: Peer,
@@ -105,25 +109,35 @@ export class Connections {
       };
     });
   }
+  issueConnectionTicket(challenge: string) {
+    this.sweep();
+    return this.automatic.issue(challenge);
+  }
   approve(id: string): boolean {
     this.sweep();
     const pairing = this.pending.get(id);
     if (!pairing) return false;
-    const token = randomBytes(32).toString('hex');
-    const item = this.store.add(pairing, token);
     this.pending.delete(id);
     delete pairing.session.pendingId;
-    const delivered = this.send(pairing.session, {
+    return this.completePairing(pairing.session, pairing);
+  }
+  private completePairing(
+    session: Session,
+    identity: { name: string; profileId: string },
+  ): boolean {
+    const token = randomBytes(32).toString('hex');
+    const item = this.store.add({ ...identity, origin: session.origin }, token);
+    const delivered = this.send(session, {
       type: 'paired',
       browserId: item.id,
       token,
-      connectionId: pairing.session.connectionId,
+      connectionId: session.connectionId,
     });
     if (!delivered) {
       this.store.remove(item.id);
       return false;
     }
-    this.activate(pairing.session, item.id);
+    this.activate(session, item.id);
     return true;
   }
   reject(id: string): boolean {
@@ -163,6 +177,7 @@ export class Connections {
   }
   private disconnect(session: Session): void {
     this.sessions.delete(session);
+    this.automatic.remove(session);
     if (session.pendingId) this.pending.delete(session.pendingId);
     if (
       session.browserId &&
@@ -196,7 +211,10 @@ export class Connections {
     session: Session,
     identity: { profileId: string; name: string },
   ): void {
-    if (this.pending.size >= 20 || this.store.list().length >= 64) {
+    if (
+      this.pending.size + this.automatic.size >= 20 ||
+      this.store.list().length >= 64
+    ) {
       this.fail(session, 'busy');
       return;
     }
@@ -228,7 +246,9 @@ export class Connections {
     try {
       const message = parseMessage(raw);
       if (
-        (message.type === 'pair' || message.type === 'authenticate') &&
+        (message.type === 'pair' ||
+          message.type === 'auto-probe' ||
+          message.type === 'authenticate') &&
         this.channel &&
         message.channel !== this.channel
       ) {
@@ -237,6 +257,8 @@ export class Connections {
       }
       if (session.browserId) {
         this.receiveAuthenticated(session, message);
+      } else if (this.receiveAutomatic(session, message)) {
+        return;
       } else if (session.pendingId) {
         this.fail(session, 'pending');
       } else if (message.type === 'pair') {
@@ -253,6 +275,32 @@ export class Connections {
     } catch {
       this.fail(session, 'invalid');
     }
+  }
+  private receiveAutomatic(
+    session: Session,
+    message: ReturnType<typeof parseMessage>,
+  ): boolean {
+    if (this.automatic.has(session)) {
+      const identity =
+        message.type === 'auto-redeem'
+          ? this.automatic.redeem(session, message.ticket)
+          : undefined;
+      if (identity) this.completePairing(session, identity);
+      else this.fail(session, 'unauthorized');
+      return true;
+    }
+    if (message.type !== 'auto-probe' || session.pendingId) return false;
+    if (
+      this.pending.size + this.automatic.size >= 20 ||
+      this.store.list().length >= 64
+    ) {
+      this.fail(session, 'busy');
+      return true;
+    }
+    const challenge = this.automatic.probe(session, message);
+    session.deadline = challenge.expiresAt;
+    this.send(session, { type: 'auto-challenge', ...challenge });
+    return true;
   }
   private receiveAuthenticated(
     session: Session,

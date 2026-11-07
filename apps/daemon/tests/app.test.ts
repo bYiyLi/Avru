@@ -177,3 +177,54 @@ it('exposes call history only through authenticated local management', async () 
     (await instance.inject({ url: '/api/calls', headers })).json<unknown>(),
   ).toEqual({ calls: [], retention: { limit: 200, persistent: false } });
 });
+
+it('requires management authentication and same origin to issue a scoped connection ticket', async () => {
+  const instance = app();
+  const url = '/api/connection-ticket';
+  const payload = { challenge: 'a'.repeat(64) };
+  expect(
+    (
+      await instance.inject({
+        method: 'POST',
+        url,
+        payload,
+        headers: { host, origin: headers.origin },
+      })
+    ).statusCode,
+  ).toBe(401);
+  expect(
+    (
+      await instance.inject({
+        method: 'POST',
+        url,
+        payload,
+        headers: { ...headers, origin: 'https://evil.test' },
+      })
+    ).statusCode,
+  ).toBe(403);
+  expect(
+    (
+      await instance.inject({
+        method: 'POST',
+        url,
+        payload,
+        headers: { host, authorization: headers.authorization },
+      })
+    ).statusCode,
+  ).toBe(403);
+  for (const value of [null, {}, { challenge: 2 }, { challenge: 'short' }])
+    expect(
+      (
+        await instance.inject({
+          method: 'POST',
+          url,
+          payload: JSON.stringify(value),
+          headers: { ...headers, 'content-type': 'application/json' },
+        })
+      ).statusCode,
+    ).toBe(400);
+  expect(
+    (await instance.inject({ method: 'POST', url, payload, headers }))
+      .statusCode,
+  ).toBe(404);
+});

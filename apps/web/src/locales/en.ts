@@ -1,4 +1,17 @@
 export const en = {
+  'install.current.unavailable':
+    'No extension response yet. After loading it, keep this page open. Disabled extensions and private windows can also prevent detection.',
+  'install.current.detected':
+    'Extension detected. Connecting this browser securely…',
+  'install.current.connecting':
+    'Connecting this browser. No pairing code is needed.',
+  'install.current.connected':
+    'This browser is connected. You can open the system overview.',
+  'install.current.blocked':
+    'Already configured or automatic connection disabled. Open the extension to check or explicitly pair again after revocation.',
+  'install.current.failed':
+    'Connection could not be confirmed. Reload this page to try again; no installation state has been assumed.',
+  'install.currentVersion': 'Responding extension version: {version}',
   'shell.preferences': 'System appearance · Browser language',
   'shell.local': 'LOCAL BY DESIGN',
   'nav.label': 'Setup steps',

@@ -33,3 +33,16 @@ export function managementSession(host: SessionHost) {
 export function reloadManagementLink(hash: string, reload: () => void) {
   if (/^#key=[a-f0-9]{64}$/.test(hash)) reload();
 }
+
+// Chromium may cache the initial document URL in MessageSender.url. A real
+// reload, not just replaceState, keeps the capability fragment out of IPC.
+export function bootstrapManagement(
+  host: SessionHost,
+  reload: () => void,
+  mount: (session: ReturnType<typeof managementSession>) => void,
+) {
+  const hadFragment = Boolean(host.location.hash);
+  const session = managementSession(host);
+  if (hadFragment) reload();
+  else mount(session);
+}

@@ -1,5 +1,9 @@
 import { expect, it, vi } from 'vitest';
-import { managementSession, reloadManagementLink } from '../src/session.js';
+import {
+  bootstrapManagement,
+  managementSession,
+  reloadManagementLink,
+} from '../src/session.js';
 it('imports valid capabilities, strips fragments and clears invalid incoming values', () => {
   const storage = new Map<string, string>();
   const host = {
@@ -47,4 +51,36 @@ it('reinitializes reopened private links without reacting to unrelated or malfor
   expect(reload).not.toHaveBeenCalled();
   reloadManagementLink('#key=' + 'a'.repeat(64), reload);
   expect(reload).toHaveBeenCalledOnce();
+});
+
+it('does not mount the bridge until a fresh fragment-free document loads', () => {
+  const values = new Map<string, string>();
+  const host = {
+    location: { hash: '#key=' + 'b'.repeat(64), pathname: '/', search: '' },
+    history: {
+      replaceState: vi.fn(() => {
+        host.location.hash = '';
+      }),
+    },
+    sessionStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value);
+      },
+      removeItem: (key: string) => {
+        values.delete(key);
+      },
+    },
+  };
+  const reload = vi.fn();
+  const mount = vi.fn();
+  bootstrapManagement(host, reload, mount);
+  expect(reload).toHaveBeenCalledOnce();
+  expect(mount).not.toHaveBeenCalled();
+  expect(host.location.hash).toBe('');
+  bootstrapManagement(host, reload, mount);
+  expect(reload).toHaveBeenCalledOnce();
+  expect(mount).toHaveBeenCalledWith(
+    expect.objectContaining({ key: 'b'.repeat(64) }),
+  );
 });

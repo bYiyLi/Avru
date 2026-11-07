@@ -49,6 +49,11 @@ export function App({
     controller.start();
     return controller.stop;
   }, [controller]);
+  useEffect(() => {
+    if (page === 'install' && state.current?.status === 'detected')
+      controller.connectCurrent().catch(controller.stop);
+    return () => {};
+  }, [controller, page, state.current?.status]);
   const actions = {
     approve: (id: string) => {
       controller.approve(id).catch(controller.stop);
@@ -80,6 +85,7 @@ export function App({
               locale={locale}
               agent={agent}
               files={state.system?.extensionFiles ?? null}
+              current={state.current}
               next={() => {
                 setPage('overview');
               }}

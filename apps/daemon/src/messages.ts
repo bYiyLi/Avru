@@ -10,7 +10,13 @@ export interface BrowserMetadata {
   extensionVersion: string;
 }
 export type Message =
-  | { v: 1; type: 'pair'; channel?: string; profileId: string; name: string }
+  | {
+      v: 1;
+      type: 'pair' | 'auto-probe';
+      channel?: string;
+      profileId: string;
+      name: string;
+    }
   | {
       v: 1;
       type: 'authenticate';
@@ -27,6 +33,7 @@ export type Message =
       nonce: string;
       approved: boolean;
     }
+  | { v: 1; type: 'auto-redeem'; ticket: string }
   | { v: 1; type: 'ping' };
 
 export function record(value: unknown): value is Record<string, unknown> {
@@ -90,18 +97,26 @@ export function parseMessage(raw: string): Message {
   const value: unknown = JSON.parse(raw);
   if (!record(value) || value.v !== 1) throw new Error('Invalid version');
   switch (value.type) {
+    case 'auto-probe':
     case 'pair':
       if (!text(value.profileId, 64) || !text(value.name, 80))
         throw new Error('Invalid identity');
       return {
         v: 1,
-        type: 'pair',
+        type: value.type,
         ...(typeof value.channel === 'string'
           ? { channel: value.channel }
           : {}),
         profileId: value.profileId,
         name: value.name,
       };
+    case 'auto-redeem':
+      if (
+        typeof value.ticket !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(value.ticket)
+      )
+        throw new Error('Invalid ticket');
+      return { v: 1, type: 'auto-redeem', ticket: value.ticket };
     case 'authenticate':
       if (
         !text(value.browserId, 64) ||
