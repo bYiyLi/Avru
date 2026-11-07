@@ -62,7 +62,7 @@
 ### 最小首次发布与 CI 信任接续
 
 1. **核对身份和包名。** 在 npm 官方登录流程中确认账号与用户指定身份一致、2FA 可用，并核验 `avru` 可创建或账号确有写权限。404 不代表包名已保留给本账号；身份/权限未确认则不发布。不把登录凭据、2FA 秘密或长期发布 token 放入聊天、仓库或工作流。
-2. **初始化 npm 包。** 如果包尚不存在，需要一次经过授权的初始化，之后才能在包设置中配置 Trusted Publisher。[npm trust 前置条件](https://docs.npmjs.com/cli/v11/commands/npm-trust/) 明确要求包已存在。当前采用下节首次 CI staging 方案；维护者交互发布仅为另行选择的备选，仍须显式使用 `dev` tag；不是发布现有 `private:true` 私有包。不要为“占名”擅自公开占位版本。`npm stage publish` 对全新包也会公开 `0.0.0-stage` 占位版本，不能当成无公开副作用的演练。[npm staged publishing](https://docs.npmjs.com/staged-publishing/)
+2. **初始化 npm 包。** 如果包尚不存在，需要一次经过授权的初始化，之后才能在包设置中配置 Trusted Publisher。[npm trust 前置条件](https://docs.npmjs.com/cli/v11/commands/npm-trust/) 明确要求包已存在。此前采用下节首次 CI staging 方案；当前明确批准的备选见末节一次性直接 CI 发布；维护者交互发布仅为另行选择的备选，仍须显式使用 `dev` tag；不是发布现有 `private:true` 私有包。不要为“占名”擅自公开占位版本。`npm stage publish` 对全新包也会公开 `0.0.0-stage` 占位版本，不能当成无公开副作用的演练。[npm staged publishing](https://docs.npmjs.com/staged-publishing/)
 3. **配置限定的信任。** 包初始化成功后，在 npm 的 `avru` 设置中添加 GitHub Actions Trusted Publisher：GitHub owner 为 `bYiyLi`、repository 为 `Avru`、workflow filename 为届时已提交的专用 npm 发布文件名（不是路径）；若使用 GitHub environment，名称必须准确一致。保存信任及其允许操作属于权限变更，需要针对该配置的授权。不要把当前仅生成私有 artifact 的工作流误认为已经获得 npm 发布权限。
 4. **接续专用发布 job。** 后续实现须保留双平台质量/产物门禁和明确的发布触发点，仅发布 job 申请 `id-token: write`，其余维持最小只读权限；使用 GitHub-hosted runner 和满足 OIDC 要求且固定版本的 npm，不配置长期写 token。信任配置中的直接发布与独立 dist-tag 管理权限分别按实际所需授权，不顺手扩大权限。此 job 及权限尚未在本次实现。[npm Trusted Publisher 配置](https://docs.npmjs.com/trusted-publishers/)
 5. **核验后才给出安装入口。** 发布获准并完成后，回读 registry 中 `avru@0.1.0-dev.1` 的完整元数据、tarball integrity 和 `dev` 指向，再从 registry 包核验版本/安装路径。只成功构建、`npm whoami` 成功或信任设置已保存都不能证明发布成功。确认后才能告知 `npx -y avru@dev` 可用；不自动改 `latest`，也不覆盖已发布的相同版本。[npm 发布与标签规则](https://docs.npmjs.com/cli/v11/commands/npm-publish/)
@@ -79,6 +79,24 @@
 4. 成功上传后，用户在 npm **Staged Packages** 找到 `avru@0.1.0-dev.1`，核对 dev 标签、来源及包内容，再使用本人 2FA 批准。上传成功不等于已发布；批准后回读 registry 和 `dev` tag 才能确认 `npx -y avru@dev` 可用。重复触发撞到已暂存/已发布版本时停止核查，不删除版本、不改 tag、不自动重传。
 5. 首包已建立后，另行配置仅此包和专用工作流的 OIDC Trusted Publisher，然后撤销 npm 一次性 token、删除对应 GitHub secret。现有首次工作流没有 OIDC 写权限，不要把其文件误当成已获授权的 OIDC 流程。清理和信任设置须明确授权或用户自行完成。
 
-本轮只创建工作流与验证代码，不创建凭据、不改认证设置、不触发实际 staging。首次 staging 会公开占位包，但候选内容要经 npm 2FA 批准后公开；审批前同一版本已占用，不能按普通“失败重试”发布第二份。公开包是运行文件，源码仓库保持私有，混淆不保证无法逆向。
+该段记录 staging 方案建立时的范围；随后两次 CI 暂存均返回 E400，未获得成功 stage ID。首次 staging 会公开占位包，但候选内容要经 npm 2FA 批准后公开；审批前同一版本已占用，不能按普通“失败重试”发布第二份。公开包是运行文件，源码仓库保持私有，混淆不保证无法逆向。
 
 官方依据（2026-11-07 核对）：[新包支持公告](https://github.blog/changelog/2026-10-02-npm-staged-publishing-now-supports-creating-new-packages/)、[stage 命令/标签](https://docs.npmjs.com/cli/v11/commands/npm-stage/)、[token 创建界面](https://docs.npmjs.com/creating-and-viewing-access-tokens/)、[stage-only 权限边界](https://docs.npmjs.com/about-access-tokens/)。
+
+
+## 一次性直接 CI 发布（0.1.0-dev.1）
+
+用户已明确批准固定候选直接公开到 `dev`，无需 npm 人工审批。两次 staging 分别在运行 `42397893155`、`42400572399` 返回 `Version uniqueness check failed unexpectedly`，根因未确定，不能保证改走直接发布能够解决。不得自行重复上传、改包名、抬高版本或改为 latest。
+
+工作流 `.github/workflows/npm-dev-publish.yml`（**Publish approved npm dev candidate**）仅手动 main 触发，确认立即公开后执行一次 `npm publish`。它仍使用固定源码 `2f87b5a7407b0ff266a8b28b73c87fbd48590fa9`、双平台成功运行 `42394455061`、artifact `13582611914`，tgz SHA-256 为 `aa76c1e620b0a817c79f1c82476aab6570d013f25b6641425679e51b43fe3b39`。不是当前 main 的新版本：包不含浏览器扩展，也不包含后续 Web/MCP/环境隔离进展；它只供早期 CLI 安装验证。已审查的第三方许可告知随原包发布，不重新打包或加入源码。校验器固定在 `1d05014768a12efba0bc249c2b4b5faf3ba8246e`，依赖安装与候选验证步骤没有 npm 写凭据。
+
+维护者步骤：
+
+1. 删除旧 `AVRU_NPM_STAGE_TOKEN`，撤销旧 npm token。旧 stage-only 凭据不能用于直接发布。
+2. 在 npm 本人账户创建短期 granular token：Packages and scopes 选择 **Read and write (publish and stage)**，勾选 **Bypass two-factor authentication**；用户已确认首次未创建 unscoped 包所需的 **All Packages** 范围。Organizations 保持 No access，有效期一天。不填写与 GitHub 托管 runner 不匹配的家庭 IP 限制。此 token 可直接影响账户其他包，不能把本工作流限 avru 当成 token 自身只限 avru；只允许本次使用并立即撤销。
+3. 用户将值直接保存到私有仓库 GitHub Actions repository secret `AVRU_NPM_PUBLISH_TOKEN`，不发到聊天，不存普通变量或文件。助手仅核对名称存在，不读取值。凭据只注入身份核对/发布步骤，临时 npmrc 使用受限文件模式并通过 EXIT trap 删除。
+4. 手动运行上述 workflow，勾选立即公开确认。它核对账户 `baiyihuan`、精确包/hash、成功的双平台验证和文件白名单，明确指定 `--tag dev --access public --ignore-scripts --provenance=false`，不运行 npm 维护者审批，也不配置 OIDC 或更改仓库可见性。
+5. 发布后读取 dev/version/shasum，再从 registry 执行固定版 CLI 的 `--version`；不执行安装或开机启动。若后验检查失败，先只读检查 registry，不重跑发布步骤；失败不代表一定没有发布。完整安装功能仍以产品实际边界为准。
+6. 无论成功失败，删除 `AVRU_NPM_PUBLISH_TOKEN` 并撤销 npm token；GitHub 删除若触发 Confirm access，由维护者完成验证。凭据清理未回读成功不能称已清理。成功后再另行确认仅 `avru`、owner `bYiyLi`、repo `Avru`、专用 workflow 的 OIDC 信任配置，不沿用一次性全包凭据。
+
+截至 2026-11-07，npm 官方允许 bypass-2FA granular token 直接发布，但该途径预计 2027-01 移除，故本方案不是长期凭据设计。标准非交互 GitHub CI 不提供等待本人浏览器 2FA 的保证；npm 11.21.2 的 `otplease` 非 TTY 会直接抛错。参见 [token 规则](https://docs.npmjs.com/about-access-tokens/)、[CLI 验证源码](https://github.com/npm/cli/blob/v11.21.2/lib/utils/auth.js)。本节流程存在不等于已公开发布；必须以本次 registry 回读与 CLI 检查为准。
