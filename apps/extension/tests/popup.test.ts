@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 const send = vi.hoisted(() =>
-  vi.fn().mockResolvedValue({ status: 'connected' }),
+  vi.fn().mockResolvedValue({ status: { code: 'connected' } }),
 );
 vi.mock('wxt/browser', () => ({ browser: { runtime: { sendMessage: send } } }));
 afterEach(() => {
@@ -15,6 +15,7 @@ it('shows only status, submits pairing, clears local registration, and handles e
   const click = vi.fn();
   const form = { addEventListener: submit };
   vi.stubGlobal('document', {
+    documentElement: { lang: '' },
     querySelector: (selector: string) =>
       selector === '#status'
         ? status
@@ -30,9 +31,10 @@ it('shows only status, submits pairing, clears local registration, and handles e
       }
     },
   );
+  vi.stubGlobal('navigator', { language: 'zh-CN' });
   await import('../entrypoints/popup/main');
   await Promise.resolve();
-  expect(status.textContent).toBe('connected');
+  expect(status.textContent).toBe('已连接');
   const handler = submit.mock.calls[0]?.[1] as (event: {
     preventDefault(): void;
   }) => void;
@@ -57,8 +59,12 @@ it('shows only status, submits pairing, clears local registration, and handles e
 });
 it('tolerates closed or absent popup elements', async () => {
   vi.useFakeTimers();
-  vi.stubGlobal('document', { querySelector: () => null });
+  vi.stubGlobal('document', {
+    documentElement: { lang: '' },
+    querySelector: () => null,
+  });
   send.mockRejectedValueOnce(new Error('closed'));
+  vi.stubGlobal('navigator', { language: 'zh-CN' });
   await import('../entrypoints/popup/main');
   await Promise.resolve();
   await vi.advanceTimersByTimeAsync(1000);

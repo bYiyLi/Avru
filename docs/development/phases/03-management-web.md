@@ -51,3 +51,13 @@
 当前本地观测工作树基于 `2b1fcd359c2917f617c37183f17353d3d139960d`，保留 dev/prod 隔离与 npm 发布流程。Linux / Node 24.22.1 / pnpm 11.25.0 的 `pnpm check` 已通过：180 测试，逐文件 90% 覆盖门禁通过；总体 statements 99.03%、branches 97.81%、functions 98.85%、lines 99.37%。审计 high/critical 门禁通过，仍有原有 1 moderate 告警。独立 review 发现无 ID 通知原先被描述为工具完成，已修为 notification_accepted、tool=null，并用不调用 snapshot 的测试和中英文 UI 测试复验。精确提交 Win/mac CI 尚待完成，不能称完整产品验收或实际 ChatGPT 连接成功。
 
 公开仓库交付核验：观测提交 `d6dc7081bfc134aaa2c1c90ef46a0ad0df744595` 的 [CI 42402662453](https://github.com/bYiyLi/Avru/actions/runs/42402662453) 已全部通过：标准 Windows/macOS runner 的质量门禁、门禁负向样本、安装包及真实浏览器 E2E，以及审计。新增 E2E 在实际扩展批准 OAuth 后发起 MCP 调用，核对 Web 工具记录、Trace ID、授权与分派事件；这不是实际 ChatGPT/FRPC 连接。Linux 本地 E2E 因 Chromium socket 权限失败，未绕过限制。公开前仅对本次 18 文件做了独立敏感内容审查与 Secretlint，未发现真凭据/个人数据；不代表完整 Git 历史安全审计。
+
+## 国际化重构验收
+
+范围：将 Web 三页、系统状态、配对与真实 MCP 链路日志，以及扩展 popup/授权确认从双语参数改为集中语义资源；保持首选语言 zh→中文、其他→英文、无手动切换。对应合同见 [Web 国际化](../../design/web.md#国际化资源与错误边界)。不改变发布包名、OAuth 权限、身份隔离或并行安装分发任务。
+
+验收要求：所有资源键/插值中英一致；未知键/缺少参数编译失败；原始异常不成为 UI 文案；中英 UI、日期数字/复数、文档语言与可访问名称、配对及 OAuth 拒绝/过期/批准回归；既有质量门禁和 Win/mac 浏览器端到端通过。开发基线 main `3a4f3efb656253e9271e80c847ee43ed320b1305`；本节下方追加实际证据，提交/CI 未完成前不称已交付。
+
+国际化本地验证（2026-11-07，云端 Linux / Node 24.22.1 / pnpm 11.25.0）：`pnpm check` 通过 192 项测试与逐文件 90% 门禁；`pnpm test:gates` 7 项负向检查通过；`pnpm check:audit` high/critical 通过，仍保留原有 1 moderate。独立审查发现链路日期格式化丢失毫秒的问题，已改为 UTC 毫秒精度并加回归；英语页脚也纳入资源。新增真实扩展 en-US/zh-TW/fr-FR UI 验收，原 Chromium 配对 fixture 显式设定中文语言。Linux 本地 E2E 四项均在缺少 Playwright 浏览器 executable 时未能启动，不算通过；精确提交的标准 Windows/macOS CI 仍需验证。
+
+提交 `6f42fe5d334e606a81435400a52a4dcf66b52967` 的 [CI 42404543495](https://github.com/bYiyLi/Avru/actions/runs/42404543495) 已完成：标准 Windows/macOS 的完整门禁、7 类负向测试、安装包、真实 Chromium 四项 E2E 和审计全部通过，含新增 en-US/zh-TW/fr-FR 扩展界面以及原 OAuth/配对/日志链路。PR 首次合并预览因并行 main 的 release.md 格式检查失败（42404665070），发布任务已在 `2c5f0b9` 单独修复；本分支合并最新 main 保留发布变更，再验集成，不把旧成功冒充新合并验证。此结果不包含 npm 发布、品牌浏览器全矩阵或用户电脑验收。

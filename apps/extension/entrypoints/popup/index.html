@@ -1,34 +1,30 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Avru 浏览器连接</title>
+    <title>Avru</title>
   </head>
   <body style="width: 320px; padding: 16px; font-family: system-ui">
     <main>
       <h1>Avru</h1>
-      <p id="status" role="status">检查连接…</p>
-      <p>
-        连接后会同步普通网页标签的标题和地址（不含查询参数、片段或无痕标签）。本阶段不操作网页。
-      </p>
+      <p id="status" role="status"></p>
+      <p id="description"></p>
       <form>
-        <label
-          >本机服务<input name="endpoint" type="url" readonly required /></label
-        ><br />
-        <label
-          >浏览器 / 配置名称<input
-            name="name"
-            maxlength="80"
-            placeholder="例如：Chrome 工作"
-            required /></label
-        ><br />
-        <p>
-          连接后，在本机 Avru 管理页面比较六位核对码并批准。不需复制或输入凭据。
-        </p>
-        <button type="submit">配对</button>
+        <label for="endpoint" id="endpoint-label"></label>
+        <input
+          id="endpoint"
+          name="endpoint"
+          type="url"
+          readonly
+          required
+        /><br />
+        <label for="name" id="name-label"></label>
+        <input id="name" name="name" maxlength="80" required /><br />
+        <p id="pairing-help"></p>
+        <button id="pair" type="submit"></button>
       </form>
-      <button id="disconnect" type="button">断开并清除本地凭据</button>
-      <p>清除本地凭据不等于撤销服务端登记；彻底撤销请到管理页面操作。</p>
+      <button id="disconnect" type="button"></button>
+      <p id="revoke-help"></p>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

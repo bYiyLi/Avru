@@ -9,11 +9,9 @@ export default defineConfig({
   outDir: `.output/${channel}`,
   vite: () => ({ define: { __AVRU_CHANNEL__: JSON.stringify(channel) } }),
   manifest: {
-    name:
-      channel === 'dev'
-        ? 'Avru Dev Browser Connection'
-        : 'Avru Browser Connection',
-    description: 'Connect browser tabs to your local Avru daemon.',
+    name: channel === 'dev' ? '__MSG_nameDev__' : '__MSG_name__',
+    description: '__MSG_description__',
+    default_locale: 'en',
     key: manifestKeys[channel],
     version: '0.0.1',
     minimum_chrome_version: '116',

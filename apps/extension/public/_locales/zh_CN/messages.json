@@ -1,0 +1,11 @@
+{
+  "name": {
+    "message": "Avru 浏览器连接"
+  },
+  "nameDev": {
+    "message": "Avru Dev 浏览器连接"
+  },
+  "description": {
+    "message": "将浏览器标签页连接到本机 Avru 守护进程。"
+  }
+}

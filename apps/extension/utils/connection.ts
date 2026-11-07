@@ -1,3 +1,4 @@
+import type { ConnectionStatus } from './connection-status';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { consentRequest } from './oauth-consent';
 import type { ConsentRequest } from './oauth-consent';
@@ -41,12 +42,12 @@ export class Connection {
   private ready = false;
   private generation = 0;
   private snapshotSequence = 0;
-  private state = '未配对';
+  private state: ConnectionStatus = { code: 'unpaired' };
   private blocked = false;
   private pendingPong = false;
   private writes: Promise<void> = Promise.resolve();
   constructor(private readonly ports: Ports) {}
-  status(): string {
+  status(): ConnectionStatus {
     return this.state;
   }
   async start(): Promise<void> {
@@ -93,7 +94,7 @@ export class Connection {
   async disconnect(): Promise<void> {
     this.saved = undefined;
     this.stop();
-    this.state = '未配对';
+    this.state = { code: 'unpaired' };
     await this.write(() => this.ports.clear());
   }
   async publish(): Promise<void> {
@@ -138,7 +139,7 @@ export class Connection {
   }
   private connect(endpoint: string, first: unknown): void {
     this.stop();
-    this.state = '连接中';
+    this.state = { code: 'connecting' };
     const generation = this.generation;
     const socket = this.ports.socket(socketUrl(endpoint, this.ports.channel));
     this.socket = socket;
@@ -191,7 +192,7 @@ export class Connection {
       typeof message.code === 'string' &&
       /^\d{6}$/.test(message.code)
     ) {
-      this.state = `请在本机管理页核对 ${message.code} 并批准`;
+      this.state = { code: 'pairing', pairingCode: message.code };
     }
     if (message.type === 'paired') {
       if (
@@ -247,7 +248,7 @@ export class Connection {
     if (this.timer) this.ports.cancel(this.timer);
     this.ready = true;
     this.attempt = 0;
-    this.state = '已连接';
+    this.state = { code: 'connected' };
     if (message.metadataSupported === true && this.ports.metadata) {
       const metadata = await this.ports.metadata();
       if (generation !== this.generation) return;
@@ -268,7 +269,7 @@ export class Connection {
       if (stopped !== this.generation) return;
     } else this.stop();
     this.blocked = true;
-    this.state = '连接被拒绝或配对已过期，请重新配对';
+    this.state = { code: 'rejected' };
   }
   private heartbeat(): void {
     this.timer = this.ports.later(() => {
@@ -285,7 +286,7 @@ export class Connection {
   }
   private retry(): void {
     this.stop();
-    this.state = '已断开，等待重连';
+    this.state = { code: 'reconnecting' };
     if (!this.saved?.token) return;
     const delay = Math.min(1000 * 2 ** this.attempt++, 30000);
     this.timer = this.ports.later(() => {
@@ -295,6 +296,6 @@ export class Connection {
   private fail(): void {
     this.stop();
     this.blocked = true;
-    this.state = '协议错误，请重新配对';
+    this.state = { code: 'protocolError' };
   }
 }

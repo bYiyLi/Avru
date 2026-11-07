@@ -141,7 +141,7 @@ it('wires the browser adapter, popup-only requests, events and retry alarm', asy
   message({ type: 'pair', endpoint: 'bad', name: 'n' }, sender, respond);
   await Promise.resolve();
   for (let i = 0; i < 10; i++) await Promise.resolve();
-  expect(respond).toHaveBeenCalledWith({ status: '请求失败，请检查连接信息' });
+  expect(respond).toHaveBeenCalledWith({ status: { code: 'requestFailed' } });
 });
 
 it('routes OAuth only through extension-owned consent window', async () => {

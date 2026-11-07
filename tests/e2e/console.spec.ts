@@ -16,7 +16,7 @@ test('English system-dark console keeps truthful three-page empty states', async
   const daemon = await startDaemon(directory);
   try {
     await page.goto(daemon.url);
-    await expect(page.locator('[lang="en"]')).toBeVisible();
+    await expect(page.locator('html[lang="en"]')).toBeVisible();
     await expect(
       page.getByRole('heading', { name: /Your browser/ }),
     ).toBeVisible();

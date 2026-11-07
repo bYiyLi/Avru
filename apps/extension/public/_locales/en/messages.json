@@ -1,0 +1,11 @@
+{
+  "name": {
+    "message": "Avru Browser Connection"
+  },
+  "nameDev": {
+    "message": "Avru Dev Browser Connection"
+  },
+  "description": {
+    "message": "Connect browser tabs to your local Avru daemon."
+  }
+}
