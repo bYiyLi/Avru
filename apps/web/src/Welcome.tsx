@@ -1,4 +1,4 @@
-import { translate as t } from './presentation.js';
+import { translate as t } from './i18n.js';
 import type { Language } from './presentation.js';
 export function Welcome({
   locale,
@@ -11,32 +11,17 @@ export function Welcome({
     <section className="welcome">
       <div className="hero">
         <div>
-          <p className="eyebrow">
-            {t(locale, '本地浏览器 · 由你掌控', 'YOUR BROWSER, CONNECTED.')}
-          </p>
+          <p className="eyebrow">{t(locale, 'welcome.eyebrow')}</p>
           <h1>
-            {t(locale, '你的浏览器，', 'Your browser,')}
+            {t(locale, 'welcome.title')}
             <br />
-            <em>{t(locale, '多一种可能。', 'more possibilities.')}</em>
+            <em>{t(locale, 'welcome.subtitle')}</em>
           </h1>
-          <p className="lead">
-            {t(
-              locale,
-              '在熟悉的浏览器里连接 Avru。先安装扩展，再核验本机连接，统一查看所有浏览器的状态。',
-              'Connect Avru to your everyday browser. Install the extension, verify the local connection, and see all your browsers in one place.',
-            )}
-          </p>
+          <p className="lead">{t(locale, 'welcome.description')}</p>
           <button className="primary" onClick={next}>
-            {t(locale, '进入 Avru', 'Enter Avru')}{' '}
-            <span aria-hidden="true">→</span>
+            {t(locale, 'welcome.enter')} <span aria-hidden="true">→</span>
           </button>
-          <p className="muted">
-            {t(
-              locale,
-              '本机连接 · 由你确认安装 · 随时撤销配对',
-              'Local connection · You approve installation · Revoke anytime',
-            )}
-          </p>
+          <p className="muted">{t(locale, 'welcome.control')}</p>
         </div>
         <div className="illustration" aria-hidden="true">
           <div className="orbit" />
@@ -52,13 +37,7 @@ export function Welcome({
                 <b />
               </div>
             </div>
-            <div className="art-caption">
-              {t(
-                locale,
-                '让连接，各就其位。',
-                'A little help. More possibility.',
-              )}
-            </div>
+            <div className="art-caption">{t(locale, 'welcome.caption')}</div>
           </div>
         </div>
       </div>
@@ -73,40 +52,22 @@ function Flow({ locale }: { locale: Language }) {
       <li>
         <span>01</span>
         <div>
-          <strong>{t(locale, '欢迎使用 Avru', 'Meet Avru')}</strong>
-          <p>
-            {t(
-              locale,
-              '本机浏览器连接工作台。',
-              'Your local browser workspace.',
-            )}
-          </p>
+          <strong>{t(locale, 'welcome.stepOne')}</strong>
+          <p>{t(locale, 'welcome.stepOneDescription')}</p>
         </div>
       </li>
       <li>
         <span>02</span>
         <div>
-          <strong>{t(locale, '加载浏览器扩展', 'Load the extension')}</strong>
-          <p>
-            {t(
-              locale,
-              '在当前浏览器中完成安装与配对。',
-              'Install and pair in this browser.',
-            )}
-          </p>
+          <strong>{t(locale, 'welcome.stepTwo')}</strong>
+          <p>{t(locale, 'welcome.stepTwoDescription')}</p>
         </div>
       </li>
       <li>
         <span>03</span>
         <div>
-          <strong>{t(locale, '查看系统总览', 'See the overview')}</strong>
-          <p>
-            {t(
-              locale,
-              '检查浏览器、版本与可用能力。',
-              'Inspect browsers, versions and capabilities.',
-            )}
-          </p>
+          <strong>{t(locale, 'welcome.stepThree')}</strong>
+          <p>{t(locale, 'welcome.stepThreeDescription')}</p>
         </div>
       </li>
     </ol>

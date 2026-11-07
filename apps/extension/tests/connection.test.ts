@@ -58,7 +58,7 @@ describe('browser connection lifecycle', () => {
     vi.useFakeTimers();
     const h = setup();
     await h.connection.start();
-    expect(h.connection.status()).toBe('未配对');
+    expect(h.connection.status()).toEqual({ code: 'unpaired' });
     await h.connection.publish();
     await h.connection.pair({ endpoint: saved.endpoint, name: 'Work' });
     h.current().onopen?.(new Event('open'));
@@ -71,7 +71,10 @@ describe('browser connection lifecycle', () => {
       }),
     );
     await h.receive({ v: 1, type: 'pairing', code: '123456' });
-    expect(h.connection.status()).toContain('123456');
+    expect(h.connection.status()).toEqual({
+      code: 'pairing',
+      pairingCode: '123456',
+    });
     await h.receive({
       v: 1,
       type: 'paired',
@@ -85,7 +88,7 @@ describe('browser connection lifecycle', () => {
       browserId: 'browser',
       connectionId: 'connection',
     });
-    expect(h.connection.status()).toBe('已连接');
+    expect(h.connection.status()).toEqual({ code: 'connected' });
     expect(h.current().send).toHaveBeenCalledWith(
       JSON.stringify({
         v: 1,
@@ -97,7 +100,7 @@ describe('browser connection lifecycle', () => {
     expect(h.current().send).toHaveBeenCalledWith('{"v":1,"type":"ping"}');
     await h.receive({ v: 1, type: 'pong' });
     await h.connection.disconnect();
-    expect(h.connection.status()).toBe('未配对');
+    expect(h.connection.status()).toEqual({ code: 'unpaired' });
   });
   it('restores credentials, backs off reconnects, ignores obsolete sockets and stops on rejection', async () => {
     vi.useFakeTimers();
@@ -109,7 +112,7 @@ describe('browser connection lifecycle', () => {
       '{"v":1,"type":"authenticate","browserId":"browser","token":"secret"}',
     );
     old.onclose?.(new Event('close') as CloseEvent);
-    expect(h.connection.status()).toContain('重连');
+    expect(h.connection.status()).toEqual({ code: 'reconnecting' });
     await vi.advanceTimersByTimeAsync(1000);
     old.onopen?.(new Event('open'));
     old.onclose?.(new Event('close') as CloseEvent);
@@ -120,7 +123,7 @@ describe('browser connection lifecycle', () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(h.sockets).toHaveLength(3);
     await h.receive({ v: 1, type: 'error', code: 'revoked' });
-    expect(h.connection.status()).toContain('重新配对');
+    expect(h.connection.status()).toEqual({ code: 'rejected' });
     h.connection.reconnect();
     expect(h.sockets).toHaveLength(3);
     expect(h.ports.clear).toHaveBeenCalled();
@@ -142,7 +145,7 @@ describe('browser connection lifecycle', () => {
       await h.connection.pair({ endpoint: saved.endpoint, name: 'Work' });
       h.current().onmessage?.(new MessageEvent('message', { data: raw }));
       for (let i = 0; i < 20; i++) await Promise.resolve();
-      expect(h.connection.status()).toContain('协议错误');
+      expect(h.connection.status()).toEqual({ code: 'protocolError' });
     }
   });
 });
@@ -158,7 +161,7 @@ it('rejects unsolicited ready and expired pairing; recovers a silent heartbeat f
   ]) {
     await h.connection.start();
     await h.receive(message);
-    expect(h.connection.status()).toContain('协议错误');
+    expect(h.connection.status()).toEqual({ code: 'protocolError' });
     await h.connection.pair({ endpoint: saved.endpoint, name: 'Work' });
     await h.receive({
       v: 1,
@@ -174,10 +177,10 @@ it('rejects unsolicited ready and expired pairing; recovers a silent heartbeat f
     connectionId: 'c',
   });
   await vi.advanceTimersByTimeAsync(40000);
-  expect(h.connection.status()).toContain('重连');
+  expect(h.connection.status()).toEqual({ code: 'reconnecting' });
   await vi.advanceTimersByTimeAsync(1000);
   await h.receive({ v: 1, type: 'error', code: 'expired' });
-  expect(h.connection.status()).toContain('过期');
+  expect(h.connection.status()).toEqual({ code: 'rejected' });
   await h.connection.pair({ endpoint: saved.endpoint, name: 'Work' });
   await h.receive({
     v: 1,
@@ -185,7 +188,7 @@ it('rejects unsolicited ready and expired pairing; recovers a silent heartbeat f
     browserId: 'browser',
     connectionId: 'c',
   });
-  expect(h.connection.status()).toContain('协议错误');
+  expect(h.connection.status()).toEqual({ code: 'protocolError' });
 });
 it('serializes credential writes behind disconnect and ignores obsolete async continuations', async () => {
   const h = setup(saved);
@@ -202,7 +205,7 @@ it('serializes credential writes behind disconnect and ignores obsolete async co
   finish?.();
   await disconnect;
   expect(h.ports.clear).toHaveBeenCalled();
-  expect(h.connection.status()).toBe('未配对');
+  expect(h.connection.status()).toEqual({ code: 'unpaired' });
   const delayed = setup();
   let read: ((value: unknown) => void) | undefined;
   vi.mocked(delayed.ports.read).mockImplementationOnce(
@@ -265,7 +268,7 @@ it('retries transient timeout and rejects old tab snapshots from the same connec
   );
   for (const code of ['timeout', 'busy']) {
     await h.receive({ v: 1, type: 'error', code });
-    expect(h.connection.status()).toContain('重连');
+    expect(h.connection.status()).toEqual({ code: 'reconnecting' });
     await vi.advanceTimersByTimeAsync(30000);
   }
   await h.connection.disconnect();
@@ -278,7 +281,7 @@ it('recovers when a socket closes between readiness and send', async () => {
     throw new Error('closed');
   });
   h.current().onopen?.(new Event('open'));
-  expect(h.connection.status()).toContain('重连');
+  expect(h.connection.status()).toEqual({ code: 'reconnecting' });
   await vi.advanceTimersByTimeAsync(1000);
   expect(h.sockets).toHaveLength(2);
   await h.connection.disconnect();
@@ -320,7 +323,7 @@ it('sends metadata only after negotiated ready and ignores a superseded collecti
   await h.connection.disconnect();
   resolve?.(metadata);
   await Promise.resolve();
-  expect(h.connection.status()).toBe('未配对');
+  expect(h.connection.status()).toEqual({ code: 'unpaired' });
 });
 
 it('only authenticated connection receives and sends consent messages', async () => {
@@ -364,12 +367,12 @@ it('only authenticated connection receives and sends consent messages', async ()
   await h.receive({ v: 1, type: 'oauth-close', requestId: 'id' });
   expect(h.ports.onOAuthClose).toHaveBeenCalledWith('id');
   await h.receive({ v: 1, type: 'oauth-close' });
-  expect(h.connection.status()).toContain('协议错误');
+  expect(h.connection.status()).toEqual({ code: 'protocolError' });
   expect(h.ports.resetOAuth).toHaveBeenCalled();
   const fresh = setup(saved);
   await fresh.connection.start();
   await fresh.receive({ v: 1, type: 'oauth-request', ...request });
-  expect(fresh.connection.status()).toContain('协议错误');
+  expect(fresh.connection.status()).toEqual({ code: 'protocolError' });
 });
 it('supports older adapters without consent UI without auto approving', async () => {
   vi.useFakeTimers();
@@ -393,7 +396,7 @@ it('supports older adapters without consent UI without auto approving', async ()
     expiresAt: Date.now() + 10000,
   });
   await h.receive({ v: 1, type: 'oauth-close', requestId: 'id' });
-  expect(h.connection.status()).toBe('已连接');
+  expect(h.connection.status()).toEqual({ code: 'connected' });
 });
 
 it('binds pairing and saved credentials to the immutable extension channel', async () => {
@@ -417,7 +420,7 @@ it('binds pairing and saved credentials to the immutable extension channel', asy
     browserId: 'b',
     token: 't',
   });
-  expect(h.connection.status()).toContain('协议错误');
+  expect(h.connection.status()).toEqual({ code: 'protocolError' });
   expect(h.ports.save).not.toHaveBeenCalled();
   await h.connection.pair({ endpoint: 'http://127.0.0.1:43822', name: 'Dev' });
   await h.receive({
@@ -431,7 +434,7 @@ it('binds pairing and saved credentials to the immutable extension channel', asy
     expect.objectContaining({ channel: 'dev' }),
   );
   await h.receive({ v: 1, type: 'ready', browserId: 'b', connectionId: 'c' });
-  expect(h.connection.status()).toContain('协议错误');
+  expect(h.connection.status()).toEqual({ code: 'protocolError' });
 });
 it('authenticates only same-channel credentials before publishing tabs', async () => {
   vi.useFakeTimers();
@@ -448,6 +451,6 @@ it('authenticates only same-channel credentials before publishing tabs', async (
     browserId: saved.browserId,
     connectionId: 'c',
   });
-  expect(h.connection.status()).toBe('已连接');
+  expect(h.connection.status()).toEqual({ code: 'connected' });
   await h.connection.disconnect();
 });

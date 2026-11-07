@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Controller, ViewState } from './controller.js';
-import { language, translate as t } from './presentation.js';
+import { language } from './presentation.js';
+import { translate as t } from './i18n.js';
 import type { Language } from './presentation.js';
 import { Welcome } from './Welcome.js';
 import { Install } from './Install.js';
@@ -92,14 +93,8 @@ export function App({
         )}
       </main>
       <footer>
-        <span>
-          {t(
-            locale,
-            '外观随系统 · 语言随浏览器首选语言',
-            'System appearance · Browser language',
-          )}
-        </span>
-        <span>AVRU / LOCAL</span>
+        <span>{t(locale, 'shell.preferences')}</span>
+        <span>{t(locale, 'shell.footer')}</span>
       </footer>
     </div>
   );
@@ -114,9 +109,7 @@ function Header({ locale }: { locale: Language }) {
         </span>{' '}
         avru
       </div>
-      <span className="local">
-        ● {t(locale, '本地优先', 'LOCAL BY DESIGN')}
-      </span>
+      <span className="local">● {t(locale, 'shell.local')}</span>
     </header>
   );
 }
@@ -131,27 +124,27 @@ function Navigation({
   setPage: (page: 'welcome' | 'install' | 'overview') => void;
 }) {
   return (
-    <nav aria-label={t(locale, '安装步骤', 'Setup steps')}>
+    <nav aria-label={t(locale, 'nav.label')}>
       <button
         onClick={() => {
           setPage('welcome');
         }}
       >
-        {t(locale, '欢迎', 'Welcome')}
+        {t(locale, 'nav.welcome')}
       </button>
       <button
         onClick={() => {
           setPage('install');
         }}
       >
-        {t(locale, '安装扩展', 'Install extension')}
+        {t(locale, 'nav.install')}
       </button>
       <button
         onClick={() => {
           setPage('overview');
         }}
       >
-        {t(locale, '总览', 'Overview')}
+        {t(locale, 'nav.overview')}
       </button>
       <span>
         {page === 'welcome' ? '1' : page === 'install' ? '2' : '3'} / 3
@@ -166,18 +159,12 @@ function Notices({ locale, state }: { locale: Language; state: ViewState }) {
       {' '}
       {!state.authorized && (
         <p role="alert" className="notice">
-          {t(
-            locale,
-            '请重新打开守护进程启动时提供的管理链接。',
-            'Reopen the private management link provided by the daemon.',
-          )}
+          {t(locale, 'session.reopen')}
         </p>
       )}
       {state.message && (
         <p role="status" className="notice">
-          {locale === 'zh'
-            ? state.message
-            : 'Connection or request could not be confirmed. Check the daemon and reopen its management link if needed.'}
+          {t(locale, state.message)}
         </p>
       )}
     </>

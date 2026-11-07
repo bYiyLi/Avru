@@ -1,6 +1,6 @@
 import type { ViewState } from './controller.js';
 import type { Language } from './presentation.js';
-import { translate as t } from './presentation.js';
+import { translate as t } from './i18n.js';
 export interface Actions {
   approve: (id: string) => void;
   reject: (id: string) => void;
@@ -21,22 +21,14 @@ export function Pairings({
         <section
           className="pairing"
           key={pairing.id}
-          aria-label={t(locale, '配对请求', 'Pairing request')}
+          aria-label={t(locale, 'pairing.label')}
         >
           <div>
-            <h2>
-              {pairing.name} · {t(locale, '请求配对', 'Pairing requested')}
-            </h2>
-            <p>
-              {t(
-                locale,
-                '核对扩展弹窗与这里的六位码完全一致，再批准。不要批准不认识的请求。',
-                'Compare this code with the extension popup before approval. Reject unfamiliar requests.',
-              )}
-            </p>
+            <h2>{t(locale, 'pairing.requestTitle', { name: pairing.name })}</h2>
+            <p>{t(locale, 'pairing.verify')}</p>
             <code className="pair-code">{pairing.code}</code>
             <p className="muted">
-              {pairing.origin} · {t(locale, '到期', 'Expires')}{' '}
+              {pairing.origin} · {t(locale, 'pairing.expires')}{' '}
               {new Date(pairing.expiresAt).toLocaleTimeString(locale)}
             </p>
           </div>
@@ -47,7 +39,7 @@ export function Pairings({
                 approve(pairing.id);
               }}
             >
-              {t(locale, '核对一致，批准配对', 'Codes match, approve')}
+              {t(locale, 'pairing.approve')}
             </button>
             <button
               disabled={state.busy}
@@ -55,7 +47,7 @@ export function Pairings({
                 reject(pairing.id);
               }}
             >
-              {t(locale, '拒绝请求', 'Reject')}
+              {t(locale, 'pairing.reject')}
             </button>
           </div>
         </section>

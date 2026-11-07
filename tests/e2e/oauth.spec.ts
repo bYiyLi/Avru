@@ -111,7 +111,7 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
       .filter({ hasText: 'browsers_list' });
     await expect(successful).toContainText('已完成');
     await successful.locator('summary').click();
-    await expect(successful).toContainText('Trace ID');
+    await expect(successful).toContainText('链路 ID');
     await expect(successful).toContainText('authorized');
     await expect(successful).toContainText('completed');
     await expect(history).not.toContainText(token);

@@ -4,7 +4,7 @@ import type {
   CallTrace,
   CallSpan,
 } from './call-types.js';
-import { translate as t } from './presentation.js';
+import { translate as t, number, timestamp } from './i18n.js';
 import type { Language } from './presentation.js';
 
 function statusLabel(
@@ -16,28 +16,28 @@ function statusLabel(
     status === 'succeeded' &&
     events.some((event) => event.code === 'notification_accepted')
   )
-    return t(locale, '通知已接收', 'Notification accepted');
+    return t(locale, 'calls.notificationAccepted');
   const labels = {
-    succeeded: t(locale, '已完成', 'Completed'),
-    rejected: t(locale, '已拒绝', 'Rejected'),
-    failed: t(locale, '失败', 'Failed'),
-    unknown: t(locale, '结果未知', 'Outcome unknown'),
+    succeeded: t(locale, 'calls.succeeded'),
+    rejected: t(locale, 'calls.rejected'),
+    failed: t(locale, 'calls.failed'),
+    unknown: t(locale, 'calls.unknown'),
   };
   return labels[status];
 }
 function TraceDetail({ call, locale }: { call: CallTrace; locale: Language }) {
   const names = {
-    request: t(locale, '请求', 'Request'),
-    authorization: t(locale, '授权检查', 'Authorization'),
-    dispatch: t(locale, '分派', 'Dispatch'),
+    request: t(locale, 'calls.span.request'),
+    authorization: t(locale, 'calls.span.authorization'),
+    dispatch: t(locale, 'calls.span.dispatch'),
   };
   return (
     <details className="call-detail">
-      <summary>{t(locale, '查看链路与日志', 'View trace and logs')}</summary>
+      <summary>{t(locale, 'calls.viewTrace')}</summary>
       <dl className="trace-identifiers">
-        <dt>Trace ID</dt>
+        <dt>{t(locale, 'calls.traceId')}</dt>
         <dd>{call.traceId}</dd>
-        <dt>Request ID</dt>
+        <dt>{t(locale, 'calls.requestId')}</dt>
         <dd>{call.requestId}</dd>
       </dl>
       <ol className="trace-spans">
@@ -47,18 +47,21 @@ function TraceDetail({ call, locale }: { call: CallTrace; locale: Language }) {
             <li key={span.spanId}>
               <strong>{names[span.name]}</strong> ·{' '}
               {statusLabel(span.status, locale, span.events)} ·{' '}
-              {span.durationMs.toFixed(2)} ms
+              {number(locale, span.durationMs, 2)} ms
               <small>
-                Span {span.spanId} · Parent {span.parentSpanId ?? '—'}
+                {t(locale, 'calls.spanIdentity', {
+                  span: span.spanId,
+                  parent: span.parentSpanId ?? '—',
+                })}
               </small>
-              <small>{new Date(span.startedAt).toISOString()}</small>
+              <small>{timestamp(locale, span.startedAt)}</small>
               <ul>
                 {[...span.events]
                   .sort((a, b) => a.at - b.at)
                   .map((event, index) => (
                     <li key={`${String(event.at)}-${String(index)}`}>
                       <time dateTime={new Date(event.at).toISOString()}>
-                        {new Date(event.at).toISOString()}
+                        {timestamp(locale, event.at)}
                       </time>{' '}
                       <code>{event.code}</code>
                     </li>
@@ -67,15 +70,7 @@ function TraceDetail({ call, locale }: { call: CallTrace; locale: Language }) {
             </li>
           ))}
       </ol>
-      {call.status === 'unknown' && (
-        <p>
-          {t(
-            locale,
-            '结果未确认，不要盲目重试。',
-            'The outcome is unconfirmed. Do not retry blindly.',
-          )}
-        </p>
-      )}
+      {call.status === 'unknown' && <p>{t(locale, 'calls.unknownWarning')}</p>}
     </details>
   );
 }
@@ -89,40 +84,31 @@ export function Calls({
   return (
     <section className="calls">
       <div className="section-heading">
-        <h2>{t(locale, 'MCP 调用与链路日志', 'MCP calls & trace logs')}</h2>
+        <h2>{t(locale, 'calls.title')}</h2>
         {history && (
           <span>
-            {t(locale, '最多保留', 'Retains up to')} {history.retention.limit}{' '}
-            {t(locale, '条', 'records')} ·{' '}
+            {t(locale, 'calls.retention', { count: history.retention.limit })} ·{' '}
             {history.retention.persistent
-              ? t(locale, '本机保存', 'Saved locally')
-              : t(
-                  locale,
-                  '仅本次运行，重启清空',
-                  'This run only; cleared on restart',
-                )}
+              ? t(locale, 'calls.persistent')
+              : t(locale, 'calls.ephemeral')}
           </span>
         )}
       </div>
       {!history ? (
-        <p className="empty">
-          {t(locale, '调用记录暂不可用', 'Call history unavailable')}
-        </p>
+        <p className="empty">{t(locale, 'calls.unavailable')}</p>
       ) : history.calls.length === 0 ? (
-        <p className="empty">
-          {t(locale, '暂无真实调用记录', 'No real call records')}
-        </p>
+        <p className="empty">{t(locale, 'calls.empty')}</p>
       ) : (
         <div className="table-scroll">
           <table>
             <thead>
               <tr>
                 {[
-                  t(locale, '开始时间（UTC）', 'Started (UTC)'),
-                  t(locale, '方法 / 工具', 'Method / tool'),
-                  t(locale, '结果', 'Outcome'),
-                  t(locale, '耗时', 'Duration'),
-                  t(locale, '详情', 'Details'),
+                  t(locale, 'calls.started'),
+                  t(locale, 'calls.method'),
+                  t(locale, 'calls.outcome'),
+                  t(locale, 'calls.duration'),
+                  t(locale, 'calls.details'),
                 ].map((label) => (
                   <th key={label}>{label}</th>
                 ))}
@@ -133,7 +119,7 @@ export function Calls({
                 <tr key={call.traceId}>
                   <td>
                     <time dateTime={new Date(call.startedAt).toISOString()}>
-                      {new Date(call.startedAt).toISOString()}
+                      {timestamp(locale, call.startedAt)}
                     </time>
                   </td>
                   <td>
@@ -147,7 +133,7 @@ export function Calls({
                       call.spans.flatMap((span) => span.events),
                     )}
                   </td>
-                  <td>{call.durationMs.toFixed(2)} ms</td>
+                  <td>{number(locale, call.durationMs, 2)} ms</td>
                   <td>
                     <TraceDetail call={call} locale={locale} />
                   </td>
@@ -157,13 +143,7 @@ export function Calls({
           </table>
         </div>
       )}
-      <p className="muted">
-        {t(
-          locale,
-          '仅展示服务实际记录的步骤与脱敏事件，不记录凭据、完整参数或页面内容。',
-          'Only recorded server steps and redacted events are shown. Credentials, full arguments and page contents are not logged.',
-        )}
-      </p>
+      <p className="muted">{t(locale, 'calls.privacy')}</p>
     </section>
   );
 }

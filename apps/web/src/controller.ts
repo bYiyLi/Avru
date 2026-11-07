@@ -31,7 +31,7 @@ export interface ViewState {
   system?: SystemStatus | null;
   browsers: BrowserProfile[];
   pairings: Pairing[];
-  message: string;
+  message: '' | 'session.expired' | 'request.failed' | 'connection.retrying';
   authorized: boolean;
   busy: boolean;
 }
@@ -62,11 +62,11 @@ function createApi(
         pairings: [],
         system: null,
         history: null,
-        message: '会话已失效，请重新打开守护进程提供的管理链接。',
+        message: 'session.expired',
       });
-      throw new Error('会话已失效');
+      throw new Error('session.expired');
     }
-    if (!response.ok) throw new Error('请求失败，请确认守护进程正在运行。');
+    if (!response.ok) throw new Error('request.failed');
     return response.status === 204 ? null : response.json();
   };
 }
@@ -140,7 +140,7 @@ export function createController(
           pairings: [],
           system: null,
           history: null,
-          message: '无法连接守护进程，正在重试…',
+          message: 'connection.retrying',
         });
     }
     if (running && epoch === generation && model.state.authorized)
@@ -163,8 +163,8 @@ export function createController(
             !path.startsWith(`pairings/${encodeURIComponent(pairing.id)}`),
         ),
       });
-    } catch (error) {
-      update({ message: error instanceof Error ? error.message : '请求失败' });
+    } catch {
+      update({ message: actionError(model.snapshot()) });
     } finally {
       revision++;
       update({ busy: false });
@@ -198,4 +198,8 @@ function actions(action: (path: string, method: string) => Promise<void>) {
     revoke: (id: string) =>
       action(`browsers/${encodeURIComponent(id)}`, 'DELETE'),
   };
+}
+
+function actionError(state: ViewState): ViewState['message'] {
+  return state.authorized ? 'request.failed' : 'session.expired';
 }

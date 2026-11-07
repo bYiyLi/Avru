@@ -3,10 +3,11 @@ import type { BrowserContext, Page } from '@playwright/test';
 import { resolve } from 'node:path';
 
 export const endpoint = 'http://127.0.0.1:43822';
-export async function openProfile(directory: string) {
+export async function openProfile(directory: string, locale = 'zh-CN') {
   const extension = resolve('apps/extension/.output/dev/chrome-mv3');
   const context = await chromium.launchPersistentContext(directory, {
     channel: 'chromium',
+    locale,
     headless: true,
     args: [
       `--disable-extensions-except=${extension}`,

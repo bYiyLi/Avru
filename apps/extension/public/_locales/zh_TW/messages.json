@@ -1,0 +1,11 @@
+{
+  "name": {
+    "message": "Avru 瀏覽器連線"
+  },
+  "nameDev": {
+    "message": "Avru Dev 瀏覽器連線"
+  },
+  "description": {
+    "message": "將瀏覽器分頁連線至本機 Avru 守護程序。"
+  }
+}

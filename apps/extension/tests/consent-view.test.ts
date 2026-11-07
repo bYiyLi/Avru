@@ -59,6 +59,18 @@ it('renders untrusted values as text and sends one allow or deny', async () => {
     expect(h.document.documentElement.lang).toBe(
       language === 'zh-CN' ? 'zh' : 'en',
     );
+    expect(h.document.title).toBe(
+      language === 'zh-CN' ? 'Avru 授权确认' : 'Avru authorization',
+    );
+    expect(h.elements.get('#allow')?.textContent).toBe(
+      language === 'zh-CN' ? '允许' : 'Allow',
+    );
+    expect(h.elements.get('#heading')?.textContent).toBe(
+      language === 'zh-CN' ? '允许连接 Avru？' : 'Allow access to Avru?',
+    );
+    expect(h.elements.get('#details')?.append.mock.calls[0]?.[1]).toEqual({
+      textContent: '<script>bad</script>',
+    });
     h.click(language === 'zh-CN' ? 'allow' : 'deny');
     h.click('allow');
     await flush();

@@ -101,12 +101,12 @@ it('handles request errors and expired authorization without exposing data', asy
   request.mockResolvedValue(new Response(null, { status: 503 }));
   controller.start();
   await vi.advanceTimersByTimeAsync(0);
-  expect(controller.snapshot().message).toContain('重试');
+  expect(controller.snapshot().message).toBe('connection.retrying');
   await controller.approve('bad');
-  expect(controller.snapshot().message).toContain('请求失败');
+  expect(controller.snapshot().message).toBe('request.failed');
   request.mockRejectedValue('offline');
   await controller.reject('bad');
-  expect(controller.snapshot().message).toBe('请求失败');
+  expect(controller.snapshot().message).toBe('request.failed');
   request.mockResolvedValue(new Response(null, { status: 401 }));
   await vi.advanceTimersByTimeAsync(2000);
   expect(clear).toHaveBeenCalled();
@@ -162,4 +162,15 @@ it('does not restore a revoked profile from an earlier poll response', async () 
   await vi.advanceTimersByTimeAsync(0);
   expect(controller.snapshot().browsers).toEqual([]);
   controller.stop();
+});
+
+it('keeps stable expired-session errors on actions and never exposes raw exceptions', async () => {
+  const { controller, request } = setup();
+  request.mockRejectedValue(new Error('sensitive internal failure'));
+  await controller.approve('one');
+  expect(controller.snapshot().message).toBe('request.failed');
+  request.mockResolvedValue(new Response(null, { status: 401 }));
+  await controller.revoke('one');
+  expect(controller.snapshot().message).toBe('session.expired');
+  expect(controller.snapshot().authorized).toBe(false);
 });

@@ -183,7 +183,7 @@ it('starts and stops controller, preserves welcome entry and routes without pret
   expect(setPage).toHaveBeenCalledWith('overview');
   const authorized = {
     ...controller,
-    snapshot: () => ({ ...state, message: 'error' }),
+    snapshot: () => ({ ...state, message: 'request.failed' as const }),
   };
   for (const selected of ['install', 'overview']) {
     page = selected;
@@ -307,5 +307,30 @@ it('does not misidentify unsupported browsers as Chromium', () => {
     expect(english).toContain('Unknown browser');
     expect(chinese).not.toContain('Chromium');
     expect(english).not.toContain('Chromium');
+  }
+});
+
+it('renders distinct localized errors instead of generic English or raw exceptions', () => {
+  page = 'welcome';
+  const controller = createController({ key: null, clear: vi.fn() });
+  const messages = [
+    ['session.expired', '会话已失效', 'Session expired'],
+    ['request.failed', '请求失败', 'Request failed'],
+    ['connection.retrying', '正在重试', 'Retrying'],
+  ] as const;
+  for (const [message, chinese, english] of messages) {
+    for (const preferredLanguage of ['zh', 'en']) {
+      const html = renderToStaticMarkup(
+        App({
+          controller: {
+            ...controller,
+            snapshot: () => ({ ...state, message }),
+          },
+          preferredLanguage,
+        }),
+      );
+      expect(html).toContain(preferredLanguage === 'zh' ? chinese : english);
+      expect(html).not.toContain(message);
+    }
   }
 });

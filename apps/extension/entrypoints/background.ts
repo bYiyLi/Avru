@@ -109,7 +109,7 @@ export default defineBackground(() => {
     )
       return false;
     handleMessage(raw).then(respond, () => {
-      respond({ status: '请求失败，请检查连接信息' });
+      respond({ status: { code: 'requestFailed' } });
     });
     return true;
   });
