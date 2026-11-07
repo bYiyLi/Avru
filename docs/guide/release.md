@@ -100,7 +100,6 @@
 
 截至 2026-11-07，npm 官方允许 bypass-2FA granular token 直接发布，但该途径预计 2027-01 移除，故本方案不是长期凭据设计。标准非交互 GitHub CI 不提供等待本人浏览器 2FA 的保证；npm 11.21.2 的 `otplease` 非 TTY 会直接抛错。参见 [token 规则](https://docs.npmjs.com/about-access-tokens/)、[CLI 验证源码](https://github.com/npm/cli/blob/v11.21.2/lib/utils/auth.js)。本节流程存在不等于已公开发布；必须以本次 registry 回读与 CLI 检查为准。
 
-
 ## Scoped 首发候选：@avru/setup
 
 `avru` 直发运行 42403010445 被 npm E403 拒绝：名称与 ava、arg、uvu 过近。未发布，不把此前 stage E400 的根因断言为相同。
