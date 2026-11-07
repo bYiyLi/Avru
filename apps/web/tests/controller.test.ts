@@ -174,3 +174,91 @@ it('keeps stable expired-session errors on actions and never exposes raw excepti
   expect(controller.snapshot().message).toBe('session.expired');
   expect(controller.snapshot().authorized).toBe(false);
 });
+it('connects only the detected current browser once with authenticated ticket issuance', async () => {
+  vi.useFakeTimers();
+  const challenge = 'a'.repeat(64),
+    ticket = 'b'.repeat(64);
+  const request = vi.fn<typeof fetch>().mockImplementation((input) =>
+    Promise.resolve(
+      Response.json(
+        (input as string).endsWith('status')
+          ? {
+              extensionFiles: {
+                directory: '/extension',
+                version: '1',
+                extensionId: 'id',
+              },
+            }
+          : (input as string).endsWith('browsers')
+            ? { browsers: [] }
+            : (input as string).endsWith('pairings')
+              ? { pairings: [] }
+              : (input as string).endsWith('connection-ticket')
+                ? { ticket }
+                : { calls: [] },
+      ),
+    ),
+  );
+  const send = vi
+    .fn()
+    .mockImplementation((_id: string, message: { type: string }) =>
+      Promise.resolve(
+        message.type === 'avru-detect'
+          ? { version: '1', autoAllowed: true }
+          : message.type === 'avru-probe'
+            ? { challenge }
+            : { accepted: true },
+      ),
+    );
+  const controller = createController(
+    { key: 'admin-secret', clear: vi.fn() },
+    request,
+    send,
+  );
+  await controller.connectCurrent();
+  controller.start();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(controller.snapshot().current?.status).toBe('detected');
+  await controller.connectCurrent();
+  await controller.connectCurrent();
+  expect(
+    request.mock.calls.filter(([path]) =>
+      (path as string).endsWith('connection-ticket'),
+    ),
+  ).toHaveLength(1);
+  expect(request.mock.calls.at(-1)?.[1]).toMatchObject({
+    method: 'POST',
+    body: JSON.stringify({ challenge }),
+    headers: { Authorization: 'Bearer admin-secret' },
+  });
+  controller.stop();
+});
+it('does not endlessly retry failed current-browser enrollment', async () => {
+  vi.useFakeTimers();
+  const request = vi
+    .fn<typeof fetch>()
+    .mockImplementation((input) =>
+      Promise.resolve(
+        Response.json(
+          (input as string).endsWith('status')
+            ? { extensionFiles: { extensionId: 'id' } }
+            : (input as string).endsWith('browsers')
+              ? { browsers: [] }
+              : { pairings: [], calls: [] },
+        ),
+      ),
+    );
+  const send = vi.fn().mockResolvedValue({ version: '1', autoAllowed: true });
+  const controller = createController(
+    { key: 'admin', clear: vi.fn() },
+    request,
+    send,
+  );
+  controller.start();
+  await vi.advanceTimersByTimeAsync(0);
+  await controller.connectCurrent();
+  expect(controller.snapshot().current?.status).toBe('failed');
+  await controller.connectCurrent();
+  expect(controller.snapshot().busy).toBe(false);
+  controller.stop();
+});

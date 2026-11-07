@@ -1,3 +1,5 @@
+import { ExternalConnection } from '../utils/external-connection';
+import { defaultEndpoint } from '../utils/channel';
 import { extensionChannel } from '../utils/channel';
 import type { ConsentRequest } from '../utils/oauth-consent';
 import { ConsentController } from '../utils/oauth-consent';
@@ -48,6 +50,9 @@ export default defineBackground(() => {
     },
     metadata: () =>
       browserMetadata(navigator, browser.runtime.getManifest().version),
+    readBlocked: async () =>
+      (await browser.storage.local.get('autoBlocked')).autoBlocked === true,
+    saveBlocked: (autoBlocked) => browser.storage.local.set({ autoBlocked }),
     read: async () =>
       (await browser.storage.local.get('connection')).connection,
     save: async (value) => {
@@ -64,6 +69,7 @@ export default defineBackground(() => {
       clearTimeout(timer);
     },
   });
+  const started = connectExternal(connection);
   const handleError = () => {
     console.warn('Avru local connection unavailable');
   };
@@ -116,5 +122,26 @@ export default defineBackground(() => {
   browser.alarms
     .create('avru-reconnect', { periodInMinutes: 1 })
     .catch(handleError);
-  connection.start().catch(handleError);
+  started.catch(handleError);
 });
+
+function connectExternal(connection: Connection) {
+  const external = new ExternalConnection(
+    connection,
+    defaultEndpoint(),
+    browser.runtime.getManifest().version,
+  );
+  const started = connection.start();
+  browser.runtime.onMessageExternal.addListener(
+    (raw: unknown, sender, respond) => {
+      if (!external.trusted(sender)) return false;
+      started
+        .then(() => external.message(raw, sender))
+        .then(respond, () => {
+          respond({ error: 'unavailable' });
+        });
+      return true;
+    },
+  );
+  return started;
+}

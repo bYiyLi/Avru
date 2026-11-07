@@ -36,3 +36,13 @@
 - 首次提交 `ce027f4` 的 [42379802909](https://github.com/bYiyLi/Avru/actions/runs/42379802909) 同样通过，但当时 daemon 恢复仅在同一测试进程内重建服务。后续明确补强为真实进程退出/启动，不把两者混称。
 
 以上验收完成本阶段开发闭环；仍未在用户电脑安装，未验证商店分发、品牌 Chrome/Edge 全版本、睡眠唤醒、OS 登录自启动、远程 MCP/OAuth、网页操作及 QuickJS 执行。原 moderate 开发依赖告警保留如实记录，不影响本次既定门禁通过，也不当作风险已经消失。
+
+## 当前浏览器免短码增量
+
+目标：新用户在已认证本机管理页进入安装引导，当前浏览器扩展响应后以原 WS 一次性票据连接；不人工核对短码、不误把另一浏览器在线当作本页已安装。安装、浏览器连接与远程 OAuth 保持独立。
+
+已在工作树实现 daemon challenge/ticket、扩展严格 sender 验证与持久撤销禁用、Web 实际版本探测/单次自动连接，以及原有人工配对兼容路径。需要完整门禁、双平台 CI 和真实浏览器测试后才能标记验收；尚未发布 npm。
+
+验收入口：daemon auto-pairing/app/websocket 负向测试；extension auto-challenge/external-connection/connection-auto；Web current-browser/controller；bundled-extension E2E 从安装稳定目录加载实际扩展，在两个独立浏览器配置连接并撤销，检查普通无扩展浏览器不误识别及刷新不自动恢复授权。包含同 socket、channel、document、过期/重放、错误 Origin、无管理 capability、并发及连接中断边界。单测不代替真实浏览器 sender 字段与loopback匹配验收；未覆盖真实品牌/版本矩阵明确保留。
+
+本轮本地验收（集成 runner/scoped candidate main 后工作树）：`pnpm check` 全通过，50文件254测试，逐文件四项覆盖率≥90%；7项门禁负向、audit高危门禁、真实bundle安装/修复/删除缓存/卸载以及3项发布包验证通过。audit仍有既有1项moderate，不是零漏洞。独立只读安全复核后修复probe超时预算与兑换发送失败反馈；实际Windows/macOS Chromium CI待本批PR验证，未宣称Chrome/Edge完整品牌矩阵通过，未发布npm。

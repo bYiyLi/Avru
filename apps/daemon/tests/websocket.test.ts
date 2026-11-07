@@ -140,3 +140,36 @@ describe('real local WebSocket transport', () => {
     await once(idle, 'close');
   }, 10_000);
 });
+
+it('redeems an HTTP management ticket only on the original WebSocket without manual codes', async () => {
+  const app = await start();
+  const socket = await connect();
+  let incoming = message(socket);
+  socket.send(
+    JSON.stringify({
+      v: 1,
+      type: 'auto-probe',
+      profileId: 'p',
+      name: 'Chrome',
+    }),
+  );
+  const challenge = await incoming;
+  expect(challenge.type).toBe('auto-challenge');
+  const result = await app.inject({
+    method: 'POST',
+    url: '/api/connection-ticket',
+    headers,
+    payload: { challenge: challenge.challenge },
+  });
+  expect(result.statusCode).toBe(200);
+  const issued = result.json<{ ticket: string; expiresAt: number }>();
+  expect(issued.ticket).toMatch(/^[a-f0-9]{64}$/);
+  incoming = message(socket, 'ready');
+  socket.send(
+    JSON.stringify({ v: 1, type: 'auto-redeem', ticket: issued.ticket }),
+  );
+  expect((await incoming).type).toBe('ready');
+  expect(
+    (await app.inject({ url: '/api/pairings', headers })).json<unknown>(),
+  ).toEqual({ pairings: [] });
+});

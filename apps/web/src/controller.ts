@@ -1,3 +1,9 @@
+import {
+  detectCurrent,
+  connectCurrent,
+  extensionMessaging,
+} from './current-browser.js';
+import type { CurrentBrowser, ExtensionMessage } from './current-browser.js';
 import type { CallHistory } from './call-types.js';
 export interface BrowserProfile {
   id: string;
@@ -33,6 +39,7 @@ export interface SystemStatus {
   frpc: 'notImplemented';
 }
 export interface ViewState {
+  current?: CurrentBrowser;
   history?: CallHistory | null;
   system?: SystemStatus | null;
   browsers: BrowserProfile[];
@@ -50,7 +57,11 @@ function createApi(
   request: typeof fetch,
   update: (change: Partial<ViewState>) => void,
 ) {
-  return async function api(path: string, method = 'GET'): Promise<unknown> {
+  return async function api(
+    path: string,
+    method = 'GET',
+    body: unknown = {},
+  ): Promise<unknown> {
     const response = await request(`/api/${path}`, {
       method,
       cache: 'no-store',
@@ -58,7 +69,7 @@ function createApi(
         Authorization: `Bearer ${session.key ?? ''}`,
         ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
       },
-      ...(method === 'POST' ? { body: '{}' } : {}),
+      ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
     });
     if (response.status === 401) {
       session.clear();
@@ -66,6 +77,7 @@ function createApi(
         authorized: false,
         browsers: [],
         pairings: [],
+        current: { status: 'unavailable' },
         system: null,
         history: null,
         message: 'session.expired',
@@ -106,6 +118,7 @@ function createModel(session: Session) {
 export function createController(
   session: Session,
   request: typeof fetch = fetch,
+  send: ExtensionMessage = extensionMessaging(),
 ) {
   const model = createModel(session);
   const { update } = model;
@@ -117,10 +130,7 @@ export function createController(
   async function poll(epoch: number) {
     const started = revision;
     try {
-      const result = (await api('browsers')) as { browsers: BrowserProfile[] };
-      const pending = (await api('pairings')) as { pairings: Pairing[] };
-      const system = (await api('status')) as SystemStatus;
-      const history = (await api('calls')) as CallHistory;
+      const result = await readCurrentState(api, send);
       if (
         running &&
         epoch === generation &&
@@ -128,10 +138,8 @@ export function createController(
         started === revision
       )
         update({
-          system,
-          history,
-          browsers: result.browsers,
-          pairings: pending.pairings,
+          ...result,
+          current: retainFailure(model.state.current, result.current),
           message: '',
         });
     } catch {
@@ -144,6 +152,7 @@ export function createController(
         update({
           browsers: [],
           pairings: [],
+          current: { status: 'unavailable' },
           system: null,
           history: null,
           message: 'connection.retrying',
@@ -190,6 +199,9 @@ export function createController(
       generation++;
       clearTimeout(timer);
     },
+    connectCurrent: createCurrentConnector(model, api, send, () => {
+      revision++;
+    }),
     ...actions(action),
   };
 }
@@ -208,4 +220,63 @@ function actions(action: (path: string, method: string) => Promise<void>) {
 
 function actionError(state: ViewState): ViewState['message'] {
   return state.authorized ? 'request.failed' : 'session.expired';
+}
+
+function createCurrentConnector(
+  model: ReturnType<typeof createModel>,
+  api: ReturnType<typeof createApi>,
+  send: ExtensionMessage,
+  bump: () => void,
+) {
+  let attempted = false;
+  const { update } = model;
+  return async () => {
+    const files = model.state.system?.extensionFiles;
+    if (
+      attempted ||
+      !files ||
+      !model.state.authorized ||
+      model.state.busy ||
+      model.state.current?.status !== 'detected'
+    )
+      return;
+    bump();
+    attempted = true;
+    update({ busy: true, current: { status: 'connecting' } });
+    try {
+      await connectCurrent(files.extensionId, send, (challenge) =>
+        api('connection-ticket', 'POST', { challenge }),
+      );
+    } catch {
+      update({ current: { status: 'failed' } });
+    } finally {
+      bump();
+      update({ busy: false });
+    }
+  };
+}
+
+async function readCurrentState(
+  api: ReturnType<typeof createApi>,
+  send: ExtensionMessage,
+) {
+  const { browsers } = (await api('browsers')) as {
+    browsers: BrowserProfile[];
+  };
+  const { pairings } = (await api('pairings')) as { pairings: Pairing[] };
+  const system = (await api('status')) as SystemStatus;
+  const history = (await api('calls')) as CallHistory;
+  const current = system.extensionFiles
+    ? await detectCurrent(system.extensionFiles.extensionId, send)
+    : { status: 'unavailable' as const };
+  return { browsers, pairings, system, history, current };
+}
+
+function retainFailure(
+  previous: CurrentBrowser | undefined,
+  current: CurrentBrowser,
+) {
+  return previous?.status === 'failed' && current.status === 'detected'
+    ? previous
+    : current;
 }

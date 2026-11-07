@@ -20,6 +20,7 @@ const mock = vi.hoisted(() => ({
   removed: vi.fn(),
   alarm: vi.fn(),
   message: vi.fn(),
+  external: vi.fn(),
   create: vi.fn().mockResolvedValue(undefined),
 }));
 let ports: Ports;
@@ -60,6 +61,7 @@ vi.mock('wxt/browser', () => ({
       getManifest: () => ({ version: '0.0.1' }),
       getURL: (path: string) => `chrome-extension://extension${path}`,
       onMessage: { addListener: mock.message },
+      onMessageExternal: { addListener: mock.external },
     },
   },
 }));
@@ -195,4 +197,28 @@ it('routes OAuth only through extension-owned consent window', async () => {
   ports.resetOAuth?.();
   mock.windowCreate.mockResolvedValueOnce({});
   await ports.onOAuthRequest?.(request);
+});
+it('wires external requests only from the exact top-level management document', async () => {
+  const background = await import('../entrypoints/background');
+  (background.default as unknown as () => void)();
+  expect(await ports.readBlocked?.()).toBe(false);
+  await ports.saveBlocked?.(true);
+  expect(mock.set).toHaveBeenCalledWith({ autoBlocked: true });
+  const external = mock.external.mock.calls[0]?.[0] as (
+    raw: unknown,
+    sender: unknown,
+    respond: (value: unknown) => void,
+  ) => boolean;
+  const respond = vi.fn();
+  expect(external({}, {}, respond)).toBe(false);
+  const sender = {
+    url: 'http://127.0.0.1:43822/',
+    origin: 'http://127.0.0.1:43822',
+    frameId: 0,
+    documentId: 'doc',
+    tab: { id: 1, incognito: false },
+  };
+  expect(external({ type: 'invalid' }, sender, respond)).toBe(true);
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  expect(respond).toHaveBeenCalledWith({ error: 'unavailable' });
 });

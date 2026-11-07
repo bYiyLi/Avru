@@ -101,3 +101,10 @@ it('validates metadata types and bounds without accepting arbitrary source label
     ).toThrow('Invalid browser metadata');
   }
 });
+
+it('rejects malformed automatic connection tickets before session dispatch', () => {
+  for (const ticket of [null, 3, '', 'a'.repeat(63), 'A'.repeat(64)])
+    expect(() =>
+      parseMessage(JSON.stringify({ v: 1, type: 'auto-redeem', ticket })),
+    ).toThrow('Invalid ticket');
+});

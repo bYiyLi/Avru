@@ -1,5 +1,15 @@
 import type { Catalog } from '../i18n-types.js';
 export const zh = {
+  'install.current.unavailable':
+    '尚未收到当前浏览器扩展响应。加载后保留本页；扩展禁用或隐私窗口也可能无法响应。',
+  'install.current.detected': '已检测到扩展，正在安全连接当前浏览器…',
+  'install.current.connecting': '正在连接当前浏览器，无需核对短码。',
+  'install.current.connected': '当前浏览器已连接，可以进入系统总览。',
+  'install.current.blocked':
+    '已有连接配置或自动连接已禁用。请打开扩展检查；撤销后需明确重新配对，不会静默恢复授权。',
+  'install.current.failed':
+    '尚未确认连接成功。可刷新本页重试；不会把无响应当作已安装。',
+  'install.currentVersion': '实际响应的扩展版本：{version}',
   'shell.preferences': '外观随系统 · 语言随浏览器首选语言',
   'shell.local': '本地优先',
   'nav.label': '安装步骤',

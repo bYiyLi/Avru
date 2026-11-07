@@ -1,3 +1,4 @@
+import { record } from './messages.js';
 import type { InstalledExtension } from './installed-extension.js';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { CallTraces } from './call-traces.js';
@@ -5,7 +6,7 @@ import { attachOAuth } from './oauth/integration.js';
 import type { OAuthConfig } from './oauth/config.js';
 import { releaseInfo } from './release-info.js';
 import { randomBytes } from 'node:crypto';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import { BrowserStore } from './store.js';
 import { Connections } from './connections.js';
 import { secureHttp } from './http-security.js';
@@ -62,6 +63,7 @@ export function buildApp(options: AppOptions = {}) {
     },
   );
   app.get('/api/browsers', () => ({ browsers: connections.browsers() }));
+  connectionTicketRoute(app, connections);
   app.get('/api/pairings', () => ({ pairings: connections.pairings() }));
   app.post<{ Params: { id: string } }>(
     '/api/pairings/:id/approve',
@@ -109,4 +111,21 @@ export function buildApp(options: AppOptions = {}) {
     done();
   });
   return app;
+}
+
+function connectionTicketRoute(
+  app: FastifyInstance,
+  connections: Connections,
+): void {
+  app.post('/api/connection-ticket', (request, reply) => {
+    const body = request.body;
+    if (
+      !record(body) ||
+      typeof body.challenge !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(body.challenge)
+    )
+      return reply.code(400).send({ error: 'Invalid challenge' });
+    const issued = connections.issueConnectionTicket(body.challenge);
+    return issued ?? reply.code(404).send({ error: 'Challenge unavailable' });
+  });
 }

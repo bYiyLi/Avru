@@ -76,3 +76,30 @@ export async function readProfiles(page: Page, managementUrl: string) {
     }[];
   };
 }
+
+export async function externalMessage(page: Page, message: unknown) {
+  return page.evaluate(
+    ({ id, message }) => {
+      const runtime = (
+        window as unknown as {
+          chrome: {
+            runtime: {
+              lastError?: unknown;
+              sendMessage(
+                id: string,
+                message: unknown,
+                callback: (reply: unknown) => void,
+              ): void;
+            };
+          };
+        }
+      ).chrome.runtime;
+      return new Promise<unknown>((resolve) => {
+        runtime.sendMessage(id, message, (reply) => {
+          resolve(runtime.lastError ? { error: true } : reply);
+        });
+      });
+    },
+    { id: 'cbjgomelhiahmdadpkeijpbkldblanei', message },
+  );
+}

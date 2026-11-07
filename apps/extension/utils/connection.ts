@@ -1,3 +1,4 @@
+import { AutoChallenge } from './auto-challenge';
 import type { ConnectionStatus } from './connection-status';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { consentRequest } from './oauth-consent';
@@ -21,6 +22,8 @@ export interface Socket {
 import type { Metadata } from './metadata';
 export interface Ports {
   channel?: ReleaseChannel;
+  readBlocked?: () => Promise<boolean>;
+  saveBlocked?: (blocked: boolean) => Promise<void>;
   onOAuthRequest?: (request: ConsentRequest) => Promise<void>;
   onOAuthClose?: (requestId: string) => void;
   resetOAuth?: () => void;
@@ -35,6 +38,7 @@ export interface Ports {
   cancel(timer: ReturnType<typeof setTimeout>): void;
 }
 export class Connection {
+  private readonly challenge = new AutoChallenge();
   private socket: Socket | undefined;
   private saved: Credentials | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -53,7 +57,9 @@ export class Connection {
   async start(): Promise<void> {
     const generation = this.generation;
     const value = await this.ports.read();
+    const blocked = await this.ports.readBlocked?.();
     if (generation !== this.generation) return;
+    this.blocked = blocked === true;
     this.saved = credentials(value, this.ports.channel);
     this.reconnect();
   }
@@ -67,12 +73,64 @@ export class Connection {
         token: this.saved.token,
       });
   }
+  inspect() {
+    return {
+      status: this.state.code,
+      autoAllowed: !this.blocked && !this.saved?.token,
+      browserId: this.ready ? this.saved?.browserId : undefined,
+    };
+  }
+  async probe(input: PairInput): Promise<string> {
+    if (this.blocked || this.saved?.token)
+      throw new Error('Automatic connection unavailable');
+    await this.prepare(input);
+    this.connect(input.endpoint, {
+      v: 1,
+      type: 'auto-probe',
+      channel: this.ports.channel,
+      profileId: this.saved?.profileId,
+      name: this.saved?.name,
+    });
+    const generation = this.generation;
+    try {
+      return await this.challenge.wait();
+    } catch (error) {
+      if (generation === this.generation) this.fail();
+      throw error;
+    }
+  }
+  redeem(ticket: string): void {
+    if (
+      !this.socket ||
+      this.ready ||
+      this.blocked ||
+      !/^[a-f0-9]{64}$/.test(ticket)
+    )
+      throw new Error('Invalid ticket');
+    try {
+      this.socket.send(JSON.stringify({ v: 1, type: 'auto-redeem', ticket }));
+    } catch {
+      this.fail();
+      throw new Error('Connection unavailable');
+    }
+  }
   async pair(input: PairInput): Promise<void> {
+    await this.prepare(input);
+    this.connect(input.endpoint, {
+      v: 1,
+      type: 'pair',
+      ...(this.ports.channel ? { channel: this.ports.channel } : {}),
+      profileId: this.saved?.profileId,
+      name: this.saved?.name,
+    });
+  }
+  private async prepare(input: PairInput): Promise<void> {
     const valid = validatePair(input, this.ports.channel);
-    const clearing = this.disconnect();
+    const clearing = this.disconnect(false);
     const generation = this.generation;
     await clearing;
-    if (generation !== this.generation) return;
+    if (generation !== this.generation)
+      throw new Error('Connection superseded');
     this.blocked = false;
     const profileId = this.ports.uuid();
     this.saved = {
@@ -83,19 +141,16 @@ export class Connection {
       browserId: '',
       token: '',
     };
-    this.connect(valid.endpoint, {
-      v: 1,
-      type: 'pair',
-      ...(this.ports.channel ? { channel: this.ports.channel } : {}),
-      profileId,
-      name: valid.name,
-    });
   }
-  async disconnect(): Promise<void> {
+  async disconnect(block = true): Promise<void> {
+    this.blocked = block;
     this.saved = undefined;
     this.stop();
     this.state = { code: 'unpaired' };
-    await this.write(() => this.ports.clear());
+    await this.write(async () => {
+      await this.ports.saveBlocked?.(block);
+      await this.ports.clear();
+    });
   }
   async publish(): Promise<void> {
     const generation = this.generation;
@@ -127,6 +182,7 @@ export class Connection {
     }
   }
   private stop(): void {
+    this.challenge.cancel();
     this.generation++;
     this.ready = false;
     this.ports.resetOAuth?.();
@@ -176,10 +232,16 @@ export class Connection {
     }
     if (
       this.ports.channel &&
-      ['pairing', 'paired', 'ready'].includes(String(message.type)) &&
+      ['pairing', 'paired', 'ready', 'auto-challenge'].includes(
+        String(message.type),
+      ) &&
       message.channel !== this.ports.channel
     ) {
       this.fail();
+      return;
+    }
+    if (message.type === 'auto-challenge') {
+      this.challenge.accept(message.challenge);
       return;
     }
     if (await this.receiveOAuth(message)) return;
