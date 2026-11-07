@@ -1,11 +1,19 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFile, spawn } from 'node:child_process';
+import {
+  cp,
+  copyFile,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { test } from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 import { install, uninstall } from '../../apps/cli/src/install.ts';
 import {
   inspectRuntime,
@@ -76,8 +84,30 @@ async function exerciseInstall(root, cache, port) {
   await rm(cache, { recursive: true });
   await stopRuntime(root);
   // Survives removal of the entire temporary npx-style package location.
-  await hooks.start(repaired.active);
+  await copyFile(
+    join(root, 'program/releases', repaired.active.release, 'launcher.mjs'),
+    join(root, 'program/launcher.mjs'),
+  );
+  const launcher = spawn(
+    process.execPath,
+    [join(root, 'program/launcher.mjs')],
+    {
+      env: {
+        ...process.env,
+        AVRU_DATA_DIR: join(root, 'wrong-transient-dir'),
+        AVRU_PORT: String(port),
+      },
+      stdio: 'ignore',
+    },
+  );
+  for (
+    let attempt = 0;
+    attempt < 50 && !(await inspectRuntime(root));
+    attempt++
+  )
+    await delay(100);
   assert.ok(await inspectRuntime(root));
+  launcher.unref();
   await uninstall({
     root,
     hooks: { stop: hooks.stop, removeAutostart: () => rm(registration) },

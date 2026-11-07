@@ -37,8 +37,15 @@ export async function rejectLinks(path: string): Promise<void> {
     .filter(Boolean)) {
     cursor = join(cursor, part);
     try {
+      const entry = await lstat(cursor);
       if (
-        (await lstat(cursor)).isSymbolicLink() &&
+        cursor !== absolute &&
+        !entry.isDirectory() &&
+        !entry.isSymbolicLink()
+      )
+        throw new Error(`Parent path is not a directory: ${cursor}`);
+      if (
+        entry.isSymbolicLink() &&
         !isSystemAlias(
           cursor,
           resolve(dirname(cursor), await readlink(cursor)),

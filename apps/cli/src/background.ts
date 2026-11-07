@@ -1,9 +1,8 @@
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readActive } from './install-files.js';
 import { inspectRuntime, startRuntime } from './runtime.js';
-const root = process.env.AVRU_DATA_DIR ?? join(homedir(), '.avru');
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const active = await readActive(join(root, 'program'));
 if (!active)
   throw new Error('Avru installation is missing. Run the installer again.');
@@ -20,5 +19,6 @@ if (process.platform === 'darwin') {
     dataRoot: root,
     payloadRoot,
     execPath: active.execPath,
+    port: Number(process.env.AVRU_PORT ?? 43821),
   });
 }

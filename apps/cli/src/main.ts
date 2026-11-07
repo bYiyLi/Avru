@@ -1,11 +1,10 @@
 import * as clack from '@clack/prompts';
-import { copyFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runFlow } from './flow.js';
 import { install, uninstall } from './install.js';
-import { rejectLinks } from './install-files.js';
+import { installLauncher } from './launcher.js';
 import { enableAutostart, disableAutostart } from './autostart-io.js';
 import { startRuntime, stopRuntime, openManagement } from './runtime.js';
 const args = process.argv.slice(2);
@@ -70,10 +69,23 @@ if (args.includes('--help') || args.includes('--version')) {
                   execPath: active.execPath,
                 })
               ).url,
-            autostart: async () => {
-              await rejectLinks(launcherPath);
-              await copyFile(join(source, 'launcher.mjs'), launcherPath);
-              await enableAutostart(auto);
+            autostart: async (active) => {
+              const undo = await installLauncher(
+                join(
+                  root,
+                  'program',
+                  'releases',
+                  active.release,
+                  'launcher.mjs',
+                ),
+                launcherPath,
+              );
+              try {
+                await enableAutostart(auto);
+              } catch (error) {
+                await undo();
+                throw error;
+              }
             },
             open: (url) => openManagement(url, process.platform),
           },

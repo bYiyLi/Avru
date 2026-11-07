@@ -33,6 +33,7 @@ await build({
   outfile: `${out}/payload/daemon.cjs`,
   format: 'cjs',
 });
+await cp(`${out}/launcher.mjs`, `${out}/payload/launcher.mjs`);
 await cp('apps/web/dist', `${out}/payload/web`, { recursive: true });
 await writeFile(
   `${out}/package.json`,
