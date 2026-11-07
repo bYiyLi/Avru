@@ -1,5 +1,5 @@
 import { createController } from './controller.js';
-import { managementSession, reloadManagementLink } from './session.js';
+import { bootstrapManagement, reloadManagementLink } from './session.js';
 import { App } from './App.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -9,10 +9,18 @@ import { localizeDocument } from './i18n.js';
 localizeDocument(document, language(navigator.language));
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');
-createRoot(root).render(
-  <StrictMode>
-    <App controller={createController(managementSession(window))} />
-  </StrictMode>,
+bootstrapManagement(
+  window,
+  () => {
+    window.location.reload();
+  },
+  (session) => {
+    createRoot(root).render(
+      <StrictMode>
+        <App controller={createController(session)} />
+      </StrictMode>,
+    );
+  },
 );
 
 window.addEventListener('hashchange', () => {

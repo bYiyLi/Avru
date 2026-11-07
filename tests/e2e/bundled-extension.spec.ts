@@ -55,14 +55,15 @@ test('packaged extension loads from stable directory after package cache removal
     const management = await profile.context.newPage();
     await management.goto(daemon.url);
     await management.getByRole('button', { name: '进入 Avru' }).click();
-    console.log(
-      'External detection response',
-      await externalMessage(management, { type: 'avru-detect' }),
-    );
-    console.log(
-      'External sender shape',
-      await worker?.evaluate('globalThis.__avruSenderShape'),
-    );
+    await expect
+      .poll(async () => worker?.evaluate('globalThis.__avruSenderShape'))
+      .toEqual(
+        expect.objectContaining({
+          hashPresent: false,
+          frameId: 0,
+          documentPresent: true,
+        }),
+      );
 
     await expect(management.getByRole('status')).toContainText(
       '当前浏览器已连接',
@@ -81,6 +82,9 @@ test('packaged extension loads from stable directory after package cache removal
     );
     const secondPage = await second.context.newPage();
     await secondPage.goto(daemon.url);
+    await expect(
+      secondPage.getByRole('button', { name: 'Enter Avru' }),
+    ).toBeVisible();
     // A navigation invalidates the extension-side document binding.
     const old = (await externalMessage(secondPage, { type: 'avru-probe' })) as {
       challenge: string;

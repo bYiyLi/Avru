@@ -122,3 +122,14 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 manifest 的 `externally_connectable.matches` 限为 `http://127.0.0.1/*`；匹配规则不限定端口，因此运行时继续精确校验当前 channel 固定端口。缺少 sender 字段时拒绝，而非降低校验。该链路与远程 OAuth 分离，不把本机管理接口暴露给 FRPC/ChatGPT。公开 manifest key、ID 和 Origin 不是代码签名；恶意同 OS 用户可读取用户存储或替换 unpacked 代码，不在本方案隔离承诺内。
 
 依据（2026-11-08查阅）：[Chrome match patterns](https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns)、[externally_connectable](https://developer.chrome.com/docs/extensions/reference/manifest/externally-connectable)、[MessageSender](https://developer.chrome.com/docs/extensions/reference/api/runtime#type-MessageSender)。固定 [Chromium 142.0.7444.59 parser](https://github.com/chromium/chromium/blob/142.0.7444.59/extensions/common/manifest_handlers/externally_connectable.cc) 接受解析成功的loopback模式；文档与源码证据不代表所有 Chrome/Edge 版本实际验收。真实浏览器结果归连接阶段记录。
+
+### 管理入口 fragment 与真实文档隔离
+
+Chromium 的外部消息 `MessageSender.url` 可能缓存文档初始 URL，
+`history.replaceState` 不能保证清除其初始 capability fragment。
+Web 导入 capability 到本标签页 sessionStorage 并清除地址 fragment 后，
+必须真正 reload；旧文档不挂载 controller，也不发送任何扩展消息。
+仅新加载的无 fragment 文档可以开始检测。扩展仍严格检查根 URL、
+精确 origin/端口、顶层 frame、documentId、tabId 与非隐私模式，不放宽规则。
+Windows Chromium 158.0.8127.18 的诊断已复现该缓存行为，回归测试断言
+实际外部消息无 fragment，禁止日志记录完整 sender URL 或 capability。
