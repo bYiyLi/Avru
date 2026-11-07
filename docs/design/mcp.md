@@ -1,6 +1,6 @@
 # 远程 MCP 与同机 OAuth
 
-本文件拥有远程接入和授权合同；均尚未实现。本机扩展配对另见[browser-connection.md](browser-connection.md)。
+本文件拥有远程接入和授权合同；当前实现范围与验收见[OAuth阶段](../development/phases/04-oauth.md)。本机扩展配对另见[browser-connection.md](browser-connection.md)。
 
 ## MCP 能力与接口草案
 
@@ -34,24 +34,43 @@ MCP 是正式对外接口，OAuth 是正式远程授权方式。传输版本、�
 
 同机确认不能抵御已经控制目标操作系统账号或受信本机组件的攻击者。安装身份的复制、备份恢复及虚拟机克隆也需要在具体方案中处理，不能把一个可复制标识直接宣称为硬件级同机证明。这是本设计的能力边界，不应描述成强人身认证或硬件级可信证明。
 
-### 建议流程，尚未冻结
+### 已确认交互与当前实现边界
 
-1. MCP 客户端通过选定的标准 OAuth 流程发起授权。建议采用授权码及 PKCE，并按所选 MCP 规范验证客户端、redirect URI、state、资源标识等。
-2. 系统建立一次待确认请求，绑定目标安装身份、客户端、授权范围、随机挑战、有效期及回调约束。
-3. 公网页面显示在目标电脑完成确认的提示。打开这个页面本身不产生授权。
-4. 目标电脑的受信扩展页面或本地 UI 经已认证的本机通道取得该请求，显示目标、客户端及范围，等待用户明确允许或拒绝。
-5. 本机组件将确认与这次挑战、目标设备和授权请求绑定；服务端验证后原子消费挑战，拒绝过期、重放、跨设备替换与范围篡改。
-6. 标准 OAuth 回调和凭据签发完成。只有符合对应 grant 的请求能到达浏览器操作层。
-7. 用户可查看、停止或撤销授权；刷新、有效期和撤销生效方式仍需 Q-07 定案。
+用户确认：批准只能由目标电脑上**已配对扩展的自有弹窗**提交，不提供管理 Web 的 OAuth 批准按钮。拿到 URL 不等于批准；远程桌面操作者可以使用这台电脑上的弹窗。无需用户记忆 token，不代表内部协议没有凭据。
 
-本流程是安全设计候选，不是已证明安全的协议。需要对具体客户端与浏览器实现验证。不能用“请求看起来来自 localhost”替代第 4–5 步。
+现有本机扩展配对继续使用连接阶段的可信管理入口；它不是 OAuth 批准，不在本阶段替换。OAuth 流程开始前必须至少有一个已认证且在线的扩展连接。此实现只授予 `browser:read`，对现有 `browsers_list` 工具开放浏览器元数据与已清洗的普通标签快照；尚未实现的动作、QuickJS、文件访问不因批准而开放。
 
-### 远程与本机入口隔离
+### 组件和协议
 
-建议让远程 MCP/OAuth 协议入口与本机批准入口分离监听或具有不可混用的路由与身份要求：
+- 本机管理与扩展 WS 仍在原 loopback 端口；单独的远程协议服务在另一 loopback 端口监听。反向代理只能转发后者，不能映射原管理服务。
+- 远程服务默认关闭。显式配置固定 HTTPS origin `issuer`、独立端口、可信客户端 ID/显示名/精确 HTTPS redirect URI。未配置或配置无效不自动暴露服务。Host 必须匹配配置；忽略代理提供的身份/授权头，不把 loopback 来源当用户批准。
+- 发布 RFC 9728 resource metadata 和 RFC 8414 server metadata；资源固定为 `${issuer}/mcp`。采用 authorization-code、PKCE S256、RFC 9207 `iss`；只支持预登记 public client (`none`)，没有用户密码、DCR、CIMD 网络取回或密钥共享。避免任意客户端URL取回产生SSRF；实际 ChatGPT 客户端/回调须以管理页显示值登记，不能凭名称推断。
+- 当前 stateless MCP JSON POST 子集协商 `2025-11-25`，提供 initialize、ping、tools/list、tools/call 及通知202；没有 SSE 流、会话恢复或2026协议新功能。授权合同参考2026-07-28最新版，不把它等同于完整新版MCP实现。
 
-- FRPC 只映射获准远程接口，不暴露扩展 WS 通道、扩展管理、调试端口或本机批准端点。
-- 从 FRP 进入的请求即使在本地转发为 loopback，也继续被视为远程请求。
-- 公网路由不能通过参数、反向代理路径或内部转发触达本机批准动作。
-- HTTP Host/Origin 检查是额外防线，不单独承担同机证明。
-- OAuth 凭据不透传到网站，不与 FRP 凭据或本机组件身份混用。
+### 授权状态机
+
+1. `/oauth/authorize` 验证 client、精确 redirect、state、resource、唯一参数、response_type、scope和PKCE挑战；不合格不重定向。
+2. 创建120秒待批请求，绑定随机requestId/nonce、当时已认证连接代次、请求参数及当前daemon实例。只允许一个pending；10秒最小间隔，5分钟最多3次弹窗，避免无限窗口堆积。公开授权入口仍可能被已知client_id滥用造成拒绝服务，限流不保证消除DoS。
+3. 将请求发到当时在线的已配对扩展，扩展以 `windows.create({type:'popup'})` 打开自身 `consent.html`。显示请求应用、完整回调、资源和实际读取范围。客户端显示名不证明发起者身份；用户只批准自己刚发起的请求。
+4. 唯一批准入口是已认证WS上的 `oauth-decision`，服务重验连接代次、browser配对、requestId、nonce和期限。扩展后台另验证准确runtime sender ID/URL和所创建窗口ID，不信任普通网页或配对页消息。第一个有效同意/拒绝原子结束请求，并关闭其他扩展窗口。重连后的新连接不能代答旧请求。
+5. 同意后产生60秒单次授权码；原 `/authorize` HTTP响应返回302到已验证回调，带code、原state和iss。没有Web确认页或批准API。等待期间HTTP连接不返回正文；浏览器关闭或代理超时使请求取消，用户须重新发起，不能自动批准或重放。部署代理超时需超过120秒。
+6. token端点重验client、redirect、resource、PKCE后签发600秒opaque access token；服务仅保留哈希和grant，不向日志、页面或浏览器网站传递token。used-code墓碑保留到grant期限，重放拒绝并撤销对应grant。
+7. 每个MCP POST重新检查当前grant、期限与批准浏览器仍被配对，随后只提供已登记只读工具。撤销立即阻断新调用；断开临时WS不等于永久撤销，撤销浏览器配对才作废其grant。全部凭据和pending仅内存保存，daemon重启全部失效。
+
+本版不签发refresh token，也不实现持久登录；用户再次连接/令牌到期需重新批准。授权列表和单grant撤销仅在受现有管理能力保护的本地 `/api/grants` 中提供，完整Web授权管理UI尚未实现；现有界面的撤销浏览器配对也会使对应grant失效。
+
+### 安全与故障边界
+
+TLS由获准公网入口终止，FRPC仅转发独立协议端口并保留固定Host；不能仅因issuer写了HTTPS就声称部署已加密。本轮不创建隧道、不修改网络权限、不安装用户扩展。反向代理误映射管理端口仍是配置错误，不能由应用自动纠正。
+
+待确认状态、授权码、token均不跨重启；无token持久化/刷新的便利，换取当前最小密钥持有面。操作系统账号被控制、同用户程序读取扩展存储或调试浏览器不在同机确认的保护范围。当前extension origin并非硬件身份。
+
+HTTP不接受浏览器跨源Origin请求，不提供CORS授权端点或Web批准兜底。弹窗创建失败、连接断开、关窗、拒绝、过期都失败关闭。此子集没有用户密码认证、OIDC身份声明、用户账户注册、任意第三方登录或OAuth token透传。
+
+### 依据与限制（2026-11-07查阅）
+
+- [MCP authorization 2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization)：资源发现、OAuth、PKCE、资源/issuer绑定；CIMD优先，DCR仅兼容路径。本版选择受控预登记客户端，不宣称所有客户端自动兼容。
+- [OpenAI认证说明](https://developers.openai.com/plugins/build/auth)：支持预定义客户端与PKCE，回调须使用当前管理页精确值；iss用于回调混淆防护。真实ChatGPT和公网隧道尚未验收。
+- [Chrome windows API](https://developer.chrome.com/docs/extensions/reference/api/windows#method-create)：扩展可创建popup类型窗口。本实现不依赖工具栏瞬态popup；浏览器实际运行结果另由CI记录，不能以API存在代替实测。
+- [Chrome action.openPopup](https://developer.chrome.com/docs/extensions/reference/api/action#method-openPopup)：常规扩展自Chrome127才可调用；118–126限制策略安装扩展，因此未选作唯一弹出机制。
+- [RFC9700](https://www.rfc-editor.org/rfc/rfc9700.html)、[RFC7636](https://www.rfc-editor.org/rfc/rfc7636)、[RFC9207](https://www.rfc-editor.org/rfc/rfc9207)：精确回调、PKCE及issuer识别的安全依据；不是对自定义实现的认证或安全保证。

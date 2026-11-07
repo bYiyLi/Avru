@@ -1,0 +1,63 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  background: #f6f8f4;
+  color: #20372d;
+}
+body {
+  margin: 0;
+}
+main {
+  padding: 32px;
+}
+small {
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+h1 {
+  font-size: 26px;
+}
+p {
+  line-height: 1.6;
+}
+dl {
+  border-block: 1px solid #879b8860;
+  padding-block: 16px;
+}
+dt {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 12px;
+}
+dd {
+  margin: 4px 0 12px;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+footer {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+button {
+  padding: 12px 24px;
+  border: 1px solid #748775;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+#allow {
+  background: #a8c496;
+  color: #162718;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #19231c;
+    color: #ecf1e6;
+  }
+}

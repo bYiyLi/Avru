@@ -1,3 +1,4 @@
+import type { Consent } from './oauth/authority.js';
 import { randomBytes, randomInt, randomUUID } from 'node:crypto';
 import { parseMessage } from './messages.js';
 import type { BrowserMetadata, Tab } from './messages.js';
@@ -34,6 +35,11 @@ export class Connections {
   constructor(
     private readonly store: BrowserStore,
     private readonly now: () => number = Date.now,
+    private readonly decide?: (
+      sessionId: string,
+      browserId: string,
+      decision: { requestId: string; nonce: string; approved: boolean },
+    ) => void,
   ) {}
 
   attach(
@@ -56,6 +62,21 @@ export class Connections {
         this.disconnect(session);
       },
     };
+  }
+  offerConsent(consent: Consent): string[] {
+    const recipients: string[] = [];
+    for (const { session } of this.active.values()) {
+      if (this.send(session, { type: 'oauth-request', ...consent }))
+        recipients.push(session.connectionId);
+    }
+    return recipients;
+  }
+  dismissConsent(requestId: string): void {
+    for (const { session } of this.active.values())
+      this.send(session, { type: 'oauth-close', requestId });
+  }
+  ownsBrowser(browserId: string): boolean {
+    return this.store.list().some((item) => item.id === browserId);
   }
   pairings() {
     this.sweep();
@@ -234,6 +255,8 @@ export class Connections {
     if (message.type === 'ping') this.send(session, { type: 'pong' });
     else if (message.type === 'metadata') live.metadata = message.metadata;
     else if (message.type === 'tabs') live.tabs = message.tabs;
+    else if (message.type === 'oauth-decision')
+      this.decide?.(session.connectionId, session.browserId ?? '', message);
     else this.fail(session, 'invalid');
   }
 }

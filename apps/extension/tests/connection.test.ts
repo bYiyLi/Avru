@@ -321,3 +321,76 @@ it('sends metadata only after negotiated ready and ignores a superseded collecti
   await Promise.resolve();
   expect(h.connection.status()).toBe('未配对');
 });
+
+it('only authenticated connection receives and sends consent messages', async () => {
+  vi.useFakeTimers();
+  const h = setup(saved);
+  const request = {
+    requestId: 'id',
+    nonce: 'nonce',
+    clientName: 'client',
+    redirectUri: 'https://client.test/callback',
+    resource: 'https://avru.test/mcp',
+    scope: 'browser:read' as const,
+    expiresAt: Date.now() + 10000,
+  };
+  h.ports.onOAuthRequest = vi.fn().mockResolvedValue(undefined);
+  h.ports.onOAuthClose = vi.fn();
+  h.ports.resetOAuth = vi.fn();
+  await h.connection.start();
+  h.connection.decideOAuth(request, true);
+  expect(h.current().send).not.toHaveBeenCalled();
+  await h.receive({
+    v: 1,
+    type: 'ready',
+    browserId: saved.browserId,
+    connectionId: 'connection',
+  });
+  await h.receive({ v: 1, type: 'oauth-request', ...request });
+  expect(h.ports.onOAuthRequest).toHaveBeenCalledWith(
+    expect.objectContaining(request),
+  );
+  h.connection.decideOAuth(request, true);
+  expect(h.current().send).toHaveBeenCalledWith(
+    JSON.stringify({
+      v: 1,
+      type: 'oauth-decision',
+      requestId: 'id',
+      nonce: 'nonce',
+      approved: true,
+    }),
+  );
+  await h.receive({ v: 1, type: 'oauth-close', requestId: 'id' });
+  expect(h.ports.onOAuthClose).toHaveBeenCalledWith('id');
+  await h.receive({ v: 1, type: 'oauth-close' });
+  expect(h.connection.status()).toContain('协议错误');
+  expect(h.ports.resetOAuth).toHaveBeenCalled();
+  const fresh = setup(saved);
+  await fresh.connection.start();
+  await fresh.receive({ v: 1, type: 'oauth-request', ...request });
+  expect(fresh.connection.status()).toContain('协议错误');
+});
+it('supports older adapters without consent UI without auto approving', async () => {
+  vi.useFakeTimers();
+  const h = setup(saved);
+  await h.connection.start();
+  await h.receive({
+    v: 1,
+    type: 'ready',
+    browserId: saved.browserId,
+    connectionId: 'connection',
+  });
+  await h.receive({
+    v: 1,
+    type: 'oauth-request',
+    requestId: 'id',
+    nonce: 'nonce',
+    clientName: 'client',
+    redirectUri: 'https://client.test',
+    resource: 'https://resource.test',
+    scope: 'browser:read',
+    expiresAt: Date.now() + 10000,
+  });
+  await h.receive({ v: 1, type: 'oauth-close', requestId: 'id' });
+  expect(h.connection.status()).toBe('已连接');
+});
