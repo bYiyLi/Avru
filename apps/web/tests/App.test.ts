@@ -79,7 +79,11 @@ it('selects only supported guide and system language without asserting extension
   expect(language('de')).toBe('en');
   expect(browserGuide('Edg/100 Chrome/100').address).toBe('edge://extensions');
   expect(browserGuide('Chrome/100').address).toBe('chrome://extensions');
-  expect(browserGuide('Firefox')).toEqual({ name: 'Chromium', address: '' });
+  expect(browserGuide('Firefox')).toEqual({ name: '', address: '' });
+  expect(browserGuide('Version/18 Safari/605')).toEqual({
+    name: '',
+    address: '',
+  });
   expect(versionStatus()).toBe('unknown');
   expect(versionStatus('1')).toBe('unknown');
   expect(versionStatus('1', '1')).toBe('match');
@@ -287,5 +291,21 @@ it('distinguishes unavailable browser state from a verified empty list', () => {
     expect(html).toContain(
       locale === 'zh' ? '状态未确认' : 'Status not confirmed',
     );
+  }
+});
+
+it('does not misidentify unsupported browsers as Chromium', () => {
+  const next = vi.fn();
+  for (const agent of ['Firefox/150', 'Version/18 Safari/605']) {
+    const chinese = renderToStaticMarkup(
+      Install({ locale: 'zh', agent, next }),
+    );
+    const english = renderToStaticMarkup(
+      Install({ locale: 'en', agent, next }),
+    );
+    expect(chinese).toContain('未识别的浏览器');
+    expect(english).toContain('Unknown browser');
+    expect(chinese).not.toContain('Chromium');
+    expect(english).not.toContain('Chromium');
   }
 });

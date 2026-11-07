@@ -21,6 +21,7 @@ test('two real extension profiles pair, observe, reconnect and revoke', async ({
   const profiles: Awaited<ReturnType<typeof openProfile>>[] = [];
   try {
     await page.goto(daemon.url);
+    await expect(page).toHaveURL(`${endpoint}/`);
     await page.getByRole('button', { name: '进入 Avru' }).click();
     await page.getByRole('button', { name: /^查看系统总览/ }).click();
     await expect(page).toHaveURL(`${endpoint}/`);
@@ -84,6 +85,7 @@ test('two real extension profiles pair, observe, reconnect and revoke', async ({
     await daemon.stop();
     daemon = await startDaemon(join(directory, 'data'));
     await page.goto(daemon.url);
+    await expect(page).toHaveURL(`${endpoint}/`);
     await page.getByRole('button', { name: '进入 Avru' }).click();
     await page.getByRole('button', { name: /^查看系统总览/ }).click();
     await expect(page.locator('table details summary')).toHaveCount(2, {

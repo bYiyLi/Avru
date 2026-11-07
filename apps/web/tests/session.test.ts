@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { managementSession } from '../src/session.js';
+import { managementSession, reloadManagementLink } from '../src/session.js';
 it('imports valid capabilities, strips fragments and clears invalid incoming values', () => {
   const storage = new Map<string, string>();
   const host = {
@@ -33,4 +33,18 @@ it('imports valid capabilities, strips fragments and clears invalid incoming val
   host.sessionStorage.setItem('avru.management.key', 'invalid');
   host.location.hash = '';
   expect(managementSession(host).key).toBeNull();
+});
+
+it('reinitializes reopened private links without reacting to unrelated or malformed fragments', () => {
+  const reload = vi.fn();
+  for (const hash of [
+    '',
+    '#view=overview',
+    '#key=bad',
+    '#key=' + 'a'.repeat(64) + '&other=1',
+  ])
+    reloadManagementLink(hash, reload);
+  expect(reload).not.toHaveBeenCalled();
+  reloadManagementLink('#key=' + 'a'.repeat(64), reload);
+  expect(reload).toHaveBeenCalledOnce();
 });

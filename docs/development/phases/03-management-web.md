@@ -26,6 +26,7 @@
 - 本地 `pnpm test:e2e` 受缺失 Playwright Chromium executable 阻塞，2 项未实际启动，不能算通过。新增 Win/Mac CI 用例验证真实扩展 metadata、断线清空和中英文/系统主题/窄屏三页，截图留在私有 CI artifact。
 - 首轮 GitHub `8060c4b` 的 [CI 42395247064](https://github.com/bYiyLi/Avru/actions/runs/42395247064) 中 Mac 的完整门禁/安装包通过，但 E2E 发现主题断言读取透明 body、按钮 accessible name 包含箭头两个测试适配错误。已改为读取 html 实际背景和准确定位按钮，保留原体验验收目标；此失败不抹去。
 - 复审补充：未取得状态时不再误报 0 个浏览器/未配对，改为明确未知。修复后 Web 13 测试及逐文件覆盖率门禁通过；Win/Mac 完整复验待新提交 CI。
+- 第二轮 `463904e8` 的 CI 42395707030 已通过英文亮暗/窄屏三页，真实双配置已完成配对、版本及标签显示，但在 daemon 重启后的旧标签页恢复超时。发现同路径新 capability fragment 是同文档导航，旧控制器继续持有失效会话；已增加严格匹配新 capability fragment 后重载初始化，未降低认证要求，并保留重启恢复验收。未知浏览器也不再误标 Chromium。修复后 Web 15 测试、覆盖率与类型/lint 检查通过；再次 Win/Mac 复验仍待完成。
 - 完整原型范围仍为部分完成，以下依赖没有被缩减或当作验收通过。
 
 ### 明确保留的缺口

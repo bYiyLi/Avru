@@ -10,7 +10,7 @@ export function browserGuide(agent: string) {
     return { name: 'Microsoft Edge', address: 'edge://extensions' };
   if (/Chrome\//.test(agent))
     return { name: 'Chrome', address: 'chrome://extensions' };
-  return { name: 'Chromium', address: '' };
+  return { name: '', address: '' };
 }
 export function versionStatus(actual?: string, expected?: string) {
   if (!actual || !expected) return 'unknown';

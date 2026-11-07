@@ -17,7 +17,7 @@ export function Install({
       </p>
       <h1>{t(locale, '连接当前浏览器', 'Connect this browser')}</h1>
       <p className="lead">
-        {guide.name} ·{' '}
+        {guide.name || t(locale, '未识别的浏览器', 'Unknown browser')} ·{' '}
         {t(
           locale,
           '浏览器类型仅用于提供指引，不代表已检测到扩展。未响应也可能是扩展被禁用、无痕模式或连接异常。',
