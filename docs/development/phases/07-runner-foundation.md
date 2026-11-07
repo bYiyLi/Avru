@@ -22,6 +22,6 @@
 
 独立只读复审发现并已修复：取消前 microtask 仍调用宿主、未 await 桥接提前报告完成。复跑证据：取消后 invoke=0；完成时 mock host 已 settle；33 次取消的非协作调用实际 invoke 上限为 32。该上限仅单 Runner，未来 daemon 必须单例或统一预算。
 
-尚未取得本次 Windows/macOS CI；实际平台验收随此阶段后续记录。实现和 mock 测试不能证明生产 browser grant 校验、实际网页操作、RSS 极限或 OS 沙箱安全。
+实现提交 `ef8704ac78154332c040478a23bfa59411d15552` 的 [PR CI 42405826409](https://github.com/bYiyLi/Avru/actions/runs/42405826409) 已完成：Windows/macOS 工程门禁、真实 runner 进程测试、原有 Chromium E2E、audit 均 success。本段为其后仅文档证据更新，不改变被测实现。实现和 mock 测试不能证明生产 browser grant 校验、实际网页操作、RSS 极限或 OS 沙箱安全。
 
 本地既有 Chromium E2E 未通过环境启动：Playwright 缓存没有目标浏览器；使用现有系统 Chromium 156 后被云端沙箱拒绝 Unix socket，并遇到只读 crash 配置路径，4 个用例未进入业务验收。未绕过限制、不把本地失败写成浏览器回归通过；Windows/macOS CI 仍须实际执行全部 E2E。
