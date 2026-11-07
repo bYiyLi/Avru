@@ -99,3 +99,13 @@
 6. 无论成功失败，删除 `AVRU_NPM_PUBLISH_TOKEN` 并撤销 npm token；GitHub 删除若触发 Confirm access，由维护者完成验证。凭据清理未回读成功不能称已清理。成功后再另行确认仅 `avru`、owner `bYiyLi`、repo `Avru`、专用 workflow 的 OIDC 信任配置，不沿用一次性全包凭据。
 
 截至 2026-11-07，npm 官方允许 bypass-2FA granular token 直接发布，但该途径预计 2027-01 移除，故本方案不是长期凭据设计。标准非交互 GitHub CI 不提供等待本人浏览器 2FA 的保证；npm 11.21.2 的 `otplease` 非 TTY 会直接抛错。参见 [token 规则](https://docs.npmjs.com/about-access-tokens/)、[CLI 验证源码](https://github.com/npm/cli/blob/v11.21.2/lib/utils/auth.js)。本节流程存在不等于已公开发布；必须以本次 registry 回读与 CLI 检查为准。
+
+## Scoped 首发候选：@avru/setup
+
+`avru` 直发运行 42403010445 被 npm E403 拒绝：名称与 ava、arg、uvu 过近。未发布，不把此前 stage E400 的根因断言为相同。
+
+用户选择组织包 `@avru/setup`，版本 `0.1.0-dev.1`、标签 `dev`、显式 public。入口为 `npx -y @avru/setup@dev`，内部命令仍为 `avru`。`npm-scoped-dev-publish.yml` 仅手动从 main 确认触发，Windows/macOS 安装验证全部通过后才使用现有 `AVRU_NPM_PUBLISH_TOKEN`。Secrets 不进入验证作业或包文件。组织管理权限不代表包发布权限；操作者需具备该组织包创建权。
+
+本次仅重标识已审查 2f87b5a 候选：package.json 的 name 与 README 使用命令变化，所有运行文件与第三方许可证字节保持不变。不包含最新 main、浏览器插件安装、MCP 或开发/生产隔离。固定输入 SHA256 aa76c1e620b0a817c79f1c82476aab6570d013f25b6641425679e51b43fe3b39；重打包 SHA256 7acea27e13e1e0573106dd47351462dee79289c917b62fe7a61224d1a42dd495。若校验不同则停止，不自动接受新 hash。流程文件存在不代表已发布，必须以对应 CI、registry dev 标签及下载包完整性为准。
+
+用户要求成功前保留现有临时 token；本次未撤销或扩大权限。成功后核验再协调凭据清理。旧 unscoped 工作流保留历史，不应再触发。
