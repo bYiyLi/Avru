@@ -1,0 +1,161 @@
+name: Publish approved scoped npm dev candidate
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: avru-first-npm-dev-stage
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.repository == 'bYiyLi/Avru' && github.ref == 'refs/heads/main' && inputs.confirm_public_release
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+      - name: Install pinned npm without lifecycle scripts
+        run: npm install --global --ignore-scripts npm@11.21.2
+      - name: Verify both platforms validated the exact source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: "gh api repos/bYiyLi/Avru/actions/runs/42394455061 > \"$RUNNER_TEMP/source-run.json\"\ngh api repos/bYiyLi/Avru/actions/runs/42394455061/jobs > \"$RUNNER_TEMP/source-jobs.json\"\nnode --input-type=module <<'NODE'\nimport {readFile} from 'node:fs/promises';\nconst read = async name => JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/${name}.json`,'utf8'));\nconst run = await read('source-run');\nconst {jobs} = await read('source-jobs');\nif (run.conclusion !== 'success' || run.head_sha !== '2f87b5a7407b0ff266a8b28b73c87fbd48590fa9' || run.path !== '.github/workflows/npm-dev-prepare.yml') throw Error('Source mismatch');\nfor (const name of ['prepare (macos-latest)', 'prepare (windows-latest)']) {\n  if (!jobs.some(job => job.name === name && job.conclusion === 'success')) throw Error('Platform validation missing');\n}\nNODE\n"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: '13582611914'
+          run-id: '42394455061'
+          github-token: ${{ github.token }}
+          path: artifacts/stage-input
+          merge-multiple: true
+      - name: Verify exact approved archive and source-free manifest
+        run:
+          "echo 'aa76c1e620b0a817c79f1c82476aab6570d013f25b6641425679e51b43fe3b39  artifacts/stage-input/avru-0.1.0-dev.1.tgz' | shasum -a 256 -c -
+
+          node scripts/release/verify-stage.mjs
+
+          node scripts/release/scoped-candidate.mjs
+
+          node --input-type=module <<'NODE'
+
+          import {readFile} from 'node:fs/promises';
+
+          const r=JSON.parse(await readFile('artifacts/scoped-distribution/scoped-release.json','utf8'));
+
+          if(r.sha256 !== '7acea27e13e1e0573106dd47351462dee79289c917b62fe7a61224d1a42dd495') throw Error('Scoped archive differs from reviewed candidate');
+
+          NODE
+
+          npm publish ./artifacts/scoped-distribution/avru-setup-0.1.0-dev.1.tgz --dry-run --tag dev --access public --ignore-scripts --provenance=false --registry https://registry.npmjs.org/
+
+          "
+      - name: Install scoped archive without lifecycle and exercise CLI
+        run:
+          'npm install --prefix ./artifacts/scoped-install --ignore-scripts --no-audit --no-fund ./artifacts/scoped-distribution/avru-setup-0.1.0-dev.1.tgz
+
+          node ./artifacts/scoped-install/node_modules/@avru/setup/cli.mjs --version
+
+          node ./artifacts/scoped-install/node_modules/@avru/setup/cli.mjs --help
+
+          '
+  publish:
+    needs: validate
+    if: github.repository == 'bYiyLi/Avru' && github.ref == 'refs/heads/main' && inputs.confirm_public_release
+    runs-on: macos-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.1
+      - name: Install pinned npm without lifecycle scripts
+        run: npm install --global --ignore-scripts npm@11.21.2
+      - name: Verify both platforms validated the exact source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: "gh api repos/bYiyLi/Avru/actions/runs/42394455061 > \"$RUNNER_TEMP/source-run.json\"\ngh api repos/bYiyLi/Avru/actions/runs/42394455061/jobs > \"$RUNNER_TEMP/source-jobs.json\"\nnode --input-type=module <<'NODE'\nimport {readFile} from 'node:fs/promises';\nconst read = async name => JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/${name}.json`,'utf8'));\nconst run = await read('source-run');\nconst {jobs} = await read('source-jobs');\nif (run.conclusion !== 'success' || run.head_sha !== '2f87b5a7407b0ff266a8b28b73c87fbd48590fa9' || run.path !== '.github/workflows/npm-dev-prepare.yml') throw Error('Source mismatch');\nfor (const name of ['prepare (macos-latest)', 'prepare (windows-latest)']) {\n  if (!jobs.some(job => job.name === name && job.conclusion === 'success')) throw Error('Platform validation missing');\n}\nNODE\n"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: '13582611914'
+          run-id: '42394455061'
+          github-token: ${{ github.token }}
+          path: artifacts/stage-input
+          merge-multiple: true
+      - name: Verify exact approved archive and source-free manifest
+        run:
+          "echo 'aa76c1e620b0a817c79f1c82476aab6570d013f25b6641425679e51b43fe3b39  artifacts/stage-input/avru-0.1.0-dev.1.tgz' | shasum -a 256 -c -
+
+          node scripts/release/verify-stage.mjs
+
+          node scripts/release/scoped-candidate.mjs
+
+          node --input-type=module <<'NODE'
+
+          import {readFile} from 'node:fs/promises';
+
+          const r=JSON.parse(await readFile('artifacts/scoped-distribution/scoped-release.json','utf8'));
+
+          if(r.sha256 !== '7acea27e13e1e0573106dd47351462dee79289c917b62fe7a61224d1a42dd495') throw Error('Scoped archive differs from reviewed candidate');
+
+          NODE
+
+          npm publish ./artifacts/scoped-distribution/avru-setup-0.1.0-dev.1.tgz --dry-run --tag dev --access public --ignore-scripts --provenance=false --registry https://registry.npmjs.org/
+
+          "
+      - name: Publish once (immediately public, never latest)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.AVRU_NPM_PUBLISH_TOKEN }}
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/avru-publish.npmrc
+        run: 'set -euo pipefail
+
+          trap ''rm -f "$NPM_CONFIG_USERCONFIG"'' EXIT
+
+          test -n "$NODE_AUTH_TOKEN"
+
+          umask 077
+
+          printf ''%s\n'' ''//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}'' > "$NPM_CONFIG_USERCONFIG"
+
+          test "$(npm whoami --registry https://registry.npmjs.org/)" = ''baiyihuan''
+
+          npm publish ./artifacts/scoped-distribution/avru-setup-0.1.0-dev.1.tgz --tag dev --access public --ignore-scripts --provenance=false --registry https://registry.npmjs.org/
+
+          '
+      - name: Verify public registry identity and downloaded CLI version
+        run: 'set -euo pipefail
+
+          test "$(npm view @avru/setup@dev version --registry https://registry.npmjs.org/)" = ''0.1.0-dev.1''
+
+          test "$(npm view @avru/setup@0.1.0-dev.1 dist.shasum --registry https://registry.npmjs.org/)" = ''6574470913a44f9d9116c17946940f9a60081da6''
+
+          npm exec --yes --ignore-scripts --registry https://registry.npmjs.org/ --package=@avru/setup@0.1.0-dev.1 -- avru --version
+
+          printf ''%s\n'' ''Published fixed incomplete preview @avru/setup@0.1.0-dev.1 to dev; registry identity verified. Revoke temporary npm token and delete AVRU_NPM_PUBLISH_TOKEN. No browser extension included.'' >> "$GITHUB_STEP_SUMMARY"
+
+          '
+'on':
+  workflow_dispatch:
+    inputs:
+      confirm_public_release:
+        description: Publish @avru/setup 0.1.0-dev.1 to dev (incomplete preview)
+        type: boolean
+        required: true
+        default: false
