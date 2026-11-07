@@ -25,7 +25,9 @@
     "check:types": "type-coverage --project tsconfig.quality.json --at-least 99 --strict --detail && type-coverage --project apps/extension/tsconfig.json --at-least 99 --strict --detail",
     "check:audit": "pnpm audit --audit-level high",
     "validate": "pnpm check && pnpm test:gates && pnpm check:audit && pnpm test:e2e",
-    "test:gates": "node --test tests/quality/gates.test.mjs"
+    "test:gates": "node --test tests/quality/gates.test.mjs",
+    "package:cli": "pnpm build && node scripts/package-cli.mjs",
+    "test:installer": "node --import tsx --test tests/installer/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -34,6 +36,7 @@
     "@types/node": "24.19.2",
     "@vitest/coverage-v8": "5.1.0",
     "dependency-cruiser": "18.7.2",
+    "esbuild": "^0.28.2",
     "eslint": "10.14.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.14.0",

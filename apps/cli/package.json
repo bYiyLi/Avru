@@ -7,5 +7,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1"
   }
 }

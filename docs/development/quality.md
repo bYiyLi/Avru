@@ -23,7 +23,7 @@
 
 覆盖 apps 各应用 src、packages 各包 src，以及 WXT 扩展根下 TS/TSX（含 utils/components/entrypoints）。扩展仅排除 wxt.config.ts、tests、node_modules、.wxt、.output；全局排除类型声明。三个精确薄入口 apps/cli/src/main.ts、apps/daemon/src/main.ts、apps/web/src/main.tsx 不计单测覆盖率：其中不得积累业务逻辑，它们的真实启动、关闭和故障恢复须由集成验收补齐。
 
-生成产物 dist/.wxt/.output、依赖 node_modules、coverage 和测试报告不计源码质量；具体 glob 以配置为准。新增源码不得通过扩大排除范围逃避门禁。扩展当前只有 HTML 提示页，没有 TS 业务源码，不能称扩展功能已获 90% 覆盖。
+生成产物 dist/.wxt/.output/artifacts（安装 bundle）、依赖 node_modules、coverage 和测试报告不计源码质量；具体 glob 以配置为准。新增源码不得通过扩大排除范围逃避门禁。扩展当前只有 HTML 提示页，没有 TS 业务源码，不能称扩展功能已获 90% 覆盖。
 
 ## 运行与 CI
 
@@ -48,3 +48,5 @@ audit 无 high/critical，存在 minimatch 10.2.6 的 moderate 公告 GHSA-g3hv-
 实际执行 pnpm why -r minimatch：仅 10.2.6，位于这些开发工具链。pnpm audit --prod --json 返回 0 公告；完整 audit 仍保留 1 moderate。前者是当次 registry 扫描结论，不是生产安全保证；没有运行拒绝服务攻击或穷尽所有间接调用。
 
 当前处理：不加入 audit 忽略、不降低门禁、不强行跨主版本 override、不引入自维护补丁。现有门禁使用仓库受审查的固定 glob，不把外部用户输入传入这些工具；未来若引入用户提供的 glob 或以工具处理不可信配置，须重新评估。后续升级条件：上游发布支持修复版的依赖，或可验证的兼容安全回补；更新锁文件后重跑 check、7 类负向门禁、完整及生产 audit、Windows/macOS E2E。未经这些证据不标记为已修复。
+
+CLI 的 `main.ts` 和 `background.ts` 仅为薄入口；安装事务、平台文件、引导状态机和 runtime 业务全部纳入逐文件覆盖。`artifacts/` 为可重建安装产物，不计入源码检查，不允许放手写源代码。

@@ -14,3 +14,5 @@ test-results/
 *.sqlite*
 *.log
 .DS_Store
+
+/artifacts/

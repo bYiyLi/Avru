@@ -22,6 +22,7 @@ export default defineConfig({
         'apps/extension/wxt.config.ts',
         // Exact bootstrap paths only; business logic belongs in covered modules.
         'apps/cli/src/main.ts',
+        'apps/cli/src/background.ts',
         'apps/daemon/src/main.ts',
         'apps/web/src/main.tsx',
       ],
