@@ -41,6 +41,7 @@ describe('local daemon HTTP trust boundary', () => {
     ).toEqual({
       daemonVersion: '0.1.0-dev.1',
       expectedExtensionVersion: '0.0.1',
+      extensionFiles: null,
       mcp: 'notImplemented',
       chatgpt: 'notImplemented',
       frpc: 'notImplemented',

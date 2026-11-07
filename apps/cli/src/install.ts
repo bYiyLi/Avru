@@ -1,3 +1,4 @@
+import { prepareExtension } from './extension-files.js';
 import { releaseChannel } from '../../../packages/protocol/environment.js';
 import { claimRoot, type ReleaseChannel } from './channel-root.js';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
@@ -66,8 +67,19 @@ async function activate(
   active: ActiveRelease,
   previous: ActiveRelease | undefined,
 ): Promise<string> {
-  await options.hooks.stop();
+  const extension = await prepareExtension(
+    options.root,
+    join(program, 'releases', active.release, 'extension'),
+    options.channel ?? releaseChannel(),
+  );
   try {
+    await options.hooks.stop();
+  } catch (error) {
+    await extension.rollback();
+    throw error;
+  }
+  try {
+    await extension.activate();
     await writeActive(program, active);
     const url = await options.hooks.start(active);
     await options.hooks.autostart(active);
@@ -81,6 +93,7 @@ async function activate(
       throw error;
     // A failed stop leaves the candidate state intact rather than deleting a possibly running release.
     await options.hooks.stop();
+    await extension.rollback();
     await writeActive(program, previous);
     if (previous) {
       await options.hooks.start(previous);

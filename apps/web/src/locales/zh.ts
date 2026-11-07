@@ -35,14 +35,21 @@ export const zh = {
   'install.detectionNotice':
     '浏览器类型仅用于提供指引，不代表已检测到扩展。未响应也可能是扩展被禁用、无痕模式或连接异常。',
   'install.packageNotice':
-    '当前开发包尚未包含可安装的扩展目录。下面是本地加载流程，需使用项目构建产生的扩展目录；不要选择 npx 缓存目录。',
+    '当前安装实例未检测到已准备的扩展目录。请重新运行 Avru 安装命令，再打开它提供的管理链接；不要选择 npx 缓存目录。',
+  'install.prepared':
+    '扩展文件 {version} 已准备好。这不代表当前浏览器已安装、启用或重新加载扩展。',
+  'install.directory': '已准备的扩展目录',
+  'install.pathHelp':
+    '请选择这个完整目录。macOS 文件选择器可按 Command–Shift–G 粘贴路径；Windows 可粘贴到文件选择器地址栏。',
+  'install.reload':
+    '重新运行安装器更新文件后，请在扩展管理页对 Avru 点击“重新加载”，再到总览核对实际运行版本；另一环境保持独立。',
   'install.openManager': '打开扩展管理页',
   'install.copyAddress':
     '将下方地址复制到当前浏览器地址栏。浏览器可能禁止普通网页直接打开内部设置页。',
   'install.supportedBrowser': '请在受支持的 Chrome 或 Edge 中打开此页面',
   'install.load': '加载本地扩展',
   'install.loadInstructions':
-    '开启「开发者模式」，点击「加载已解压的扩展程序」，选择构建生成的 chrome-mv3 文件夹。Mac 可在文件选择器按 ⌘⇧G 输入路径；Windows 可在地址栏粘贴路径。',
+    '开启“开发者模式”，点击“加载已解压的扩展程序”（Chrome）或“加载解压缩的扩展”（Edge），选择本页显示的扩展目录；未显示目录时先重新运行安装器。',
   'install.connect': '发起连接并核验',
   'install.pairInstructions':
     '打开 Avru 扩展弹窗并点击配对，返回本页核对配对请求。批准后可在系统总览查看连接。当前版本仍保留核对码，不会自动批准未知扩展。',

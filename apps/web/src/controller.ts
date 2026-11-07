@@ -19,7 +19,13 @@ export interface Pairing {
   expiresAt: number;
   origin: string;
 }
+export interface ExtensionFiles {
+  directory: string;
+  version: string;
+  extensionId: string;
+}
 export interface SystemStatus {
+  extensionFiles?: ExtensionFiles | null;
   daemonVersion: string;
   expectedExtensionVersion: string;
   mcp: 'notImplemented' | 'oauthReadOnly';

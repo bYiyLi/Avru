@@ -36,9 +36,7 @@ test('English system-dark console keeps truthful three-page empty states', async
       )
       .not.toBe(dark);
     await page.getByRole('button', { name: 'Enter Avru' }).click();
-    await expect(
-      page.getByText(/does not yet include an installable extension/),
-    ).toBeVisible();
+    await expect(page.getByText(/No prepared extension folder/)).toBeVisible();
     await page.screenshot({
       path: testInfo.outputPath('install-light-en.png'),
       fullPage: true,

@@ -1,3 +1,4 @@
+import type { InstalledExtension } from './installed-extension.js';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { CallTraces } from './call-traces.js';
 import { attachOAuth } from './oauth/integration.js';
@@ -13,6 +14,7 @@ import { connectWebSockets } from './websocket.js';
 
 export interface AppOptions {
   channel?: ReleaseChannel;
+  installedExtension?: InstalledExtension | null;
   adminKey?: string;
   databasePath?: string;
   webRoot?: string;
@@ -44,6 +46,7 @@ export function buildApp(options: AppOptions = {}) {
   }));
   app.get('/api/status', () => ({
     ...releaseInfo,
+    extensionFiles: options.installedExtension ?? null,
     channel: options.channel,
     mcp: authority ? 'oauthReadOnly' : 'notImplemented',
     chatgpt: 'notImplemented',

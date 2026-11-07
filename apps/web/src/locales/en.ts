@@ -35,14 +35,21 @@ export const en = {
   'install.detectionNotice':
     'Browser identification only selects this guide. No response can also mean a disabled extension, private browsing or a connection issue.',
   'install.packageNotice':
-    'This development package does not yet include an installable extension directory. The steps below require the project-built extension folder, not the npx cache.',
+    'No prepared extension folder was found for this installation. Run the Avru installer again and reopen its management link. Do not select an npx cache folder.',
+  'install.prepared':
+    'Extension files {version} are ready. This does not mean the browser has installed, enabled or reloaded them.',
+  'install.directory': 'Prepared extension folder',
+  'install.pathHelp':
+    'Select this exact folder. On macOS, press Command–Shift–G in the file picker to paste the path; on Windows, paste it into the file picker address bar.',
+  'install.reload':
+    'After rerunning the installer, click Reload for Avru in extension management, then verify the running version in the overview. Other environments remain separate.',
   'install.openManager': 'Open extension management',
   'install.copyAddress':
     'Copy this address into this browser’s address bar. Browsers may block direct navigation from a web page.',
   'install.supportedBrowser': 'Open this page in supported Chrome or Edge',
   'install.load': 'Load the local extension',
   'install.loadInstructions':
-    'Enable Developer mode, choose Load unpacked, and select the built chrome-mv3 folder. On Mac use ⌘⇧G in the picker; on Windows paste the folder path into the address bar.',
+    'Enable Developer mode and choose Load unpacked. Select the prepared extension folder shown here; if no folder is shown, rerun the installer before continuing.',
   'install.connect': 'Connect and verify',
   'install.pairInstructions':
     'Open the Avru extension popup and choose Pair. Return here to verify its pairing request. This version retains verification codes and never auto-approves unknown extensions.',

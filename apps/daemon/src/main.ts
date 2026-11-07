@@ -1,3 +1,4 @@
+import { installedExtension } from './installed-extension.js';
 import {
   defaultDataRoot,
   runtimeChannel,
@@ -23,6 +24,7 @@ async function bootstrap(): Promise<void> {
   const app = buildApp({
     ...(oauth ? { oauth } : {}),
     channel,
+    installedExtension: await installedExtension(dataRoot, channel),
     adminKey,
     port,
     databasePath: resolve(dataRoot, 'browsers.sqlite'),

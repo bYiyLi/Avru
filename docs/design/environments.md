@@ -26,7 +26,7 @@ WXT构建目录分别为`.output/dev/chrome-mv3`与`.output/prod/chrome-mv3`，�
 
 生产daemon只接受本channel的extension Origin，配对/认证首包携带channel，回复与持久凭据必须相符；原有随机token、Origin绑定、管理capability验证仍保留。其他环境的token、配对ID与管理key不能复用。旧无channel凭据拒绝并需重新配对。
 
-当前扩展仍需独立构建并由用户加载；此变更不冒充已交付随包扩展分发、自动安装或免短码首次配对。未来随包扩展必须放入对应环境的稳定`extension/`目录，不能使用npx缓存或临时release UUID作为加载路径；跨环境升级/卸载不得操作另一目录。
+随包扩展分发使用对应环境稳定`extension/`目录，不能使用npx缓存或临时release UUID作为加载路径；跨环境升级/卸载不得操作另一目录。用户仍须手动加载并在升级后重新加载扩展；这不代表自动安装或免短码首次配对。交付事务及实际验收分别见[安装设计](installation.md)与安装阶段。
 
 ## OAuth、配置与运行
 
