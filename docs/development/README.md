@@ -14,7 +14,7 @@
 
 基线为 `cace4672679ccb45a50ac093715cb3e34b4a403b`；它的 [CI 42382850187](https://github.com/bYiyLi/Avru/actions/runs/42382850187) 本次已按精确 SHA 查询为 success；这只证明该基线，不替代后续提交实时结果。各阶段记录原始验收 SHA/日志范围。
 
-远程 MCP/OAuth 的扩展确认只读切片正在[04 OAuth阶段](phases/04-oauth.md)实现与验证；FRPC/通道接入、网页动作、QuickJS 运行器及完整管理 Web 仍未实现。管理 Web 最新方向为欢迎、当前浏览器本地安装引导、全系统总览三页，按管理界面阶段实现；原型不是后端能力证据。
+远程 MCP/OAuth 的扩展确认只读切片正在[04 OAuth阶段](phases/04-oauth.md)实现与验证；FRPC/通道接入、网页动作、QuickJS 生产接线及完整管理 Web 仍未实现。管理 Web 最新方向为欢迎、当前浏览器本地安装引导、全系统总览三页，按管理界面阶段实现；原型不是后端能力证据。
 
 ## 共同完成条件
 
@@ -27,3 +27,5 @@
 私有开发候选发行与领取见[发行指南](../guide/release.md)，0.1.0-dev.1 的实际 CI/产物验收仍独立于已有安装阶段历史证据。
 
 [05 双环境隔离](phases/05-environment-isolation.md)的目录/身份/端口/凭据隔离切片已通过Win/mac CI；正式双包发行与OS登录仍未验收。
+
+[07 QuickJS 独立基础](phases/07-runner-foundation.md)为 R-16 的内部执行器切片，具体 SDK、MCP 执行接口与真实网页动作仍未实现；不因该基础存在开放现有只读授权。

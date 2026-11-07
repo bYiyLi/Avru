@@ -28,7 +28,8 @@
     "test:gates": "node --test tests/quality/gates.test.mjs",
     "package:cli": "pnpm build && node scripts/package-cli.mjs",
     "test:installer": "node --import tsx --test tests/installer/*.test.mjs",
-    "test:release": "node --test tests/release/*.test.mjs"
+    "test:release": "node --test tests/release/*.test.mjs",
+    "test:runner": "node --test tests/runner/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

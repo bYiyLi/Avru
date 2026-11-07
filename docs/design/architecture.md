@@ -77,7 +77,7 @@ D-14 确认以下工程选型。此处记录组件的目标责任边界，不表
 
 该组合将服务路由、连接、协议、管理界面、存储和验证工具分工明确；采用现成框架仍需维护依赖兼容、适配层与安全合同。SQLite 对应本机数据需求，本轮没有批准云端 PostgreSQL、多租户存储或 ORM 引入。测试框架选择不构成浏览器真实连接、跨平台安装或安全验收通过的证据。
 
-已安装依赖的开发版本由 package.json / pnpm-lock.yaml 固定，工程基线见本文件“工程边界”；完整产品支持范围、未来数据库迁移与 MCP 接线仍待确定；本机配对存储和 WS 接线见 [本机连接](browser-connection.md)。QuickJS 的具体 WASM 包/版本、runner IPC 和任务调度仍见 Q-14；远程同机授权和 OAuth 生命周期仍见 Q-03/Q-07；首次配对本机子集已有实现合同。
+已安装依赖的开发版本由 package.json / pnpm-lock.yaml 固定，工程基线见本文件“工程边界”；完整产品支持范围、未来数据库迁移与 MCP 接线仍待确定；本机配对存储和 WS 接线见 [本机连接](browser-connection.md)。QuickJS 内部包/版本、IPC 和任务调度见 runner.md，生产接线与具体 SDK 仍见 Q-14；远程同机授权和 OAuth 生命周期仍见 Q-03/Q-07；首次配对本机子集已有实现合同。
 
 ### 工程边界
 
@@ -90,7 +90,7 @@ D-14 确认以下工程选型。此处记录组件的目标责任边界，不表
 | apps/web          | 管理交互，不自行作出授权决定                             |
 | apps/extension    | WXT 扩展，WS 接入与浏览器允许的操作                      |
 | packages/protocol | 跨组件协议边界；现有连接合同见 browser-connection.md     |
-| packages/runner   | 独立 QuickJS WASM 执行器边界，尚未实现                   |
+| packages/runner   | 独立 QuickJS WASM 基础；未连接 daemon/真实 SDK           |
 | tests/e2e         | 真实跨组件验收，不替代用户机器和发行验收                 |
 
 应用不得互相导入；共享协议不得导入应用/runner；runner 不导入应用，UI 不导入 runner。具体检查配置与例外见[质量指南](../guide/quality.md)。安装、自启动和 WS 现有实现不再使用初始骨架的“只有 help/health”描述；当前进度统一见[开发计划](../development/README.md)。
