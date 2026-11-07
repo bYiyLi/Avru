@@ -41,7 +41,15 @@ const profile = {
   connectionId: 'c',
   tabs: [{ id: 1, title: 'Tab', url: 'https://example.com' }],
 };
+const system = {
+  daemonVersion: '0.1.0-dev.1',
+  expectedExtensionVersion: '0.0.1',
+  mcp: 'notImplemented',
+  chatgpt: 'notImplemented',
+  frpc: 'notImplemented',
+} as const;
 const state: ViewState = {
+  system,
   authorized: true,
   busy: false,
   message: '',
@@ -65,13 +73,7 @@ const state: ViewState = {
     },
   ],
 };
-const system = {
-  daemonVersion: '0.1.0-dev.1',
-  expectedExtensionVersion: '0.0.1',
-  mcp: 'notImplemented',
-  chatgpt: 'notImplemented',
-  frpc: 'notImplemented',
-} as const;
+
 it('selects only supported guide and system language without asserting extension installation', () => {
   expect(language('zh-TW')).toBe('zh');
   expect(language('de')).toBe('en');
@@ -259,5 +261,31 @@ it('keeps offline metadata unknown even if a stale value is supplied', () => {
     expect(html).not.toContain('StaleBrowser');
     expect(html).not.toContain('140.1');
     expect(html).toContain(locale === 'zh' ? '未知' : 'Unknown');
+  }
+});
+
+it('distinguishes unavailable browser state from a verified empty list', () => {
+  for (const locale of ['zh', 'en'] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Dashboard, {
+        approve: vi.fn(),
+        reject: vi.fn(),
+        revoke: vi.fn(),
+        locale,
+        state: { ...state, system: null, browsers: [], pairings: [] },
+      }),
+    );
+    expect(html).not.toContain('0 / 0');
+    expect(html).toContain(
+      locale === 'zh'
+        ? '暂无法取得浏览器状态'
+        : 'Browser status is unavailable',
+    );
+    expect(html).not.toContain(
+      locale === 'zh' ? '尚未连接浏览器' : 'No paired browsers',
+    );
+    expect(html).toContain(
+      locale === 'zh' ? '状态未确认' : 'Status not confirmed',
+    );
   }
 });

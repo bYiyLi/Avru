@@ -25,13 +25,13 @@ test('English system-dark console keeps truthful three-page empty states', async
       fullPage: true,
     });
     const dark = await page
-      .locator('body')
+      .locator('html')
       .evaluate((node) => getComputedStyle(node).backgroundColor);
     await page.emulateMedia({ colorScheme: 'light' });
     await expect
       .poll(() =>
         page
-          .locator('body')
+          .locator('html')
           .evaluate((node) => getComputedStyle(node).backgroundColor),
       )
       .not.toBe(dark);

@@ -137,9 +137,15 @@ export function Overview({
         <div>
           <span>{t(locale, '浏览器连接', 'Browsers')}</span>
           <strong>
-            {online} / {state.browsers.length}
+            {state.system
+              ? `${String(online)} / ${String(state.browsers.length)}`
+              : '—'}
           </strong>
-          <small>{t(locale, '在线 / 已配对', 'Online / paired')}</small>
+          <small>
+            {state.system
+              ? t(locale, '在线 / 已配对', 'Online / paired')
+              : t(locale, '状态未确认', 'Status not confirmed')}
+          </small>
         </div>
         <div>
           <span>MCP</span>
@@ -163,17 +169,7 @@ export function Overview({
           )}
         </span>
       </div>
-      {state.browsers.length ? (
-        <BrowserRows state={state} locale={locale} revoke={revoke} />
-      ) : (
-        <p className="empty">
-          {t(
-            locale,
-            '尚未连接浏览器，请先安装扩展并配对。',
-            'No paired browsers. Install the extension and pair it first.',
-          )}
-        </p>
-      )}
+      <BrowserContent state={state} locale={locale} revoke={revoke} />
       <Capabilities locale={locale} />
     </section>
   );
@@ -226,4 +222,32 @@ function sourceLabel(source: string | undefined, locale: Language) {
   if (source === 'clientHints')
     return t(locale, '浏览器报告', 'Browser reported');
   return t(locale, '未取得版本信息', 'Version information unavailable');
+}
+
+function BrowserContent({
+  state,
+  locale,
+  revoke,
+}: { state: ViewState; locale: Language } & Pick<Actions, 'revoke'>) {
+  if (!state.system)
+    return (
+      <p className="empty">
+        {t(
+          locale,
+          '暂无法取得浏览器状态，请等待连接恢复。',
+          'Browser status is unavailable. Wait for the connection to recover.',
+        )}
+      </p>
+    );
+  if (state.browsers.length)
+    return <BrowserRows state={state} locale={locale} revoke={revoke} />;
+  return (
+    <p className="empty">
+      {t(
+        locale,
+        '尚未连接浏览器，请先安装扩展并配对。',
+        'No paired browsers. Install the extension and pair it first.',
+      )}
+    </p>
+  );
 }
