@@ -19,11 +19,11 @@ function object(value: unknown): Record<string, unknown> {
     : {};
 }
 export function extensionMessaging(): ExtensionMessage {
-  const chrome = object(object(globalThis).chrome);
-  const runtime = object(chrome.runtime);
-  const send = runtime.sendMessage;
   return (id, message) =>
     new Promise((resolve, reject) => {
+      const chrome = object(object(globalThis).chrome);
+      const runtime = object(chrome.runtime);
+      const send = runtime.sendMessage;
       if (typeof send !== 'function') {
         reject(new Error('Unavailable'));
         return;

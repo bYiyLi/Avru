@@ -47,9 +47,23 @@ test('packaged extension loads from stable directory after package cache removal
     await expect(profile.popup.locator('[name="endpoint"]')).toHaveValue(
       'http://127.0.0.1:43822',
     );
+    const worker = profile.context.serviceWorkers()[0];
+    await worker?.evaluate(`chrome.runtime.onMessageExternal.addListener((_message, sender) => {
+      let url; try { url = new URL(sender.url); } catch {}
+      globalThis.__avruSenderShape = { idPresent: sender.id !== undefined, origin: sender.origin, urlOrigin: url?.origin, pathname: url?.pathname, hashPresent: Boolean(url?.hash), frameId: sender.frameId, documentPresent: typeof sender.documentId === 'string', tabIdPresent: typeof sender.tab?.id === 'number', incognito: sender.tab?.incognito };
+    })`);
     const management = await profile.context.newPage();
     await management.goto(daemon.url);
     await management.getByRole('button', { name: '进入 Avru' }).click();
+    console.log(
+      'External detection response',
+      await externalMessage(management, { type: 'avru-detect' }),
+    );
+    console.log(
+      'External sender shape',
+      await worker?.evaluate('globalThis.__avruSenderShape'),
+    );
+
     await expect(management.getByRole('status')).toContainText(
       '当前浏览器已连接',
     );

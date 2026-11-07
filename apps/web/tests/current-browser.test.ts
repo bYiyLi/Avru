@@ -115,3 +115,19 @@ it('allows the probe response beyond detection timeout without retransmitting', 
   await expect(pending).resolves.toEqual({ challenge: 'a'.repeat(64) });
   expect(runtime.sendMessage).toHaveBeenCalledOnce();
 });
+it('discovers runtime added after the management page was opened', async () => {
+  const send = extensionMessaging();
+  await expect(send('id', {})).rejects.toThrow('Unavailable');
+  vi.stubGlobal('chrome', {
+    runtime: {
+      sendMessage: (
+        _id: string,
+        _message: unknown,
+        respond: (reply: unknown) => void,
+      ) => {
+        respond({ version: '1' });
+      },
+    },
+  });
+  await expect(send('id', {})).resolves.toEqual({ version: '1' });
+});
