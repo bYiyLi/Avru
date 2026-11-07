@@ -1,0 +1,71 @@
+name: Stage first npm dev release
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_public_placeholder:
+        description: 'Stage avru 0.1.0-dev.1; first staging publicly creates 0.0.0-stage'
+        type: boolean
+        required: true
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: avru-first-npm-dev-stage
+  cancel-in-progress: false
+jobs:
+  stage:
+    if: github.repository == 'bYiyLi/Avru' && github.event.repository.private == true && github.ref == 'refs/heads/main' && inputs.confirm_public_placeholder
+    runs-on: macos-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Install reviewed staging-capable npm without lifecycle scripts
+        run: npm install --global --ignore-scripts npm@11.21.2
+      - name: Require successful exact source validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/bYiyLi/Avru/actions/runs/42394455061 > "$RUNNER_TEMP/avru-source-run.json"
+          node --input-type=module <<'NODE'
+          import {readFile} from 'node:fs/promises';
+          const run = JSON.parse(await readFile(`${process.env.RUNNER_TEMP}/avru-source-run.json`,'utf8'));
+          if (run.conclusion !== 'success' || run.head_sha !== '2f87b5a7407b0ff266a8b28b73c87fbd48590fa9' || run.path !== '.github/workflows/npm-dev-prepare.yml') throw new Error('Source validation mismatch');
+          NODE
+      - name: Download the immutable already-tested candidate
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '13582611914'
+          run-id: '42394455061'
+          github-token: ${{ github.token }}
+          path: artifacts/stage-input
+          merge-multiple: true
+      - name: Verify candidate checksum, source and metadata
+        run: node scripts/release/verify-stage.mjs
+      - name: Require one-time bootstrap credential
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.AVRU_NPM_STAGE_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo 'Missing AVRU_NPM_STAGE_TOKEN; no npm upload attempted.'
+            exit 1
+          fi
+      - name: Stage dev version (never approve or directly publish)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.AVRU_NPM_STAGE_TOKEN }}
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/avru-stage.npmrc
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$NPM_CONFIG_USERCONFIG"' EXIT
+          printf '%s\n' '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}' > "$NPM_CONFIG_USERCONFIG"
+          test "$(npm whoami --registry https://registry.npmjs.org/)" = 'baiyihuan'
+          npm stage publish ./artifacts/stage-input/avru-0.1.0-dev.1.tgz --tag dev --access public --ignore-scripts --registry https://registry.npmjs.org/ --provenance=false
+          printf '%s\n' 'Uploaded for npm maintainer 2FA review. Not approved; npx availability remains unverified.' >> "$GITHUB_STEP_SUMMARY"

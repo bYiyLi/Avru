@@ -7,7 +7,7 @@
 - 私有仓库保持私有。工作流拒绝非 `bYiyLi/Avru`、非私有仓库、非 `main` 的发行。
 - 只上传经过校验的运行包、SHA-256 清单和提交/运行标识，不上传源码仓库、source map、测试报告、运行日志或本机数据。
 - 编译、压缩及局部混淆不是加密。收到包的人仍能分析运行逻辑；私有 GitHub Actions artifact 只限制领取权限，不构成防逆向承诺。
-- 不添加 npm 凭据，不执行 `npm publish`，不创建 GitHub Release，也不更改仓库权限。后续公开发布须另行明确目标、包名归属、许可与授权。
+- 私有候选流程不添加 npm 凭据，不执行实际 `npm publish`，不创建 GitHub Release，也不更改仓库权限。后续公开发布须另行明确目标、包名归属、许可与授权。
 
 ## 触发与门禁
 
@@ -62,9 +62,23 @@
 ### 最小首次发布与 CI 信任接续
 
 1. **核对身份和包名。** 在 npm 官方登录流程中确认账号与用户指定身份一致、2FA 可用，并核验 `avru` 可创建或账号确有写权限。404 不代表包名已保留给本账号；身份/权限未确认则不发布。不把登录凭据、2FA 秘密或长期发布 token 放入聊天、仓库或工作流。
-2. **初始化 npm 包。** 如果包尚不存在，需要一次经过授权的初始化，之后才能在包设置中配置 Trusted Publisher。[npm trust 前置条件](https://docs.npmjs.com/cli/v11/commands/npm-trust/) 明确要求包已存在。建议首次由维护者通过官方交互认证发布已重新验收的公开候选，显式使用 `dev` tag；不是发布现有 `private:true` 私有包。不要为“占名”擅自公开占位版本。`npm stage publish` 对全新包也会公开 `0.0.0-stage` 占位版本，不能当成无公开副作用的演练。[npm staged publishing](https://docs.npmjs.com/staged-publishing/)
+2. **初始化 npm 包。** 如果包尚不存在，需要一次经过授权的初始化，之后才能在包设置中配置 Trusted Publisher。[npm trust 前置条件](https://docs.npmjs.com/cli/v11/commands/npm-trust/) 明确要求包已存在。当前采用下节首次 CI staging 方案；维护者交互发布仅为另行选择的备选，仍须显式使用 `dev` tag；不是发布现有 `private:true` 私有包。不要为“占名”擅自公开占位版本。`npm stage publish` 对全新包也会公开 `0.0.0-stage` 占位版本，不能当成无公开副作用的演练。[npm staged publishing](https://docs.npmjs.com/staged-publishing/)
 3. **配置限定的信任。** 包初始化成功后，在 npm 的 `avru` 设置中添加 GitHub Actions Trusted Publisher：GitHub owner 为 `bYiyLi`、repository 为 `Avru`、workflow filename 为届时已提交的专用 npm 发布文件名（不是路径）；若使用 GitHub environment，名称必须准确一致。保存信任及其允许操作属于权限变更，需要针对该配置的授权。不要把当前仅生成私有 artifact 的工作流误认为已经获得 npm 发布权限。
 4. **接续专用发布 job。** 后续实现须保留双平台质量/产物门禁和明确的发布触发点，仅发布 job 申请 `id-token: write`，其余维持最小只读权限；使用 GitHub-hosted runner 和满足 OIDC 要求且固定版本的 npm，不配置长期写 token。信任配置中的直接发布与独立 dist-tag 管理权限分别按实际所需授权，不顺手扩大权限。此 job 及权限尚未在本次实现。[npm Trusted Publisher 配置](https://docs.npmjs.com/trusted-publishers/)
 5. **核验后才给出安装入口。** 发布获准并完成后，回读 registry 中 `avru@0.1.0-dev.1` 的完整元数据、tarball integrity 和 `dev` 指向，再从 registry 包核验版本/安装路径。只成功构建、`npm whoami` 成功或信任设置已保存都不能证明发布成功。确认后才能告知 `npx -y avru@dev` 可用；不自动改 `latest`，也不覆盖已发布的相同版本。[npm 发布与标签规则](https://docs.npmjs.com/cli/v11/commands/npm-publish/)
 
 截至 2026-11-07 官方说明，私有 GitHub 仓库可使用 OIDC Trusted Publishing，但不能生成 npm provenance；**不要为了 provenance 将仓库改公开，也不要把内部 SHA/摘要记录称作 npm provenance**。本方案保留私有仓库与内部构建证据，并在后续发布结果中注明该限制。[npm provenance 限制](https://docs.npmjs.com/trusted-publishers/#automatic-provenance-generation)
+
+## 首次 CI staging：维护者操作
+
+用户已选择首次也由 CI 上传，并接受新包公开 `0.0.0-stage` 占位。专用工作流为 `.github/workflows/npm-dev-stage.yml`（**Stage first npm dev release**），仅手动触发，不随 push 发布。它固定领取已通过双平台的运行 `42394455061`、artifact `13582611914`、源码 `2f87b5a7407b0ff266a8b28b73c87fbd48590fa9`，校验 checksum、来源记录、dev 元数据和文件白名单，不重建新主分支内容。artifact 过期或任一校验失败就停止，不能自行换包。这是首次专用流程，不是后续通用发布器。
+
+1. 在 npm 用 `baiyihuan` 登录，头像 → **Access Tokens → Generate New Token**。选择 **Read and write (stage only)**，不要勾选 Bypass 2FA，组织权限设 No access，到期设一天。优先限定 `avru`；如果未创建的 unscoped 包无法在下拉中选择，**先停止**。官方仅描述 All Packages 或已有指定包/作用域，没有证实可预先限定未存在的 `avru`。All Packages 会扩大到账号可访问的包，必须明确确认范围；不能把用户同意 staging 当成默认同意账号全包权限。替代为先通过交互会话建立目标包，或另行决定 scoped 名称，均不可擅改目标。
+2. 仅当权限范围已确认，由用户复制 token 到 GitHub `bYiyLi/Avru` → **Settings → Secrets and variables → Actions → New repository secret**。Name 精确填写 `AVRU_NPM_STAGE_TOKEN`，Secret 填 token。不要发到聊天、提交到仓库或贴进普通变量。助手不创建、不接收、不回读这个秘密。stage-only 仍有移动 dist-tag、废弃版本等写权限，并非无害只读凭据。
+3. GitHub **Actions → Stage first npm dev release → Run workflow**，branch 选择 main，勾选确认首次公开占位的选项。工作流固定 npm `11.21.2`、Node `24.22.1`；令牌只在身份核对与 staging 步骤注入，不向构建/依赖安装步骤开放。身份不是 `baiyihuan` 时停止。只运行 `npm stage publish ... --tag dev`，绝不执行 `npm stage approve` 或直接 `npm publish`。没有 secret 就失败且不上传。
+4. 成功上传后，用户在 npm **Staged Packages** 找到 `avru@0.1.0-dev.1`，核对 dev 标签、来源及包内容，再使用本人 2FA 批准。上传成功不等于已发布；批准后回读 registry 和 `dev` tag 才能确认 `npx -y avru@dev` 可用。重复触发撞到已暂存/已发布版本时停止核查，不删除版本、不改 tag、不自动重传。
+5. 首包已建立后，另行配置仅此包和专用工作流的 OIDC Trusted Publisher，然后撤销 npm 一次性 token、删除对应 GitHub secret。现有首次工作流没有 OIDC 写权限，不要把其文件误当成已获授权的 OIDC 流程。清理和信任设置须明确授权或用户自行完成。
+
+本轮只创建工作流与验证代码，不创建凭据、不改认证设置、不触发实际 staging。首次 staging 会公开占位包，但候选内容要经 npm 2FA 批准后公开；审批前同一版本已占用，不能按普通“失败重试”发布第二份。公开包是运行文件，源码仓库保持私有，混淆不保证无法逆向。
+
+官方依据（2026-11-07 核对）：[新包支持公告](https://github.blog/changelog/2026-10-02-npm-staged-publishing-now-supports-creating-new-packages/)、[stage 命令/标签](https://docs.npmjs.com/cli/v11/commands/npm-stage/)、[token 创建界面](https://docs.npmjs.com/creating-and-viewing-access-tokens/)、[stage-only 权限边界](https://docs.npmjs.com/about-access-tokens/)。
