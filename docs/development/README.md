@@ -25,3 +25,5 @@
 5. 本机权限、凭据、未验证范围与风险明确。现有 moderate 开发依赖告警见[质量指南](../guide/quality.md)，不能称零漏洞。
 
 私有开发候选发行与领取见[发行指南](../guide/release.md)，0.1.0-dev.1 的实际 CI/产物验收仍独立于已有安装阶段历史证据。
+
+[05 双环境隔离](phases/05-environment-isolation.md)的目录/身份/端口/凭据隔离切片已通过Win/mac CI；正式双包发行与OS登录仍未验收。

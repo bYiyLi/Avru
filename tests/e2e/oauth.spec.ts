@@ -20,6 +20,7 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
     JSON.stringify({
       issuer,
       port: 43823,
+      channel: 'dev',
       clients: [
         {
           id: 'test-client',

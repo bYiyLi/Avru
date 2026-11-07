@@ -1,4 +1,9 @@
+import {
+  channelPort,
+  type ReleaseChannel,
+} from '../../../packages/protocol/environment.js';
 export interface Credentials {
+  channel?: ReleaseChannel;
   endpoint: string;
   profileId: string;
   name: string;
@@ -20,7 +25,7 @@ export interface SnapshotTab {
   title: string;
   url: string;
 }
-export function socketUrl(endpoint: string): string {
+export function socketUrl(endpoint: string, channel?: ReleaseChannel): string {
   if (!/^http:\/\/127\.0\.0\.1(?::[0-9]{1,5})?\/?$/.test(endpoint))
     throw new Error('仅支持本机 IPv4 地址');
   const url = new URL(endpoint);
@@ -34,10 +39,15 @@ export function socketUrl(endpoint: string): string {
     url.pathname !== '/'
   )
     throw new Error('仅支持 http://127.0.0.1:端口');
+  if (channel && Number(url.port) !== channelPort(channel))
+    throw new Error('本机服务端口与扩展发行环境不匹配');
   return `ws://${url.host}/extension`;
 }
-export function validatePair(input: PairInput): PairInput {
-  socketUrl(input.endpoint);
+export function validatePair(
+  input: PairInput,
+  channel?: ReleaseChannel,
+): PairInput {
+  socketUrl(input.endpoint, channel);
   const name = input.name.trim();
   if (!name || name.length > 80) throw new Error('请输入不超过 80 字的名称');
   return { ...input, name };
@@ -74,17 +84,21 @@ export function record(value: unknown): Record<string, unknown> | undefined {
     ? (value as Record<string, unknown>)
     : undefined;
 }
-export function credentials(value: unknown): Credentials | undefined {
+export function credentials(
+  value: unknown,
+  channel?: ReleaseChannel,
+): Credentials | undefined {
   const data = record(value);
   if (
     !data ||
+    (channel !== undefined && data.channel !== channel) ||
     !['endpoint', 'profileId', 'name', 'browserId', 'token'].every(
       (key) => typeof data[key] === 'string' && data[key].length > 0,
     )
   )
     return undefined;
   try {
-    socketUrl(data.endpoint as string);
+    socketUrl(data.endpoint as string, channel);
   } catch {
     return undefined;
   }

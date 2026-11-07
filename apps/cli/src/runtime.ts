@@ -1,9 +1,16 @@
+import { rejectLinks } from './install-files.js';
+import {
+  channelPort,
+  releaseChannel,
+} from '../../../packages/protocol/environment.js';
+import type { ReleaseChannel } from './channel-root.js';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile, mkdir, open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 export interface RuntimeDescriptor {
+  channel: ReleaseChannel;
   pid: number;
   port: number;
   url: string;
@@ -14,6 +21,8 @@ export function parseRuntime(text: string): RuntimeDescriptor {
   if (
     typeof value !== 'object' ||
     value === null ||
+    !('channel' in value) ||
+    (value.channel !== 'dev' && value.channel !== 'prod') ||
     !('pid' in value) ||
     !('port' in value) ||
     !('url' in value) ||
@@ -38,6 +47,7 @@ export function parseRuntime(text: string): RuntimeDescriptor {
   )
     throw new Error('Invalid daemon management URL');
   return {
+    channel: value.channel,
     pid: value.pid,
     port: value.port,
     url: value.url,
@@ -57,17 +67,21 @@ async function runtimeRequest(runtime: RuntimeDescriptor, action: string) {
 }
 export async function inspectRuntime(
   dataRoot: string,
+  channel: ReleaseChannel = releaseChannel(),
 ): Promise<RuntimeDescriptor | undefined> {
   try {
     const runtime = parseRuntime(
       await readFile(join(dataRoot, 'runtime.json'), 'utf8'),
     );
+    if (runtime.channel !== channel) return undefined;
     const response = await runtimeRequest(runtime, 'runtime');
     const body: unknown = await response.json();
     if (
       response.ok &&
       typeof body === 'object' &&
       body !== null &&
+      'channel' in body &&
+      body.channel === channel &&
       'instance' in body &&
       body.instance === runtime.instance
     )
@@ -79,6 +93,7 @@ export async function inspectRuntime(
 }
 async function verifiedRuntime(
   dataRoot: string,
+  channel: ReleaseChannel = releaseChannel(),
 ): Promise<RuntimeDescriptor | undefined> {
   try {
     await readFile(join(dataRoot, 'runtime.json'), 'utf8');
@@ -87,7 +102,7 @@ async function verifiedRuntime(
       return undefined;
     throw error;
   }
-  const runtime = await inspectRuntime(dataRoot);
+  const runtime = await inspectRuntime(dataRoot, channel);
   if (!runtime)
     throw Object.assign(
       new Error(
@@ -97,8 +112,11 @@ async function verifiedRuntime(
     );
   return runtime;
 }
-export async function stopRuntime(dataRoot: string): Promise<void> {
-  const runtime = await verifiedRuntime(dataRoot);
+export async function stopRuntime(
+  dataRoot: string,
+  channel: ReleaseChannel = releaseChannel(),
+): Promise<void> {
+  const runtime = await verifiedRuntime(dataRoot, channel);
   if (!runtime) return;
   const response = await runtimeRequest(runtime, 'shutdown');
   if (!response.ok)
@@ -120,11 +138,14 @@ export async function startRuntime(options: {
   payloadRoot: string;
   execPath: string;
   port?: number;
+  channel?: ReleaseChannel;
 }): Promise<RuntimeDescriptor> {
-  const existing = await verifiedRuntime(options.dataRoot);
+  const existing = await verifiedRuntime(options.dataRoot, options.channel);
   if (existing) return existing;
   await mkdir(options.dataRoot, { recursive: true, mode: 0o700 });
-  const log = await open(join(options.dataRoot, 'daemon.log'), 'a', 0o600);
+  const logPath = join(options.dataRoot, 'daemon.log');
+  await rejectLinks(logPath);
+  const log = await open(logPath, 'a', 0o600);
   const status = { failed: false, closed: false };
   let child: ChildProcess;
   try {
@@ -136,7 +157,10 @@ export async function startRuntime(options: {
         ...process.env,
         AVRU_DATA_DIR: options.dataRoot,
         AVRU_WEB_ROOT: join(options.payloadRoot, 'web'),
-        AVRU_PORT: String(options.port ?? 43821),
+        AVRU_CHANNEL: options.channel ?? releaseChannel(),
+        AVRU_PORT: String(
+          options.port ?? channelPort(options.channel ?? releaseChannel()),
+        ),
       },
     });
     child.on('error', () => {
@@ -151,7 +175,7 @@ export async function startRuntime(options: {
   }
   for (let attempt = 0; attempt < 50; attempt++) {
     if (status.failed || status.closed) break;
-    const runtime = await inspectRuntime(options.dataRoot);
+    const runtime = await inspectRuntime(options.dataRoot, options.channel);
     if (runtime && runtime.pid === child.pid) return runtime;
     await delay(100);
   }

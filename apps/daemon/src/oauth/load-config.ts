@@ -1,14 +1,17 @@
+import type { ReleaseChannel } from '../../../../packages/protocol/environment.js';
 import { readFile } from 'node:fs/promises';
 import { record } from '../messages.js';
 import { validateConfig } from './config.js';
 import type { OAuthConfig } from './config.js';
 export async function loadOAuthConfig(
   path: string | undefined,
+  channel?: ReleaseChannel,
 ): Promise<(OAuthConfig & { port: number }) | undefined> {
   if (!path) return undefined;
   const raw: unknown = JSON.parse(await readFile(path, 'utf8'));
   if (
     !record(raw) ||
+    (channel !== undefined && raw.channel !== channel) ||
     typeof raw.issuer !== 'string' ||
     !Array.isArray(raw.clients) ||
     typeof raw.port !== 'number' ||

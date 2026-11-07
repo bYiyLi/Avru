@@ -1,3 +1,4 @@
+import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { consentRequest } from './oauth-consent';
 import type { ConsentRequest } from './oauth-consent';
 import {
@@ -18,6 +19,7 @@ export interface Socket {
 }
 import type { Metadata } from './metadata';
 export interface Ports {
+  channel?: ReleaseChannel;
   onOAuthRequest?: (request: ConsentRequest) => Promise<void>;
   onOAuthClose?: (requestId: string) => void;
   resetOAuth?: () => void;
@@ -51,7 +53,7 @@ export class Connection {
     const generation = this.generation;
     const value = await this.ports.read();
     if (generation !== this.generation) return;
-    this.saved = credentials(value);
+    this.saved = credentials(value, this.ports.channel);
     this.reconnect();
   }
   reconnect(): void {
@@ -59,12 +61,13 @@ export class Connection {
       this.connect(this.saved.endpoint, {
         v: 1,
         type: 'authenticate',
+        ...(this.ports.channel ? { channel: this.ports.channel } : {}),
         browserId: this.saved.browserId,
         token: this.saved.token,
       });
   }
   async pair(input: PairInput): Promise<void> {
-    const valid = validatePair(input);
+    const valid = validatePair(input, this.ports.channel);
     const clearing = this.disconnect();
     const generation = this.generation;
     await clearing;
@@ -72,6 +75,7 @@ export class Connection {
     this.blocked = false;
     const profileId = this.ports.uuid();
     this.saved = {
+      ...(this.ports.channel ? { channel: this.ports.channel } : {}),
       endpoint: valid.endpoint,
       name: valid.name,
       profileId,
@@ -81,6 +85,7 @@ export class Connection {
     this.connect(valid.endpoint, {
       v: 1,
       type: 'pair',
+      ...(this.ports.channel ? { channel: this.ports.channel } : {}),
       profileId,
       name: valid.name,
     });
@@ -135,7 +140,7 @@ export class Connection {
     this.stop();
     this.state = '连接中';
     const generation = this.generation;
-    const socket = this.ports.socket(socketUrl(endpoint));
+    const socket = this.ports.socket(socketUrl(endpoint, this.ports.channel));
     this.socket = socket;
     socket.onopen = () => {
       if (generation === this.generation) this.send(first);
@@ -165,6 +170,14 @@ export class Connection {
     }
     const message = record(JSON.parse(raw));
     if (message?.v !== 1) {
+      this.fail();
+      return;
+    }
+    if (
+      this.ports.channel &&
+      ['pairing', 'paired', 'ready'].includes(String(message.type)) &&
+      message.channel !== this.ports.channel
+    ) {
       this.fail();
       return;
     }

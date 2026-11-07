@@ -17,9 +17,9 @@ const windows = {
 describe('user-login autostart plans', () => {
   it('uses a macOS LaunchAgent and literal argument array, not a shell', () => {
     const result = planAutostart(mac);
-    expect(result.label).toBe('ai.avru.daemon');
+    expect(result.label).toBe('ai.avru.daemon.dev');
     expect(result.filePath).toBe(
-      '/Users/Alice/Library/LaunchAgents/ai.avru.daemon.plist',
+      '/Users/Alice/Library/LaunchAgents/ai.avru.daemon.dev.plist',
     );
     expect(result.content).toContain('<key>RunAtLoad</key><true/>');
     expect(result.content).toContain('/Applications/Node &amp; Tools/node');
@@ -29,7 +29,7 @@ describe('user-login autostart plans', () => {
   it('quotes Windows arguments and escapes percent expansions', () => {
     const result = planAutostart(windows);
     expect(result.filePath).toBe(
-      'C:\\Users\\Alice\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\Avru.cmd',
+      'C:\\Users\\Alice\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\Avru-dev.cmd',
     );
     expect(result.content).toBe(
       '@echo off\r\nrem Avru managed user-login launcher\r\nsetlocal DisableDelayedExpansion\r\n"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\Alice\\Avru %%data%%! & Tools\\launcher.cjs"\r\n',

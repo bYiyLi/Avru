@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 export const endpoint = 'http://127.0.0.1:43822';
 export async function openProfile(directory: string) {
-  const extension = resolve('apps/extension/.output/chrome-mv3');
+  const extension = resolve('apps/extension/.output/dev/chrome-mv3');
   const context = await chromium.launchPersistentContext(directory, {
     channel: 'chromium',
     headless: true,
@@ -25,7 +25,11 @@ export async function openProfile(directory: string) {
   return { context, popup };
 }
 export async function pairProfile(popup: Page, management: Page, name: string) {
-  await popup.locator('[name="endpoint"]').fill(endpoint);
+  await expect(popup.locator('[name="endpoint"]')).toHaveValue(endpoint);
+  await expect(popup.locator('[name="endpoint"]')).toHaveAttribute(
+    'readonly',
+    '',
+  );
   await popup.locator('[name="name"]').fill(name);
   await popup.getByRole('button', { name: '配对', exact: true }).click();
   const request = management

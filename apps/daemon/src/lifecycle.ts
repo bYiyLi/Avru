@@ -1,8 +1,10 @@
+import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { readFile, writeFile, rename, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 
 export interface RuntimeDescriptor {
+  channel?: ReleaseChannel;
   pid: number;
   port: number;
   url: string;
@@ -15,7 +17,10 @@ export async function registerLifecycle(
 ): Promise<() => Promise<void>> {
   await mkdir(root, { recursive: true, mode: 0o700 });
   const path = join(root, 'runtime.json');
-  app.get('/api/runtime', () => ({ instance: descriptor.instance }));
+  app.get('/api/runtime', () => ({
+    instance: descriptor.instance,
+    channel: descriptor.channel,
+  }));
   app.post('/api/shutdown', (_request, reply) => {
     reply.code(202).send({ accepted: true });
     setImmediate(() => {

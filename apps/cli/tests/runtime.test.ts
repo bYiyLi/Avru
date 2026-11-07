@@ -2,6 +2,8 @@ import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   read: vi.fn(),
+  lstat: vi.fn(),
+  readlink: vi.fn(),
   mkdir: vi.fn(),
   open: vi.fn(),
   spawn: vi.fn(),
@@ -10,6 +12,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('node:fs/promises', () => ({
   readFile: mocks.read,
+  lstat: mocks.lstat,
+  readlink: mocks.readlink,
   mkdir: mocks.mkdir,
   open: mocks.open,
 }));
@@ -23,6 +27,7 @@ import {
   stopRuntime,
 } from '../src/runtime.js';
 const descriptor = {
+  channel: 'dev',
   pid: 1,
   port: 43821,
   url: `http://127.0.0.1:43821/#key=${'a'.repeat(64)}`,
@@ -47,8 +52,17 @@ beforeEach(() => {
   mocks.read.mockResolvedValue(JSON.stringify(descriptor));
   mocks.fetch.mockResolvedValue({
     ok: true,
-    json: () => Promise.resolve({ instance: descriptor.instance }),
+    json: () =>
+      Promise.resolve({
+        instance: descriptor.instance,
+        channel: descriptor.channel,
+      }),
   });
+  mocks.lstat.mockResolvedValue({
+    isSymbolicLink: () => false,
+    isDirectory: () => true,
+  });
+  mocks.readlink.mockResolvedValue('/other-environment/daemon.log');
   mocks.open.mockResolvedValue({ fd: 1, close: vi.fn() });
   mocks.spawn.mockImplementation(() => child());
 });
@@ -85,14 +99,22 @@ test('stop absent, refused, successful and timed out daemons without PID signals
   mocks.fetch
     .mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ instance: descriptor.instance }),
+      json: () =>
+        Promise.resolve({
+          instance: descriptor.instance,
+          channel: descriptor.channel,
+        }),
     })
     .mockResolvedValueOnce({ ok: false });
   await expect(stopRuntime('root')).rejects.toThrow('refused');
   mocks.fetch
     .mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ instance: descriptor.instance }),
+      json: () =>
+        Promise.resolve({
+          instance: descriptor.instance,
+          channel: descriptor.channel,
+        }),
     })
     .mockResolvedValueOnce({ ok: true });
   mocks.read
@@ -228,4 +250,41 @@ test('unverified existing daemon prevents uninstall and unexpected read errors s
   });
   mocks.read.mockRejectedValue(new Error('permission denied'));
   await expect(stopRuntime('root')).rejects.toThrow('permission denied');
+});
+
+test('cross-channel descriptors cannot be reused or stopped', async () => {
+  expect(await inspectRuntime('root', 'prod')).toBeUndefined();
+  expect(mocks.fetch).not.toHaveBeenCalled();
+  await expect(stopRuntime('root', 'prod')).rejects.toThrow(
+    'cannot be authenticated',
+  );
+  expect(mocks.fetch).not.toHaveBeenCalled();
+  mocks.fetch.mockResolvedValue({
+    ok: true,
+    json: () =>
+      Promise.resolve({ instance: descriptor.instance, channel: 'prod' }),
+  });
+  expect(await inspectRuntime('root', 'dev')).toBeUndefined();
+});
+
+test('start rejects a linked log before opening or spawning', async () => {
+  mocks.read.mockRejectedValueOnce(
+    Object.assign(new Error('absent'), { code: 'ENOENT' }),
+  );
+  mocks.lstat.mockImplementation((path: string) =>
+    Promise.resolve({
+      isSymbolicLink: () => path.endsWith('daemon.log'),
+      isDirectory: () => !path.endsWith('daemon.log'),
+    }),
+  );
+  await expect(
+    startRuntime({
+      dataRoot: '/isolated/dev',
+      payloadRoot: '/payload',
+      execPath: '/node',
+      channel: 'dev',
+    }),
+  ).rejects.toThrow('Symbolic link');
+  expect(mocks.open).not.toHaveBeenCalled();
+  expect(mocks.spawn).not.toHaveBeenCalled();
 });

@@ -12,6 +12,7 @@ export default defineConfig({
         'apps/*/src/**/*.{ts,tsx}',
         'apps/extension/**/*.{ts,tsx}',
         'packages/*/src/**/*.{ts,tsx}',
+        'packages/protocol/environment.js',
       ],
       exclude: [
         '**/*.d.ts',

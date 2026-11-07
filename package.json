@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm -r --if-present typecheck && tsc -p tsconfig.tooling.json",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p tsconfig.tooling.json && tsc --allowJs --checkJs --noEmit --skipLibCheck --target es2022 --module nodenext packages/protocol/environment.js",
     "test": "vitest run",
     "format:check": "prettier --check .",
     "format": "prettier --write .",

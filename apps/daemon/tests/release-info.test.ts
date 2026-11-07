@@ -1,3 +1,4 @@
+import { RELEASE_VERSION } from '../../../packages/protocol/environment.js';
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
 import { releaseInfo } from '../src/release-info.js';
@@ -13,5 +14,6 @@ it('keeps the console versions aligned with actual release and extension build i
     `"version": "${releaseInfo.expectedExtensionVersion}"`,
   );
   expect(packaging).toContain(`version: '${releaseInfo.daemonVersion}'`);
-  expect(cli).toContain(`version: '${releaseInfo.daemonVersion}'`);
+  expect(cli).toContain('version: RELEASE_VERSION');
+  expect(RELEASE_VERSION).toBe(releaseInfo.daemonVersion);
 });

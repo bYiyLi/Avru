@@ -1,3 +1,9 @@
+import {
+  defaultDataRoot,
+  runtimeChannel,
+  runtimePort,
+  verifyDataRoot,
+} from './environment.js';
 import { loadOAuthConfig } from './oauth/load-config.js';
 import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
@@ -6,14 +12,17 @@ import { registerLifecycle } from './lifecycle.js';
 import { buildApp } from './app.js';
 
 async function bootstrap(): Promise<void> {
-  const dataRoot = process.env.AVRU_DATA_DIR ?? resolve(homedir(), '.avru');
-  const port = Number(process.env.AVRU_PORT ?? '43821');
-  if (!Number.isInteger(port) || port < 1024 || port > 65535)
-    throw new Error('Invalid AVRU_PORT');
+  const channel = runtimeChannel(process.env.AVRU_CHANNEL);
+  const dataRoot =
+    process.env.AVRU_DATA_DIR ??
+    defaultDataRoot(homedir(), process.platform, process.env.LOCALAPPDATA);
+  const port = runtimePort(channel, process.env.AVRU_PORT);
+  await verifyDataRoot(dataRoot, channel);
   const adminKey = randomBytes(32).toString('hex');
-  const oauth = await loadOAuthConfig(process.env.AVRU_OAUTH_CONFIG);
+  const oauth = await loadOAuthConfig(process.env.AVRU_OAUTH_CONFIG, channel);
   const app = buildApp({
     ...(oauth ? { oauth } : {}),
+    channel,
     adminKey,
     port,
     databasePath: resolve(dataRoot, 'browsers.sqlite'),
@@ -22,6 +31,7 @@ async function bootstrap(): Promise<void> {
       resolve(dirname(process.argv[1] ?? '.'), '../../web/dist'),
   });
   const publishRuntime = await registerLifecycle(app, dataRoot, {
+    channel,
     pid: process.pid,
     port,
     instance: randomBytes(16).toString('hex'),

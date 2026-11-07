@@ -1,3 +1,8 @@
+import {
+  releaseChannel,
+  RELEASE_VERSION,
+} from '../../../packages/protocol/environment.js';
+import { defaultDataRoot, rejectLegacyDefault } from './channel-root.js';
 import * as clack from '@clack/prompts';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -11,10 +16,20 @@ const args = process.argv.slice(2);
 const source =
   process.env.AVRU_PACKAGE_ROOT ?? dirname(fileURLToPath(import.meta.url));
 const home = homedir();
-const root = process.env.AVRU_DATA_DIR ?? join(home, '.avru');
+const channel = releaseChannel();
+const root = defaultDataRoot({
+  platform: process.platform,
+  home,
+  channel,
+  ...(process.env.LOCALAPPDATA
+    ? { localAppData: process.env.LOCALAPPDATA }
+    : {}),
+  ...(process.env.AVRU_DATA_DIR ? { custom: process.env.AVRU_DATA_DIR } : {}),
+});
 const launcherPath = join(root, 'program', 'launcher.mjs');
 const auto = {
   ...(process.env.APPDATA ? { roamingDir: process.env.APPDATA } : {}),
+  channel,
   platform: process.platform,
   home,
   execPath: process.execPath,
@@ -23,7 +38,7 @@ const auto = {
 if (args.includes('--help') || args.includes('--version')) {
   console.log(
     args.includes('--version')
-      ? '0.1.0-dev.1 (unpublished)'
+      ? `${RELEASE_VERSION} (unpublished)`
       : 'Usage: avru [--yes] | avru uninstall [--yes] [--remove-data]\nInstalls, starts and configures user-login startup on Windows/macOS.',
   );
 } else if (process.platform !== 'darwin' && process.platform !== 'win32') {
@@ -48,18 +63,21 @@ if (args.includes('--help') || args.includes('--version')) {
       error: clack.log.error,
     },
     {
-      install: () =>
-        install({
+      install: async () => {
+        if (!process.env.AVRU_DATA_DIR) await rejectLegacyDefault(home);
+        return install({
           root,
+          channel,
           sourceRoot: join(source, 'payload'),
-          version: '0.1.0-dev.1',
+          version: RELEASE_VERSION,
           execPath: process.execPath,
           hooks: {
-            stop: () => stopRuntime(root),
+            stop: () => stopRuntime(root, channel),
             start: async (active) =>
               (
                 await startRuntime({
                   dataRoot: root,
+                  channel,
                   payloadRoot: join(
                     root,
                     'program',
@@ -89,13 +107,15 @@ if (args.includes('--help') || args.includes('--version')) {
             },
             open: (url) => openManagement(url, process.platform),
           },
-        }),
+        });
+      },
       uninstall: (removeData) =>
         uninstall({
           root,
+          channel,
           removeData,
           hooks: {
-            stop: () => stopRuntime(root),
+            stop: () => stopRuntime(root, channel),
             removeAutostart: () => disableAutostart(auto),
           },
         }),

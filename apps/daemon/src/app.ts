@@ -1,3 +1,4 @@
+import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { attachOAuth } from './oauth/integration.js';
 import type { OAuthConfig } from './oauth/config.js';
 import { releaseInfo } from './release-info.js';
@@ -10,6 +11,7 @@ import { serveWeb } from './static-web.js';
 import { connectWebSockets } from './websocket.js';
 
 export interface AppOptions {
+  channel?: ReleaseChannel;
   adminKey?: string;
   databasePath?: string;
   webRoot?: string;
@@ -26,6 +28,7 @@ export function buildApp(options: AppOptions = {}) {
     (sessionId, browserId, decision) => {
       authority?.decide(sessionId, browserId, decision);
     },
+    options.channel,
   );
   const authority = attachOAuth(app, connections, options.oauth, port);
   secureHttp(app, port, options.adminKey ?? randomBytes(32).toString('hex'));
@@ -36,6 +39,7 @@ export function buildApp(options: AppOptions = {}) {
   }));
   app.get('/api/status', () => ({
     ...releaseInfo,
+    channel: options.channel,
     mcp: authority ? 'oauthReadOnly' : 'notImplemented',
     chatgpt: 'notImplemented',
     frpc: 'notImplemented',
@@ -75,7 +79,12 @@ export function buildApp(options: AppOptions = {}) {
     },
   );
   serveWeb(app, options.webRoot);
-  const closeSockets = connectWebSockets(app.server, connections, port);
+  const closeSockets = connectWebSockets(
+    app.server,
+    connections,
+    port,
+    options.channel,
+  );
   const timer = setInterval(() => {
     connections.sweep();
   }, 1000);

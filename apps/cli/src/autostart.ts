@@ -1,7 +1,10 @@
+import { releaseChannel } from '../../../packages/protocol/environment.js';
+import type { ReleaseChannel } from './channel-root.js';
 import { posix, win32 } from 'node:path';
 
 export interface AutostartOptions {
   platform: NodeJS.Platform;
+  channel?: ReleaseChannel;
   home: string;
   execPath: string;
   launcherPath: string;
@@ -14,7 +17,6 @@ export interface AutostartPlan {
   label: string;
 }
 
-const label = 'ai.avru.daemon';
 export const autostartMarker = 'Avru managed user-login launcher';
 
 function unsafeCharacters(value: string): boolean {
@@ -46,6 +48,8 @@ function xml(value: string): string {
 /** Describe user-login startup only. This function does not install or load a service. */
 export function planAutostart(options: AutostartOptions): AutostartPlan {
   const { platform, home, execPath, launcherPath } = options;
+  const channel = options.channel ?? releaseChannel();
+  const label = `ai.avru.daemon.${channel}`;
   if (platform !== 'darwin' && platform !== 'win32') {
     throw new Error('Avru autostart supports macOS and Windows only');
   }
@@ -67,7 +71,7 @@ export function planAutostart(options: AutostartOptions): AutostartPlan {
         'Start Menu',
         'Programs',
         'Startup',
-        'Avru.cmd',
+        `Avru-${channel}.cmd`,
       ),
       content: `@echo off\r\nrem ${autostartMarker}\r\nsetlocal DisableDelayedExpansion\r\n${quote(execPath)} ${quote(launcherPath)}\r\n`,
     };
