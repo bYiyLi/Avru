@@ -1,0 +1,11 @@
+{
+  "package": "abstract-logging",
+  "version": "2.0.1",
+  "license": "MIT",
+  "textFile": "abstract-logging-2.0.1.LICENSE.txt",
+  "sourceUrl": "https://jsumners.mit-license.org/license.txt",
+  "packageEvidence": "abstract-logging@2.0.1/Readme.md, License section links http://jsumners.mit-license.org/",
+  "retrievedAt": "2026-11-07T16:36:03.199489+00:00",
+  "sha256": "af15a41ce02371f77476b7a201e036c0ae6c5d6d2a233b4e5f0fd5fca123457e",
+  "note": "The upstream linked license page currently renders copyright year 2026. The text is preserved verbatim as retrieved; this is not a claim about the package original publication year. This override applies only to abstract-logging@2.0.1 and does not license Avru source."
+}

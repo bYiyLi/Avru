@@ -1,0 +1,133 @@
+name: Private development release
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - 'config/**'
+      - '*config*'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.node-version'
+      - '.npmrc'
+      - '.github/workflows/private-release.yml'
+permissions:
+  contents: read
+concurrency:
+  group: private-development-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    if: github.repository == 'bYiyLi/Avru' && github.event.repository.private == true && github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: npm install --global --ignore-scripts pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run only the reviewed build preparation
+        run: |
+          pnpm rebuild esbuild
+          pnpm --filter @avru/extension exec wxt prepare
+      - run: pnpm check
+      - run: pnpm test:gates
+      - run: pnpm check:audit
+      - run: pnpm package:cli
+      - run: pnpm test:release
+      - name: Pack and test the actual extracted distribution
+        run: |
+          mkdir -p artifacts/distribution
+          npm pack ./artifacts/avru --ignore-scripts --pack-destination artifacts/distribution --json > artifacts/pack-result.json
+          test -f artifacts/distribution/avru-0.1.0-dev.1.tgz
+          rm -rf artifacts/avru
+          mkdir -p artifacts/avru
+          tar -xzf artifacts/distribution/avru-0.1.0-dev.1.tgz -C artifacts/avru --strip-components=1
+          node artifacts/avru/cli.mjs --version
+          pnpm test:installer
+      - run: pnpm exec playwright install chromium
+      - run: pnpm test:e2e
+  deliver:
+    needs: validate
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: npm install --global --ignore-scripts pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: |
+          pnpm rebuild esbuild
+          pnpm --filter @avru/extension exec wxt prepare
+      - run: pnpm package:cli
+      - run: pnpm test:release
+      - name: Prepare private artifact and provenance record
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_RUN: ${{ github.run_id }}
+          RELEASE_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          mkdir -p artifacts/distribution
+          npm pack ./artifacts/avru --ignore-scripts --pack-destination artifacts/distribution --json > artifacts/pack-result.json
+          node --input-type=module <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+          import { createHash } from 'node:crypto';
+          const manifest = JSON.parse(await readFile('artifacts/avru/package.json', 'utf8'));
+          if (manifest.name !== 'avru' || manifest.version !== '0.1.0-dev.1' || manifest.private !== true) {
+            throw new Error('Private development package identity mismatch');
+          }
+          const file = `avru-${manifest.version}.tgz`;
+          const hash = createHash('sha256').update(await readFile(`artifacts/distribution/${file}`)).digest('hex');
+          await writeFile('artifacts/distribution/SHA256SUMS', `${hash}  ${file}\n`);
+          await writeFile('artifacts/distribution/release.json', JSON.stringify({
+            version: manifest.version,
+            sourceCommit: process.env.RELEASE_SHA,
+            workflowRun: process.env.RELEASE_RUN,
+            workflowAttempt: process.env.RELEASE_ATTEMPT,
+            artifact: file,
+            sha256: hash,
+            channel: 'private-development-test',
+            validation: ['windows-latest', 'macos-latest'],
+            publishedToNpm: false,
+          }, null, 2) + '\n');
+          NODE
+      - name: Verify the exact final tarball on macOS
+        run: |
+          rm -rf artifacts/avru
+          mkdir -p artifacts/avru
+          tar -xzf artifacts/distribution/avru-0.1.0-dev.1.tgz -C artifacts/avru --strip-components=1
+          node artifacts/avru/cli.mjs --version
+          pnpm test:installer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avru-0.1.0-dev.1-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/distribution/avru-0.1.0-dev.1.tgz
+            artifacts/distribution/SHA256SUMS
+            artifacts/distribution/release.json
+          if-no-files-found: error
+          retention-days: 14
+          include-hidden-files: false

@@ -27,7 +27,8 @@
     "validate": "pnpm check && pnpm test:gates && pnpm check:audit && pnpm test:e2e",
     "test:gates": "node --test tests/quality/gates.test.mjs",
     "package:cli": "pnpm build && node scripts/package-cli.mjs",
-    "test:installer": "node --import tsx --test tests/installer/*.test.mjs"
+    "test:installer": "node --import tsx --test tests/installer/*.test.mjs",
+    "test:release": "node --test tests/release/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -40,6 +41,7 @@
     "eslint": "10.14.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.14.0",
+    "javascript-obfuscator": "4.1.1",
     "jscpd": "5.4.2",
     "prettier": "3.9.10",
     "secretlint": "13.1.0",

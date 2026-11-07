@@ -23,7 +23,7 @@ const auto = {
 if (args.includes('--help') || args.includes('--version')) {
   console.log(
     args.includes('--version')
-      ? '0.1.0-dev (unpublished)'
+      ? '0.1.0-dev.1 (unpublished)'
       : 'Usage: avru [--yes] | avru uninstall [--yes] [--remove-data]\nInstalls, starts and configures user-login startup on Windows/macOS.',
   );
 } else if (process.platform !== 'darwin' && process.platform !== 'win32') {
@@ -52,7 +52,7 @@ if (args.includes('--help') || args.includes('--version')) {
         install({
           root,
           sourceRoot: join(source, 'payload'),
-          version: '0.1.0-dev',
+          version: '0.1.0-dev.1',
           execPath: process.execPath,
           hooks: {
             stop: () => stopRuntime(root),
