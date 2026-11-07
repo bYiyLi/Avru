@@ -47,7 +47,7 @@ function TraceDetail({ call, locale }: { call: CallTrace; locale: Language }) {
             <li key={span.spanId}>
               <strong>{names[span.name]}</strong> ·{' '}
               {statusLabel(span.status, locale, span.events)} ·{' '}
-              {span.durationMs} ms
+              {span.durationMs.toFixed(2)} ms
               <small>
                 Span {span.spanId} · Parent {span.parentSpanId ?? '—'}
               </small>
@@ -147,7 +147,7 @@ export function Calls({
                       call.spans.flatMap((span) => span.events),
                     )}
                   </td>
-                  <td>{call.durationMs} ms</td>
+                  <td>{call.durationMs.toFixed(2)} ms</td>
                   <td>
                     <TraceDetail call={call} locale={locale} />
                   </td>
