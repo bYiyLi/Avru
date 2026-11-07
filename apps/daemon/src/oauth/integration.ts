@@ -1,3 +1,4 @@
+import type { CallTraces } from '../call-traces.js';
 import type { FastifyInstance } from 'fastify';
 import type { Connections } from '../connections.js';
 import { Authority } from './authority.js';
@@ -7,9 +8,11 @@ export function attachOAuth(
   app: FastifyInstance,
   connections: Connections,
   config: (OAuthConfig & { port: number }) | undefined,
-  localPort: number,
+  local: number | { port: number; traces: CallTraces },
 ): Authority | undefined {
   if (!config) return undefined;
+  const localPort = typeof local === 'number' ? local : local.port;
+  const traces = typeof local === 'number' ? undefined : local.traces;
   if (
     !Number.isInteger(config.port) ||
     config.port < 1024 ||
@@ -24,9 +27,13 @@ export function attachOAuth(
     },
     active: (browserId) => connections.ownsBrowser(browserId),
   });
-  const remote = buildRemote(authority, () => ({
-    browsers: connections.browsers(),
-  }));
+  const remote = buildRemote(
+    authority,
+    () => ({
+      browsers: connections.browsers(),
+    }),
+    traces,
+  );
   app.addHook('onReady', async () => {
     await remote.listen({ host: '127.0.0.1', port: config.port });
   });

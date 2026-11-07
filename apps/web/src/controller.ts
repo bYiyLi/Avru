@@ -1,3 +1,4 @@
+import type { CallHistory } from './call-types.js';
 export interface BrowserProfile {
   id: string;
   name: string;
@@ -21,11 +22,12 @@ export interface Pairing {
 export interface SystemStatus {
   daemonVersion: string;
   expectedExtensionVersion: string;
-  mcp: 'notImplemented';
+  mcp: 'notImplemented' | 'oauthReadOnly';
   chatgpt: 'notImplemented';
   frpc: 'notImplemented';
 }
 export interface ViewState {
+  history?: CallHistory | null;
   system?: SystemStatus | null;
   browsers: BrowserProfile[];
   pairings: Pairing[];
@@ -59,6 +61,7 @@ function createApi(
         browsers: [],
         pairings: [],
         system: null,
+        history: null,
         message: '会话已失效，请重新打开守护进程提供的管理链接。',
       });
       throw new Error('会话已失效');
@@ -111,6 +114,7 @@ export function createController(
       const result = (await api('browsers')) as { browsers: BrowserProfile[] };
       const pending = (await api('pairings')) as { pairings: Pairing[] };
       const system = (await api('status')) as SystemStatus;
+      const history = (await api('calls')) as CallHistory;
       if (
         running &&
         epoch === generation &&
@@ -119,6 +123,7 @@ export function createController(
       )
         update({
           system,
+          history,
           browsers: result.browsers,
           pairings: pending.pairings,
           message: '',
@@ -134,6 +139,7 @@ export function createController(
           browsers: [],
           pairings: [],
           system: null,
+          history: null,
           message: '无法连接守护进程，正在重试…',
         });
     }

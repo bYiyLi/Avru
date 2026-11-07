@@ -165,3 +165,14 @@ it('rejects an empty JSON DELETE but accepts a bodyless mutation without content
   });
   expect(valid.statusCode).toBe(404);
 });
+
+it('exposes call history only through authenticated local management', async () => {
+  const instance = app();
+  expect(
+    (await instance.inject({ url: '/api/calls', headers: { host } }))
+      .statusCode,
+  ).toBe(401);
+  expect(
+    (await instance.inject({ url: '/api/calls', headers })).json<unknown>(),
+  ).toEqual({ calls: [], retention: { limit: 200, persistent: false } });
+});

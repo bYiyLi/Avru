@@ -18,17 +18,19 @@ function setup() {
   const request = vi.fn<typeof fetch>().mockImplementation((input) =>
     Promise.resolve(
       Response.json(
-        (input as string).endsWith('browsers')
-          ? { browsers: [profile] }
-          : (input as string).endsWith('pairings')
-            ? { pairings: [pending] }
-            : {
-                daemonVersion: '0.1.0-dev.1',
-                expectedExtensionVersion: '0.0.1',
-                mcp: 'notImplemented',
-                chatgpt: 'notImplemented',
-                frpc: 'notImplemented',
-              },
+        (input as string).endsWith('calls')
+          ? { calls: [], retention: { limit: 200, persistent: false } }
+          : (input as string).endsWith('browsers')
+            ? { browsers: [profile] }
+            : (input as string).endsWith('pairings')
+              ? { pairings: [pending] }
+              : {
+                  daemonVersion: '0.1.0-dev.1',
+                  expectedExtensionVersion: '0.0.1',
+                  mcp: 'notImplemented',
+                  chatgpt: 'notImplemented',
+                  frpc: 'notImplemented',
+                },
       ),
     ),
   );
@@ -52,13 +54,13 @@ it('polls sequentially, stops and ignores stale results', async () => {
   await vi.advanceTimersByTimeAsync(0);
   expect(controller.snapshot().browsers).toEqual([profile]);
   expect(controller.snapshot().pairings).toEqual([pending]);
-  expect(request).toHaveBeenCalledTimes(3);
+  expect(request).toHaveBeenCalledTimes(4);
   expect(request.mock.calls[0]?.[1]).toMatchObject({
     cache: 'no-store',
     headers: { Authorization: 'Bearer secret' },
   });
   await vi.advanceTimersByTimeAsync(2000);
-  expect(request).toHaveBeenCalledTimes(6);
+  expect(request).toHaveBeenCalledTimes(8);
   unsubscribe();
   controller.stop();
   await vi.advanceTimersByTimeAsync(2000);
@@ -66,7 +68,7 @@ it('polls sequentially, stops and ignores stale results', async () => {
   controller.start();
   controller.stop();
   await vi.advanceTimersByTimeAsync(0);
-  expect(request).toHaveBeenCalledTimes(9);
+  expect(request).toHaveBeenCalledTimes(12);
 });
 it('approves, rejects and revokes only through explicit actions', async () => {
   vi.useFakeTimers();
@@ -78,17 +80,17 @@ it('approves, rejects and revokes only through explicit actions', async () => {
   await controller.approve('pending');
   expect(controller.snapshot().pairings).toEqual([]);
   await controller.reject('pending');
-  expect(request.mock.calls[4]?.[1]).toMatchObject({
+  expect(request.mock.calls[5]?.[1]).toMatchObject({
     method: 'DELETE',
     headers: { Authorization: 'Bearer secret' },
   });
-  expect(request.mock.calls[4]?.[1]?.headers).not.toHaveProperty(
+  expect(request.mock.calls[5]?.[1]?.headers).not.toHaveProperty(
     'Content-Type',
   );
-  expect(request.mock.calls[4]?.[1]?.body).toBeUndefined();
+  expect(request.mock.calls[5]?.[1]?.body).toBeUndefined();
   await controller.revoke('one');
   expect(controller.snapshot().browsers).toEqual([]);
-  expect(request.mock.calls[3]).toEqual([
+  expect(request.mock.calls[4]).toEqual([
     '/api/pairings/pending/approve',
     expect.objectContaining({ method: 'POST', body: '{}' }),
   ]);

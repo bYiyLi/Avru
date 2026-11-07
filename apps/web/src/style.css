@@ -581,3 +581,33 @@ section,
 nav {
   flex-wrap: wrap;
 }
+
+.calls {
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+}
+.call-detail {
+  min-width: 210px;
+}
+.call-detail summary {
+  cursor: pointer;
+}
+.trace-identifiers {
+  font-size: 12px;
+}
+.trace-identifiers dd {
+  margin: 2px 0 10px;
+  overflow-wrap: anywhere;
+}
+.trace-spans {
+  padding-left: 18px;
+  min-width: 260px;
+}
+.trace-spans > li {
+  border-left: 1px solid var(--line);
+  padding: 0 0 14px 12px;
+}
+.trace-spans ul {
+  padding-left: 14px;
+  font-size: 12px;
+}

@@ -1,3 +1,4 @@
+import { CallTraces } from '../src/call-traces.js';
 import { createHash } from 'node:crypto';
 import { request } from 'node:http';
 import { expect, it, vi } from 'vitest';
@@ -118,7 +119,12 @@ it('guards optional remote startup and retains local-only grant management', asy
     if (!address || typeof address === 'string') throw new Error('No port');
     const port = address.port;
     await reservation.close();
-    const authority = attachOAuth(app, connections, { ...config, port }, 43821);
+    const authority = attachOAuth(
+      app,
+      connections,
+      { ...config, port },
+      { port: 43821, traces: new CallTraces() },
+    );
     expect(authority).toBeInstanceOf(Authority);
     if (!authority) throw new Error('Missing authority');
     const offer = vi

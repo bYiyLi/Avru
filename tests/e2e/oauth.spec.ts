@@ -102,6 +102,23 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
         },
       });
     expect((await call()).status()).toBe(200);
+    const history = page.locator('.calls');
+    await expect(
+      history.getByText('browsers_list', { exact: true }),
+    ).toBeVisible();
+    const successful = history
+      .locator('tbody tr')
+      .filter({ hasText: 'browsers_list' });
+    await expect(successful).toContainText('已完成');
+    await successful.locator('summary').click();
+    await expect(successful).toContainText('Trace ID');
+    await expect(successful).toContainText('authorized');
+    await expect(successful).toContainText('completed');
+    await expect(history).not.toContainText(token);
+    await page.screenshot({
+      path: testInfo.outputPath('real-mcp-trace.png'),
+      fullPage: true,
+    });
     const key =
       new URLSearchParams(new URL(daemon.url).hash.slice(1)).get('key') ?? '';
     const localHeaders = { authorization: `Bearer ${key}`, origin: endpoint };

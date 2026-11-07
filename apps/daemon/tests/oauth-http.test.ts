@@ -1,3 +1,4 @@
+import { CallTraces } from '../src/call-traces.js';
 import { createHash } from 'node:crypto';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Authority } from '../src/oauth/authority.js';
@@ -30,10 +31,12 @@ function fixture() {
       active: () => true,
     },
   );
-  const app = buildRemote(authority, () => ({ browsers: [] }));
+  const traces = new CallTraces();
+  const snapshot = vi.fn(() => ({ browsers: [] }));
+  const app = buildRemote(authority, snapshot, traces);
   apps.push(app);
   const headers = { host: 'avru.example' };
-  return { authority, app, headers, consent: () => consent };
+  return { authority, app, headers, traces, snapshot, consent: () => consent };
 }
 it('separates remote routes from local management, metadata and error boundaries', async () => {
   const { app, headers } = fixture();
@@ -213,6 +216,25 @@ it('keeps approval off HTTP, redirects only after extension, protects each call 
     ).statusCode,
   ).toBe(200);
   expect((await x.app.inject(call)).statusCode).toBe(401);
+  const events = x.traces.snapshot().calls;
+  expect(events.map((value) => value.status)).toContain('succeeded');
+  expect(events[0]?.status).toBe('rejected');
+  expect(events[0]?.spans.map((value) => value.name)).toEqual([
+    'request',
+    'authorization',
+  ]);
+  expect(JSON.stringify(events)).not.toContain(token);
+  expect(
+    events.some(
+      (value) =>
+        value.spans[0]?.events[0]?.code === 'unsupported_protocol_version',
+    ),
+  ).toBe(true);
+  expect(
+    events.some(
+      (value) => value.spans[0]?.events[0]?.code === 'not_acceptable',
+    ),
+  ).toBe(true);
 });
 it('handles stateless MCP discovery, notification, errors and tool schema', () => {
   const run = (method: string, params?: unknown) =>
@@ -261,4 +283,68 @@ it('sweeps pending deadlines without exposing an HTTP approval route', async () 
     apps.splice(apps.indexOf(x.app), 1);
     vi.useRealTimers();
   }
+});
+
+it('records protocol failures and sanitized internal errors instead of logging exceptions', async () => {
+  const x = fixture();
+  vi.spyOn(x.authority, 'authenticate').mockReturnValue({
+    id: 'grant',
+    browserId: 'browser',
+    clientId: 'client',
+    expiresAt: Date.now() + 1000,
+  });
+  const input = {
+    method: 'POST' as const,
+    url: '/mcp',
+    headers: x.headers,
+    payload: {
+      jsonrpc: '2.0',
+      id: 'private-id',
+      method: 'tools/call',
+      params: { name: 'browsers_list' },
+    },
+  };
+  x.snapshot.mockImplementation(() => {
+    throw new Error('sensitive browser data');
+  });
+  const failed = await x.app.inject(input);
+  expect(failed.statusCode).toBe(500);
+  expect(x.traces.snapshot().calls[0]?.status).toBe('failed');
+  expect(failed.headers['x-avru-request-id']).toBe(
+    x.traces.snapshot().calls[0]?.requestId,
+  );
+  await x.app.inject({
+    ...input,
+    payload: { ...input.payload, method: 'private-method' },
+  });
+  expect(x.traces.snapshot().calls[0]?.status).toBe('rejected');
+  const serialized = JSON.stringify(x.traces.snapshot());
+  expect(serialized).not.toContain('sensitive browser data');
+  expect(serialized).not.toContain('private-id');
+  expect(serialized).not.toContain('private-method');
+});
+
+it('records notification acceptance without pretending a tool was executed', async () => {
+  const x = fixture();
+  vi.spyOn(x.authority, 'authenticate').mockReturnValue({
+    id: 'grant',
+    browserId: 'browser',
+    clientId: 'client',
+    expiresAt: Date.now() + 1000,
+  });
+  const reply = await x.app.inject({
+    method: 'POST',
+    url: '/mcp',
+    headers: x.headers,
+    payload: {
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: { name: 'browsers_list' },
+    },
+  });
+  expect(reply.statusCode).toBe(202);
+  expect(x.snapshot).not.toHaveBeenCalled();
+  const call = x.traces.snapshot().calls[0];
+  expect(call?.tool).toBeNull();
+  expect(call?.spans[0]?.events[0]?.code).toBe('notification_accepted');
 });

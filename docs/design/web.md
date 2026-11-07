@@ -31,6 +31,16 @@ ChatGPT 通道及 FRPC 是两个连接配置入口；只有真实支持的后端
 
 最终 MCP 详情要求实际 Trace ID、Request ID、Span/Parent、逐步骤时间/耗时、结果和关联脱敏日志；未知结果不能归为失败，更不能盲重放。没有执行记录源时展示明确空状态，不用示例日志填充产品。严禁日志包含 bearer、配对凭据、cookie、完整参数、私密页面内容及带秘密的 URL。
 
+### 本机调用记录合同
+
+本机 `GET /api/calls` 复用管理 capability、Host/Origin 校验，不在远程 MCP 端口开放。每个 daemon 实例独立保留最近 200 条已结束的 MCP POST 记录于内存，重启清空，不写数据库或磁盘日志；响应声明 `retention.persistent=false`。容量有限，不能用它充当完整审计留存。
+
+Trace ID、Request ID 和 Span ID 由 daemon 随机生成，不采纳调用方的 ID 作为日志字段。Request ID 通过 `X-Avru-Request-Id` 返回便于定位。只记录允许列表方法/工具名、固定事件代码、时间、单调时钟耗时、父子关系和结果，不记录 RPC ID、参数、响应、异常文本、URL 或认证头。未知方法统一显示 `other`，未知工具为 null。
+
+当前真实步骤仅为服务端请求、授权检查与 MCP 分派。授权拒绝没有分派 span，JSON-RPC 错误即使 HTTP 200 也归为 rejected；内部异常返回固定错误并记 failed，不输出异常内容。无 ID 通知只记 notification_accepted，工具字段为空，不能把 202 接收通知说成工具执行完成。未完成浏览器动作与运行器链路不生成占位 span。本记录表示服务端处理结果，不保证客户端已收到响应；unknown 保留给未来无法判定的执行，不将超时自动判成失败或自动重放。
+
+管理页展示表格和可展开链路详情，将事件与所属 span 一起查看；空记录及有限内存留存明确说明。请求失败清空旧记录，不能将旧请求状态当成新的在线证据。
+
 ## 实施与发布边界
 
 实施范围、验收及缺口见[管理界面阶段](../development/phases/03-management-web.md)。本次迁移不宣称已实现受控 SDK、远程 MCP/OAuth、ChatGPT/FRPC、扩展自动安装、当前浏览器可信握手或完整链路采集。开发包是否携带可加载扩展必须以发行清单核验，不能提供不存在的稳定目录。
