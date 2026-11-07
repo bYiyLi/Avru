@@ -23,7 +23,7 @@ runtime 描述符中的 PID 不是杀进程依据。CLI 验证 loopback 地址�
 
 ## 登录启动
 
-macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.plist`，Windows 写用户 Startup `Avru.cmd`，支持 APPDATA 重定向。只改 Avru 标记文件，拒绝覆盖外部文件。不是系统级服务，不需要管理员，不承诺登录前运行；当前启动由 CLI 完成，下一次登录由 OS 触发。Windows 命令窗口可能短暂出现。关闭管理页不停止 daemon。
+macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.plist`，Windows 写用户 Startup `Avru.cmd`，支持 APPDATA 重定向。只改 Avru 标记文件，拒绝覆盖外部文件。不是系统级服务，不需要管理员，不承诺登录前运行；当前启动由 CLI 完成，下一次登录由 OS 触发。macOS launcher 在 launchd 所属进程加载当前 daemon，不提前退出后遗留子进程；Windows launcher 启动后台子进程后退出。Windows 命令窗口可能短暂出现。关闭管理页不停止 daemon。
 
 这是受当前 OS 用户保护的本机边界，不抵抗同用户恶意程序。macOS/Windows 文件权限和登录策略差异需实际机器验收，不能从 Unix mode 推断 Windows ACL。
 
@@ -31,4 +31,4 @@ macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.plist`，Windows 写用�
 
 `pnpm package:cli` 构建自包含 CLI、launcher、daemon payload 与 Web，输出 `artifacts/avru`。`pnpm test:installer` 在临时数据目录运行实际 bundle；测试自启动文件只写临时 home，不改 CI 宿主的真实登录入口。正式 npm 发布、真实 OS 注销登录、用户电脑安装另行验收。
 
-执行结果与 CI 链接在最终验收后补充；未通过前不标记完成。
+2026-11-07 云端 Linux 的完整 `pnpm check` 通过：93 项测试，逐模块覆盖维持 ≥90%；7 项门禁反例通过，audit 仍有既有 1 个 moderate 开发依赖告警。真实 bundle 生命周期测试通过。Windows/macOS CI 结果待核验，不能由 Linux 推断 OS 登录已验收。

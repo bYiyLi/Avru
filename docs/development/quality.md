@@ -23,7 +23,7 @@
 
 覆盖 apps 各应用 src、packages 各包 src，以及 WXT 扩展根下 TS/TSX（含 utils/components/entrypoints）。扩展仅排除 wxt.config.ts、tests、node_modules、.wxt、.output；全局排除类型声明。三个精确薄入口 apps/cli/src/main.ts、apps/daemon/src/main.ts、apps/web/src/main.tsx 不计单测覆盖率：其中不得积累业务逻辑，它们的真实启动、关闭和故障恢复须由集成验收补齐。
 
-生成产物 dist/.wxt/.output/artifacts（安装 bundle）、依赖 node_modules、coverage 和测试报告不计源码质量；具体 glob 以配置为准。新增源码不得通过扩大排除范围逃避门禁。扩展当前只有 HTML 提示页，没有 TS 业务源码，不能称扩展功能已获 90% 覆盖。
+生成产物 dist/.wxt/.output/artifacts（安装 bundle）、依赖 node_modules、coverage 和测试报告不计源码质量；具体 glob 以配置为准。新增源码不得通过扩大排除范围逃避门禁。扩展连接与配对 TypeScript 业务源码纳入独立类型覆盖及逐模块测试覆盖；覆盖率不代表已完成网页控制。
 
 ## 运行与 CI
 
