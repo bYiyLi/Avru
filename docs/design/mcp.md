@@ -74,3 +74,19 @@ HTTP不接受浏览器跨源Origin请求，不提供CORS授权端点或Web批准
 - [Chrome windows API](https://developer.chrome.com/docs/extensions/reference/api/windows#method-create)：扩展可创建popup类型窗口。本实现不依赖工具栏瞬态popup；浏览器实际运行结果另由CI记录，不能以API存在代替实测。
 - [Chrome action.openPopup](https://developer.chrome.com/docs/extensions/reference/api/action#method-openPopup)：常规扩展自Chrome127才可调用；118–126限制策略安装扩展，因此未选作唯一弹出机制。
 - [RFC9700](https://www.rfc-editor.org/rfc/rfc9700.html)、[RFC7636](https://www.rfc-editor.org/rfc/rfc7636)、[RFC9207](https://www.rfc-editor.org/rfc/rfc9207)：精确回调、PKCE及issuer识别的安全依据；不是对自定义实现的认证或安全保证。
+
+## 远程通道接线：离线预检边界
+
+`apps/daemon/src/transports/frpc-plan.ts` 的 `planFrpc` 是纯配置预览，供后续受保护的管理向导调用；目前没有 Web/CLI 入口，也不启动或监测 frpc。它不读写文件、不取密钥、不申请账户权限、不连接公网。返回 `previewOnly`、`enabled=false`、`verified=false`，不得把预览当连接成功。
+
+输入必须来自当前环境已验证 OAuth 配置以及部署者明确提供的 FRPS 主机/端口、FRPS CA 文件路径、公开域名证书/私钥路径。默认只支持无显式端口的 HTTPS issuer（公开 443）；其他 TLS 拓扑暂不自动生成。输出 FRP JSON 配置，只映射 OAuth 独立 `127.0.0.1` 端口，拒绝管理端口。`https2http` 在本机客户端终止公开 HTTPS；Host 重写到精确 issuer，不能照抄官方示例的 `127.0.0.1`，否则 Avru 正确拒绝。FRPC→FRPS 开启 TLS 且指定受信 CA/serverName，不仅依赖链路加密。
+
+FRP token 只输出环境变量引用 `AVRU_DEV_FRP_TOKEN` 或 `AVRU_PROD_FRP_TOKEN`，不会把真实 token 放进返回结果；变量由后续获准部署注入。路径/主机拒绝控制字符和 Go 模板标记，避免用户输入被当模板执行。生成器不保证文件存在、证书域名正确、域名归属、FRPS权限、环境变量已配置或服务可用。若手工改为转发管理端口，生成器不能保护被修改的部署。
+
+正式接通还须核验：FRPS 443 路由与 DNS/证书、精确客户端 ID/回调、超过120秒的授权等待链路、插件弹窗允许/拒绝、实际 ChatGPT 工具发现和读取、撤销后401、跨环境拒绝。此预检不增加匿名入口，不把隧道身份当作 OAuth grant。
+
+### Secure MCP Tunnel 尚未就绪的原因
+
+OpenAI 官方 tunnel-client 的 OAuth 行为不能当通用 HTTP 反向代理：它不改写 `authorization_endpoint`，浏览器仍直接访问上游授权服务；只有注册的 `harpoon://` token/revocation 等端点走 shim，普通 HTTPS 端点仍由产品直接访问。Avru 当前 metadata 全部使用 HTTPS issuer，且监听器要求对应 Host，因此不能直接填入 loopback MCP URL 和 tunnel ID 就宣布 OAuth 接通。需要核实 Host、发现/端点路由、浏览器可达授权地址和目标账户实际权限后再落实该适配，不能靠关闭 Host/授权校验解决。
+
+本段依据（2026-11-07查阅）：[FRP 配置格式及模板](https://gofrp.org/en/docs/features/common/configure/)、[FRP HTTPS2HTTP](https://gofrp.org/en/docs/examples/https2http/)、[OpenAI Tunnel onboarding](https://github.com/openai/tunnel-client/blob/master/docs/onboarding.md)、[官方 Tunnel 说明](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)。官方文档证明接口与限制，不证明 Avru 的真实联网结果。FRP 生成格式要求支持 JSON/TOML 的 v0.52.0 或更新版本；实际部署仍须以选定二进制 `frpc verify` 验证，未在本阶段下载运行 frpc。
