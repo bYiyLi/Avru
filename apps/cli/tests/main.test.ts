@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { InstallOptions } from '../src/install.js';
 import type { runFlow } from '../src/flow.js';
@@ -43,7 +44,7 @@ it('CLI uses one channel root consistently for payload and launcher wiring', asy
   expect(options).toMatchObject({
     root: '/custom/dev',
     channel: 'dev',
-    sourceRoot: '/package/payload',
+    sourceRoot: join('/package', 'payload'),
   });
   const active = {
     release: 'fixture-release',
@@ -54,18 +55,24 @@ it('CLI uses one channel root consistently for payload and launcher wiring', asy
   expect(mocks.start).toHaveBeenCalledWith({
     dataRoot: '/custom/dev',
     channel: 'dev',
-    payloadRoot: '/custom/dev/program/releases/fixture-release',
+    payloadRoot: join('/custom/dev', 'program', 'releases', 'fixture-release'),
     execPath: '/node',
   });
   await options?.hooks.autostart(active);
   expect(mocks.launcher).toHaveBeenCalledWith(
-    '/custom/dev/program/releases/fixture-release/launcher.mjs',
-    '/custom/dev/program/launcher.mjs',
+    join(
+      '/custom/dev',
+      'program',
+      'releases',
+      'fixture-release',
+      'launcher.mjs',
+    ),
+    join('/custom/dev', 'program', 'launcher.mjs'),
   );
   expect(mocks.autostart).toHaveBeenCalledWith(
     expect.objectContaining({
       channel: 'dev',
-      launcherPath: '/custom/dev/program/launcher.mjs',
+      launcherPath: join('/custom/dev', 'program', 'launcher.mjs'),
     }),
   );
 });
