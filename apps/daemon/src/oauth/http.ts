@@ -1,10 +1,16 @@
+import { CallTraces } from '../call-traces.js';
+import { record } from '../messages.js';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type { Authority } from './authority.js';
 import { parameters, scope } from './config.js';
 import { mcpResponse } from './mcp.js';
 
-export function buildRemote(authority: Authority, snapshot: () => unknown) {
+export function buildRemote(
+  authority: Authority,
+  snapshot: () => unknown,
+  traces = new CallTraces(),
+) {
   const app = Fastify({
     logger: false,
     bodyLimit: 8192,
@@ -67,7 +73,7 @@ export function buildRemote(authority: Authority, snapshot: () => unknown) {
       return reply.code(400).send({ error: 'invalid_request' });
     }
   });
-  mcpRoutes(app, authority, snapshot);
+  mcpRoutes(app, authority, snapshot, traces);
   const timer = setInterval(() => {
     authority.sweep();
   }, 1000);
@@ -105,9 +111,17 @@ function mcpRoutes(
   app: FastifyInstance,
   authority: Authority,
   snapshot: () => unknown,
+  traces: CallTraces,
 ): void {
   app.post('/mcp', (request, reply) => {
-    if (!authority.authenticate(request.headers.authorization))
+    const trace = traces.begin(request.body);
+    reply.header('X-Avru-Request-Id', trace.requestId);
+    const authenticated = authority.authenticate(request.headers.authorization);
+    if (!authenticated) {
+      trace.step('authorization', 'rejected', 'invalid_token');
+      trace.finish('rejected', 'invalid_token');
+    } else trace.step('authorization', 'succeeded', 'authorized');
+    if (!authenticated)
       return reply
         .code(401)
         .header(
@@ -118,16 +132,36 @@ function mcpRoutes(
     if (
       request.headers['mcp-protocol-version'] !== undefined &&
       request.headers['mcp-protocol-version'] !== '2025-11-25'
-    )
+    ) {
+      trace.finish('rejected', 'unsupported_protocol_version');
       return reply.code(400).send({ error: 'unsupported_protocol_version' });
+    }
     if (
       request.headers.accept !== undefined &&
       !request.headers.accept.includes('application/json') &&
       request.headers.accept !== '*/*'
-    )
+    ) {
+      trace.finish('rejected', 'not_acceptable');
       return reply.code(406).send({ error: 'not_acceptable' });
-    const result = mcpResponse(request.body, snapshot);
-    return reply.code(result.status).send(result.body);
+    }
+    try {
+      const result = mcpResponse(request.body, snapshot);
+      const rejected =
+        result.status >= 400 || (record(result.body) && 'error' in result.body);
+      const status = rejected ? 'rejected' : 'succeeded';
+      const code = rejected
+        ? 'protocol_error'
+        : result.status === 202
+          ? 'notification_accepted'
+          : 'completed';
+      trace.step('dispatch', status, code);
+      trace.finish(status, code);
+      return reply.code(result.status).send(result.body);
+    } catch {
+      trace.step('dispatch', 'failed', 'internal_error');
+      trace.finish('failed', 'internal_error');
+      return reply.code(500).send({ error: 'internal_error' });
+    }
   });
   app.get('/mcp', (_request, reply) => reply.code(405).send());
 }

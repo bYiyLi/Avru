@@ -1,4 +1,5 @@
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
+import { CallTraces } from './call-traces.js';
 import { attachOAuth } from './oauth/integration.js';
 import type { OAuthConfig } from './oauth/config.js';
 import { releaseInfo } from './release-info.js';
@@ -30,7 +31,11 @@ export function buildApp(options: AppOptions = {}) {
     },
     options.channel,
   );
-  const authority = attachOAuth(app, connections, options.oauth, port);
+  const traces = new CallTraces();
+  const authority = attachOAuth(app, connections, options.oauth, {
+    port,
+    traces,
+  });
   secureHttp(app, port, options.adminKey ?? randomBytes(32).toString('hex'));
   app.get('/health', () => ({
     service: 'avru',
@@ -44,6 +49,7 @@ export function buildApp(options: AppOptions = {}) {
     chatgpt: 'notImplemented',
     frpc: 'notImplemented',
   }));
+  app.get('/api/calls', () => traces.snapshot());
   app.get('/api/grants', () => ({ grants: authority?.grants() ?? [] }));
   app.delete<{ Params: { id: string } }>(
     '/api/grants/:id',

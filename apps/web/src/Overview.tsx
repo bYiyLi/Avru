@@ -1,3 +1,4 @@
+import { Calls } from './Calls.js';
 import type { ViewState, BrowserProfile } from './controller.js';
 import type { Actions } from './Pairings.js';
 import { translate as t, versionStatus } from './presentation.js';
@@ -149,7 +150,13 @@ export function Overview({
         </div>
         <div>
           <span>MCP</span>
-          <strong>{t(locale, '尚未实现', 'Not implemented')}</strong>
+          <strong>
+            {state.system?.mcp === 'oauthReadOnly'
+              ? t(locale, '只读服务已配置', 'Read-only service configured')
+              : state.system
+                ? t(locale, '未启用', 'Not enabled')
+                : t(locale, '状态未确认', 'Status not confirmed')}
+          </strong>
           <small>
             {t(
               locale,
@@ -171,6 +178,10 @@ export function Overview({
       </div>
       <BrowserContent state={state} locale={locale} revoke={revoke} />
       <Capabilities locale={locale} />
+      <Calls
+        history={state.system ? (state.history ?? null) : null}
+        locale={locale}
+      />
     </section>
   );
 }
@@ -189,25 +200,12 @@ function Capabilities({ locale }: { locale: Language }) {
             <p>
               {t(
                 locale,
-                '当前版本没有可用的通道配置或 MCP OAuth 服务，不能保存配置或生成接入地址。浏览器连接不代表已授权远程访问。',
-                'This version has no working channel configuration or MCP OAuth service. Configuration and connection URLs are unavailable. Browser pairing does not authorize remote access.',
+                '通道配置尚未实现，不能在此保存配置或生成接入地址。MCP 只读服务状态单独显示；本机配对不代表 ChatGPT 或 FRPC 已接通。',
+                'Channel configuration is not implemented here. Read-only MCP service status is shown separately; local pairing does not mean ChatGPT or FRPC is connected.',
               )}
             </p>
           </details>
         ))}
-      </section>
-      <section>
-        <h2>{t(locale, 'MCP 调用与链路日志', 'MCP calls & trace logs')}</h2>
-        <p className="empty">
-          {t(locale, '暂无真实调用记录', 'No real call records')}
-        </p>
-        <p className="muted">
-          {t(
-            locale,
-            'MCP 执行与日志后端尚未实现。此处不生成模拟请求、成功率或链路。后续将以 Trace / Request / Span 关联真实步骤与脱敏日志，超时保留结果未知。',
-            'MCP execution and logging are not implemented. No simulated calls, success rates or traces are generated here. Future Trace / Request / Span records will correlate real steps and redacted logs; timeouts remain unknown.',
-          )}
-        </p>
       </section>
     </div>
   );
