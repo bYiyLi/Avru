@@ -22,7 +22,7 @@ Windows 未设置 LOCALAPPDATA 时回落用户 `AppData\Local`；Startup仍尊�
 
 ## 扩展与连接边界
 
-WXT使用两个固定公开manifest公钥，使本地解压扩展各自ID稳定且不同，名称标明开发环境。公钥/ID是路由标识，不是秘密或完整身份认证。扩展storage由各ID隔离；固定连接本环境端口，不提供跨环境切换选项。
+WXT构建目录分别为`.output/dev/chrome-mv3`与`.output/prod/chrome-mv3`，不覆盖另一环境产物。WXT使用两个固定公开manifest公钥，使本地解压扩展各自ID稳定且不同，名称标明开发环境。公钥/ID是路由标识，不是秘密或完整身份认证。扩展storage由各ID隔离；固定连接本环境端口，不提供跨环境切换选项。
 
 生产daemon只接受本channel的extension Origin，配对/认证首包携带channel，回复与持久凭据必须相符；原有随机token、Origin绑定、管理capability验证仍保留。其他环境的token、配对ID与管理key不能复用。旧无channel凭据拒绝并需重新配对。
 

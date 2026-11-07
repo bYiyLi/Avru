@@ -13,7 +13,7 @@
 
 ## 当前证据
 
-以main `1c4b0440477286810403e2e28775497d4761450e`整合OAuth。云端本次工作树34个测试文件169测试通过，逐生产文件覆盖门禁通过（statements98.97%、branches97.78%、functions98.78%、lines99.33%）。实际bundle安装/修复/缓存删除后启动/卸载1项、发行负向3项、门禁负向7项通过。格式、类型、ESLint、边界、重复、Secretlint与双扩展构建通过。
+以main `1c4b0440477286810403e2e28775497d4761450e`整合OAuth。云端本次工作树34个测试文件171测试通过，逐生产文件覆盖门禁通过（statements98.98%、branches97.79%、functions98.79%、lines99.33%）。实际bundle安装/修复/缓存删除后启动/卸载1项、发行负向3项、门禁负向7项通过。格式、类型、ESLint、边界、重复、Secretlint与双扩展构建通过。
 
 云端Chromium因宿主`socket() failed: Operation not permitted`未能启动，3个E2E不能标为通过；转由当前提交Win/mac CI验收。提交与精确提交CI待补；audit尚待结果。没有发布npm、操作用户电脑或修改真实登录项。
 

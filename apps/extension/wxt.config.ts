@@ -6,6 +6,7 @@ const channel = parseChannel(
   process.env.AVRU_BUILD_CHANNEL ?? releaseChannel(),
 );
 export default defineConfig({
+  outDir: `.output/${channel}`,
   vite: () => ({ define: { __AVRU_CHANNEL__: JSON.stringify(channel) } }),
   manifest: {
     name:
