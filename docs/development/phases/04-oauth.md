@@ -39,3 +39,11 @@
 ## 环境隔离交接
 
 用户新增dev/prod同机隔离要求由独立阶段实现。本提交只验证单daemon配置，**不宣称dev/prod隔离已经完成**。后续必须把issuer/resource、监听端口、扩展身份与配对存储、管理能力、pending/code/grant/token存储统一绑定环境；不得跨环境接收批准或复用令牌。合并实现需添加跨环境反例测试，并重新核验上述联调入口。
+
+## 后续远程接入推进：FRPC 离线预检
+
+基线 main `3a4f3efb656253e9271e80c847ee43ed320b1305`。本次实现纯 `planFrpc` 预览生成与静态检查，具体合同归[MCP设计](../../design/mcp.md)。独立本地目录，不改并行 Web/扩展/i18n。验收包括：只映射 OAuth 端口、固定 HTTPS Host、FRPS CA 校验、dev/prod 独立 token 环境变量引用、拒绝管理端口/模板注入/无效配置、正确序列化 Windows 路径。没有联网副作用。
+
+状态：代码已在本地实现，尚未提交或接入管理向导；不等于 FRPC/ChatGPT 通道完成。真实 FRPC 二进制校验、网络连接、平台账户权限、最终 ChatGPT OAuth 与工具调用仍未验证。Tunnel 的授权 URL/Host 路由缺口已定位，不以取消 OAuth 或暴露管理服务绕过。
+
+本地核验（Linux / Node 24.22.1）：新增5组测试通过且生成器全部维度100%覆盖；全仓ESLint、daemon类型检查、类型覆盖99.77%、依赖边界、零重复和Secretlint通过；依赖审计high/critical门禁通过，保留既有1 moderate告警。首次全仓单测因复制目录未生成WXT类型失败，按正式WXT prepare生成后恢复；不隐藏该环境前置。未运行真实frpc、TLS证书连接或ChatGPT。完整Windows/macOS CI仍须对待交付提交核验，不能用本地单测替代。
