@@ -78,6 +78,14 @@ it('approves, rejects and revokes only through explicit actions', async () => {
   await controller.approve('pending');
   expect(controller.snapshot().pairings).toEqual([]);
   await controller.reject('pending');
+  expect(request.mock.calls[4]?.[1]).toMatchObject({
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer secret' },
+  });
+  expect(request.mock.calls[4]?.[1]?.headers).not.toHaveProperty(
+    'Content-Type',
+  );
+  expect(request.mock.calls[4]?.[1]?.body).toBeUndefined();
   await controller.revoke('one');
   expect(controller.snapshot().browsers).toEqual([]);
   expect(request.mock.calls[3]).toEqual([

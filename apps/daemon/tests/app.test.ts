@@ -148,3 +148,20 @@ describe('management Web assets', () => {
     expect((await instance.inject({ url: '/', headers })).statusCode).toBe(503);
   });
 });
+
+it('rejects an empty JSON DELETE but accepts a bodyless mutation without content type', async () => {
+  const instance = app();
+  const bad = await instance.inject({
+    method: 'DELETE',
+    url: '/api/browsers/missing',
+    headers: { ...headers, 'content-type': 'application/json' },
+  });
+  expect(bad.statusCode).toBe(400);
+  expect(bad.json<{ code: string }>().code).toBe('FST_ERR_CTP_EMPTY_JSON_BODY');
+  const valid = await instance.inject({
+    method: 'DELETE',
+    url: '/api/browsers/missing',
+    headers,
+  });
+  expect(valid.statusCode).toBe(404);
+});

@@ -48,7 +48,7 @@ function createApi(
       cache: 'no-store',
       headers: {
         Authorization: `Bearer ${session.key ?? ''}`,
-        'Content-Type': 'application/json',
+        ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
       },
       ...(method === 'POST' ? { body: '{}' } : {}),
     });
