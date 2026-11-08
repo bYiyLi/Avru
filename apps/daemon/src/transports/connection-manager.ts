@@ -67,7 +67,7 @@ export class ConnectionManager {
       );
       if (saved) this.bundle = this.parse(JSON.parse(saved) as unknown);
       if (this.bundle && this.options.external) {
-        await this.options.remote.close();
+        await this.stopConnection();
         this.report('unavailable', 'configuration_conflict');
       } else if (this.bundle) await this.activate();
       else await this.driver.stop();
@@ -89,7 +89,13 @@ export class ConnectionManager {
     };
   }
   async import(raw: unknown): Promise<void> {
-    if (this.options.external) throw new Error('configuration_conflict');
+    if (this.options.external) {
+      await this.exclusive(async () => {
+        await this.stopConnection();
+        this.report('unavailable', 'configuration_conflict');
+      });
+      throw new Error('configuration_conflict');
+    }
     const candidate = this.parse(raw);
     await this.exclusive(async () => {
       this.state = 'applying';

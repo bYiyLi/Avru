@@ -1,6 +1,6 @@
-# 私有开发测试包发行
+# 开发版候选与发布
 
-本指南用于维护者生成、领取并核验 `0.1.0-dev.1` 测试包。它不是公开 npm 发布，也不说明完整浏览器控制产品已经交付。安装合同见[安装设计](../design/installation.md)，功能完成范围见[开发计划](../development/README.md)。
+当前有效流程为[五项交付的精确候选流程](#五项交付的精确候选流程)，目标是 `@avru/setup@0.1.0-dev.1`、public、dev 标签；须完成同一 tgz 的双平台验收并取得精确候选的最终批准。实际状态归[五项交付记录](../development/phases/06-local-connection-delivery.md)维护。下面的私有、unscoped 和 staging 流程保留历史依据，不作为本轮触发入口。安装合同见[安装设计](../design/installation.md)，功能范围见[开发计划](../development/README.md)。
 
 ## 分发与保密边界
 

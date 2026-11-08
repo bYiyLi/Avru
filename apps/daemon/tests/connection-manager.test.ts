@@ -89,6 +89,9 @@ it('rejects invalid bundles and conflicting external configuration without start
     'conflict',
   );
   expect(f.driver.start).not.toHaveBeenCalled();
+  expect(f.remote.close).toHaveBeenCalledTimes(1);
+  expect(f.manager.snapshot().state).toBe('unavailable');
+  expect(f.manager.snapshot().events[0]?.code).toBe('configuration_conflict');
   await f.manager.close();
   await writeFile(
     join(f.root, 'connection/configuration.json'),
