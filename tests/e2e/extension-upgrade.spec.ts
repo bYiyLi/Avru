@@ -44,7 +44,9 @@ test('package upgrade preserves pairing and reports the running extension until 
     await page.goto(daemon.url);
     await page.getByRole('button', { name: '总览', exact: true }).click();
     await pairProfile(profile.popup, page, 'Upgrade acceptance');
-    await expect(page.getByText('不一致', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('不一致 · 期望 0.0.1', { exact: true }),
+    ).toBeVisible();
     const originalWorker = profile.context.serviceWorkers()[0];
     expect(originalWorker).toBeDefined();
     await daemon.stop();
@@ -64,7 +66,9 @@ test('package upgrade preserves pairing and reports the running extension until 
         { timeout: 20000 },
       )
       .toBe('0.0.0');
-    await expect(page.getByText('不一致', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('不一致 · 期望 0.0.1', { exact: true }),
+    ).toBeVisible();
     const reloaded = profile.context.waitForEvent('serviceworker');
     await originalWorker?.evaluate('chrome.runtime.reload()').catch(() => {});
     await reloaded;
@@ -76,7 +80,9 @@ test('package upgrade preserves pairing and reports the running extension until 
         { timeout: 20000 },
       )
       .toBe('0.0.1');
-    await expect(page.getByText('一致', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('一致 · 期望 0.0.1', { exact: true }),
+    ).toBeVisible();
     expect((await readProfiles(page, current.url)).browsers).toHaveLength(1);
   } finally {
     await profile?.context.close();
