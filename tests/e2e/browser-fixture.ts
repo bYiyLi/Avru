@@ -1,14 +1,17 @@
 import { chromium, expect } from '@playwright/test';
 import type { BrowserContext, Page } from '@playwright/test';
 import { resolve } from 'node:path';
+import { testPort, testChannel, testPackage } from './daemon-fixture.js';
 
-export const endpoint = 'http://127.0.0.1:43822';
+export const endpoint = `http://127.0.0.1:${String(testPort)}`;
 export async function openProfile(
   directory: string,
   locale = 'zh-CN',
   extension = process.env.AVRU_E2E_PACKAGE_ROOT
     ? resolve(process.env.AVRU_E2E_PACKAGE_ROOT, 'payload/extension')
-    : resolve('apps/extension/.output/dev/chrome-mv3'),
+    : testChannel === 'prod'
+      ? resolve(testPackage, 'payload/extension')
+      : resolve('apps/extension/.output/dev/chrome-mv3'),
 ) {
   const context = await chromium.launchPersistentContext(directory, {
     channel: 'chromium',
@@ -22,30 +25,41 @@ export async function openProfile(
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
       : {}),
   });
-  const worker =
-    context.serviceWorkers()[0] ??
-    (await context.waitForEvent('serviceworker'));
-  const id = new URL(worker.url()).host;
-  const popup = await context.newPage();
-  await popup.goto(`chrome-extension://${id}/popup.html`);
-  return { context, popup };
+  try {
+    const worker =
+      context.serviceWorkers()[0] ??
+      (await context.waitForEvent('serviceworker', { timeout: 15000 }));
+    return { context, worker };
+  } catch (error) {
+    await context.close();
+    throw error;
+  }
 }
-export async function pairProfile(popup: Page, management: Page, name: string) {
-  await expect(popup.locator('[name="endpoint"]')).toHaveValue(endpoint);
-  await expect(popup.locator('[name="endpoint"]')).toHaveAttribute(
-    'readonly',
-    '',
+export async function waitForProfile(
+  profile: Awaited<ReturnType<typeof openProfile>>,
+  management: Page,
+) {
+  let browserId = '';
+  await expect
+    .poll(async () => {
+      browserId = await profile.worker.evaluate<string>(
+        "chrome.storage.local.get('connection').then(value => value.connection?.browserId ?? '')",
+      );
+      return browserId;
+    })
+    .not.toBe('');
+  await expect
+    .poll(async () =>
+      (await readProfiles(management, endpoint)).browsers.some(
+        (item) => item.id === browserId && item.connected,
+      ),
+    )
+    .toBe(true);
+  const item = (await readProfiles(management, endpoint)).browsers.find(
+    (item) => item.id === browserId,
   );
-  await popup.locator('[name="name"]').fill(name);
-  await popup.getByRole('button', { name: '配对', exact: true }).click();
-  const request = management
-    .getByRole('region', { name: '配对请求' })
-    .filter({ hasText: name });
-  await expect(request).toBeVisible();
-  const code = await request.locator('code').innerText();
-  await expect(popup.getByRole('status')).toContainText(code);
-  await request.getByRole('button', { name: '核对一致，批准配对' }).click();
-  await expect(management.getByText(name, { exact: true })).toBeVisible();
+  if (!item) throw new Error('Missing automatic registration');
+  return item;
 }
 export async function openObservedTab(context: BrowserContext, title: string) {
   const tab = await context.newPage();
@@ -69,6 +83,7 @@ export async function readProfiles(page: Page, managementUrl: string) {
   expect(response.ok()).toBe(true);
   return (await response.json()) as {
     browsers: {
+      id: string;
       name: string;
       connected: boolean;
       metadata: null | {

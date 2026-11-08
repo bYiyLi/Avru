@@ -16,3 +16,5 @@ test-results/
 .DS_Store
 
 /artifacts/
+
+**/26.1103.32239/

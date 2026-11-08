@@ -27,3 +27,54 @@ D-12 已确定 QuickJS 采用 WASM 版，放在由守护进程管理的单个独
 依据：[quickjs-emscripten v0.32.0 README](https://github.com/justjake/quickjs-emscripten/blob/v0.32.0/README.md) 的 runtime 限额、句柄释放、Promise/executePendingJobs 合同。标准 Promise 不要求 Asyncify，避免其跨模块挂起/重入限制。资料读取于 2026-11-07；库文档不等于 Avru 安全认证或性能实测。
 
 宿主桥接的生命周期：未 await 的桥接也须 settle 且 VM jobs 排空才能报告完成。实际 invoke 前再次检查任务仍活跃；终态发出 AbortSignal，迟到结果不转发。单个 Runner 最多保留 32 个实际未 settle 的宿主调用，取消不释放该计数，避免非协作回调跨任务无限累积。AbortSignal 是协作取消，不保证撤回已发生副作用；生产适配器必须检查信号并执行独立业务授权。SDK 入口按用户最新方向使用 `browser`，具体方法尚未定，本阶段内部探针不代表公开命名。
+
+## 生产桥接与进程间协议
+
+本节是独立基础之上的生产接线合同：daemon 与 runner 之间的进程间协议，以及真实浏览器动作的桥接授权。SDK 方法定义见[浏览器 SDK](browser-sdk.md)；MCP 工具定义见[MCP 与授权](mcp.md)。
+
+### 进程间协议
+
+- 传输：继承的私有管道，不开端口；子进程不继承环境变量，固定 Node 启动参数，只走 IPC。
+- 帧格式：NDJSON，每行一个 JSON 对象，UTF-8 编码，单条消息 ≤64 KiB。
+- 信封：每条消息含 `{ v: 1, type, taskId, seq }`；`seq` 为每个方向、每个任务内单调递增的序号，从 1 开始。
+- 校验：收到错任务、重复序号、越界序号或超大消息时拒绝该消息并记日志；不自动重放。
+
+| 方向 | 消息 | 关键字段 | 说明 |
+| --- | --- | --- | --- |
+| daemon → runner | run_task | taskId、script、target、limits | 启动任务；target 为 { browserId, tabId, generation }；limits 为 { timeoutMs, maxOutputBytes, maxBridgeCalls } |
+| daemon → runner | cancel_task | taskId、reason | 取消任务；runner 向任务发出 AbortSignal |
+| daemon → runner | ping | — | 保活 |
+| runner → daemon | bridge_call | taskId、callId、method、args | SDK 方法调用请求；method 为 SDK 方法名，args 为 JSON 数组 |
+| runner → daemon | task_result | taskId、state、result?、error? | 任务终态；state 为 queued / running / succeeded / failed / cancelled / unknown |
+| runner → daemon | pong | — | 保活响应 |
+| daemon → runner | bridge_result | callId、ok、value?、error? | 对 bridge_call 的回答 |
+
+- `bridge_call` 与 `bridge_result` 用 `callId` 一一对应。
+- `task_result` 发出后，该任务的后续桥接调用一律拒绝；迟到的 `bridge_result` 不转发。
+
+### 生产桥接
+
+宿主桥接缺省拒绝；只有通过 daemon 检查的调用才会执行。daemon 对每次桥接调用按顺序检查：
+
+1. **任务仍活跃**：任务未取消、未超时、未进入终态；`bridge_call` 的 taskId 与当前运行任务一致，`callId` 未重复。
+2. **授权仍有效**：MCP OAuth grant 仍有效且未撤销；目标浏览器仍处于配对状态；grant 的能力范围包含本次调用。
+3. **目标仍有效**：标签页存在；连接代次与认领时一致；认领属于本任务；目标不是受限页面。
+4. **能力在允许范围内**：方法名在 SDK 允许清单内；`cdp.send` 的方法在白名单内；当前后端支持该方法。
+5. **敏感动作已确认**：需要确认的动作必须已有用户确认；未确认时桥接调用挂起等待确认，确认超时或被拒绝时返回 `CONFIRMATION_REQUIRED` / `CONFIRMATION_DENIED`，不执行。
+
+- 任一检查失败，daemon 返回 `bridge_result`（`ok: false`），`error.code` 为对应错误码（错误码表见[浏览器 SDK](browser-sdk.md)）；不把失败调用发往扩展。
+- 桥接绝不返回凭据、Cookie 或超出快照合同的页面正文；Token、Cookie、输入文本、网页正文、带敏感参数的完整 URL 不进入桥接返回值与日志。
+- 取消用 AbortSignal 协作取消：daemon 发 `cancel_task` 后，runner 向任务发出 AbortSignal；在途桥接调用标记取消，daemon 收到取消后不再下发新调用；迟到结果丢弃，不转发给已结束的任务。
+- 生产适配器必须检查 AbortSignal 并执行独立业务授权；AbortSignal 不保证撤回已发生副作用。
+
+### 超时、取消与崩溃
+
+- daemon 侧父进程独立计时；超时或取消强制结束执行进程，等待进程关闭才允许后续任务新建进程。
+- 崩溃不重跑原脚本；执行进程失效时 daemon 停止接收该实例的新请求，标记未决操作，按结果查证后恢复。
+- 超时或崩溃发生在副作用桥接调用中时，任务终态为 unknown；发生在纯计算时为 failed(TIMEOUT)。完整状态机见[浏览器 SDK](browser-sdk.md)。
+
+### 墙钟：5 秒基础上限与生产 timeoutMs
+
+- 独立基础的任务墙钟 5 秒是基础的保守上限，只适用于无副作用的 mock 基础，不适用于真实网页任务。
+- 生产任务由 daemon 按任务传入 `timeoutMs`（拟定默认 60 秒、上限 300 秒）；未传入时沿用 5 秒基础上限；runner 的墙钟按 daemon 传入值执行，5 秒基础上限不作为生产任务的上限。
+- 单步 SDK 调用等待随任务 timeoutMs 计入总时长。脚本中止不保证网页动作未发生。

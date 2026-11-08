@@ -26,7 +26,7 @@ flowchart TB
     FRPS <-->|"受保护的 FRP 隧道"| FRPC
     FRPC -->|"仅转发获准远程入口"| Daemon
     LocalAuth <--> Daemon
-    Daemon <-->|"受控 SDK 请求与结果；进程间协议待定"| Runner
+    Daemon <-->|"受控 SDK 请求与结果；进程间协议见 runner.md"| Runner
     ExtA <-->|"本机 WebSocket + 连接认证"| Daemon
     ExtB <-->|"本机 WebSocket + 连接认证"| Daemon
     ExtA <-->|"CDP / 浏览器扩展 API"| TabsA

@@ -2,16 +2,25 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { resolve } from 'node:path';
 
+export const testChannel =
+  process.env.AVRU_E2E_CHANNEL === 'prod' ? 'prod' : 'dev';
+export const testPort = testChannel === 'prod' ? 43821 : 43822;
+export const testPackage =
+  testChannel === 'prod' ? 'artifacts/avru-prod' : 'artifacts/avru';
+
 export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
-  const packageRoot = process.env.AVRU_E2E_PACKAGE_ROOT;
+  const packageRoot =
+    process.env.AVRU_E2E_PACKAGE_ROOT ??
+    (testChannel === 'prod' ? resolve(testPackage) : undefined);
   const entry = packageRoot
     ? resolve(packageRoot, 'payload/daemon.cjs')
     : resolve('apps/daemon/dist/main.js');
   const child = spawn(process.execPath, [entry], {
     env: {
       ...process.env,
-      AVRU_PORT: '43822',
+      AVRU_PORT: String(testPort),
       AVRU_DATA_DIR: dataDirectory,
+      AVRU_CHANNEL: testChannel,
       ...(packageRoot
         ? { AVRU_WEB_ROOT: resolve(packageRoot, 'payload/web') }
         : {}),
@@ -47,9 +56,9 @@ export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
       child.once('exit', fail);
       child.stdout.on('data', (chunk: Buffer) => {
         output += chunk.toString();
-        const link = /http:\/\/127\.0\.0\.1:43822\/#key=[a-f0-9]{64}/.exec(
-          output,
-        )?.[0];
+        const link = new RegExp(
+          `http://127\\.0\\.0\\.1:${String(testPort)}/#key=[a-f0-9]{64}`,
+        ).exec(output)?.[0];
         if (!link) return;
         clearTimeout(deadline);
         child.off('error', fail);

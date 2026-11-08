@@ -110,7 +110,7 @@ it('isolates simultaneous dev/prod transports, credentials, state and shutdown',
           headers: headers(prod.port, dev.key),
         })
       ).statusCode,
-    ).toBe(401);
+    ).toBe(200);
     expect(
       (
         await prod.app.inject({

@@ -10,10 +10,12 @@ const mocks = vi.hoisted(() => ({
   start: vi.fn().mockResolvedValue({ url: 'http://127.0.0.1:43822/#key=test' }),
   launcher: vi.fn().mockResolvedValue(vi.fn()),
   autostart: vi.fn().mockResolvedValue(undefined),
+  verifyAutostart: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../src/flow.js', () => ({ runFlow: mocks.flow }));
 vi.mock('../src/install.js', () => ({
   install: mocks.install,
+  openInstalled: vi.fn(),
   uninstall: vi.fn(),
 }));
 vi.mock('../src/runtime.js', () => ({
@@ -25,6 +27,7 @@ vi.mock('../src/launcher.js', () => ({ installLauncher: mocks.launcher }));
 vi.mock('../src/autostart-io.js', () => ({
   enableAutostart: mocks.autostart,
   disableAutostart: vi.fn(),
+  verifyAutostart: mocks.verifyAutostart,
 }));
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -39,7 +42,16 @@ it('CLI uses one channel root consistently for payload and launcher wiring', asy
   await import('../src/main.js');
   const operations = mocks.flow.mock.calls[0]?.[2];
   expect(operations).toBeDefined();
-  await operations?.install();
+  await operations?.install({
+    root: '/custom/dev',
+    channel: 'dev',
+    packageVersion: '0.1.0-dev.1',
+    active: undefined,
+    programPresent: false,
+    service: 'not_detected',
+    autostart: 'missing',
+    retainedData: false,
+  });
   const options = mocks.install.mock.calls[0]?.[0];
   expect(options).toMatchObject({
     root: '/custom/dev',
@@ -74,5 +86,6 @@ it('CLI uses one channel root consistently for payload and launcher wiring', asy
       channel: 'dev',
       launcherPath: join('/custom/dev', 'program', 'launcher.mjs'),
     }),
+    expect.any(Function),
   );
 });

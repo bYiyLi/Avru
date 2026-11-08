@@ -52,7 +52,12 @@ export async function rejectLinks(path: string): Promise<void> {
           process.platform,
         )
       )
-        throw new Error(`Symbolic link is not allowed: ${cursor}`);
+        throw Object.assign(
+          new Error(`Symbolic link is not allowed: ${cursor}`),
+          {
+            code: 'AVRU_UNSAFE_PATH',
+          },
+        );
     } catch (error) {
       if (!isMissing(error)) throw error;
     }
@@ -119,12 +124,15 @@ export async function writeActive(
   });
   await rename(temporary, path);
 }
-export async function lockRoot(root: string): Promise<() => Promise<void>> {
+export async function lockRoot(
+  root: string,
+  create = true,
+): Promise<() => Promise<void>> {
   const absolute = resolve(root);
   if (dirname(absolute) === absolute)
     throw new Error('Installation root must not be filesystem root');
   await rejectLinks(absolute);
-  await mkdir(absolute, { recursive: true, mode: 0o700 });
+  if (create) await mkdir(absolute, { recursive: true, mode: 0o700 });
   const path = join(absolute, '.install.lock');
   const handle = await open(path, 'wx', 0o600);
   await handle.writeFile(
@@ -135,27 +143,73 @@ export async function lockRoot(root: string): Promise<() => Promise<void>> {
     await rm(path);
   };
 }
-export async function ownedProgram(root: string): Promise<string> {
+export async function readOwnedProgram(
+  root: string,
+): Promise<string | undefined> {
   const program = join(root, 'program');
   await rejectLinks(program);
+  try {
+    if (!(await lstat(program)).isDirectory())
+      throw Object.assign(
+        new Error('Refusing to modify an unowned program directory'),
+        { code: 'AVRU_ROOT_UNOWNED' },
+      );
+  } catch (error) {
+    if (isMissing(error)) return undefined;
+    throw error;
+  }
   const marker = join(program, '.avru-owned');
   await rejectLinks(marker);
   try {
     if ((await readFile(marker, 'utf8')) !== 'avru-program-v1')
-      throw new Error('Unknown installation owner');
+      throw Object.assign(new Error('Unknown installation owner'), {
+        code: 'AVRU_ROOT_UNOWNED',
+      });
   } catch (error) {
     if (!isMissing(error)) throw error;
-    try {
-      await lstat(program);
-    } catch (missing) {
-      if (!isMissing(missing)) throw missing;
-      await mkdir(program, { mode: 0o700 });
-      await writeFile(marker, 'avru-program-v1', { mode: 0o600, flag: 'wx' });
-      return program;
-    }
-    throw new Error('Refusing to modify an unowned program directory', {
-      cause: error,
-    });
+    throw Object.assign(
+      new Error('Refusing to modify an unowned program directory', {
+        cause: error,
+      }),
+      { code: 'AVRU_ROOT_UNOWNED' },
+    );
   }
   return program;
+}
+export async function ownedProgram(root: string): Promise<string> {
+  const existing = await readOwnedProgram(root);
+  if (existing) return existing;
+  const program = join(root, 'program');
+  await mkdir(program, { mode: 0o700 });
+  await writeFile(join(program, '.avru-owned'), 'avru-program-v1', {
+    mode: 0o600,
+    flag: 'wx',
+  });
+  return program;
+}
+export function assertExpectedActive(
+  current: ActiveRelease | undefined,
+  expected: ActiveRelease | null | undefined,
+): void {
+  if (expected === undefined) return;
+  if (
+    (expected === null && current !== undefined) ||
+    (expected !== null &&
+      (!current ||
+        current.release !== expected.release ||
+        current.version !== expected.version ||
+        current.execPath !== expected.execPath))
+  )
+    throw Object.assign(new Error('安装状态已变化，请重新运行并检查当前状态'), {
+      code: 'AVRU_STATE_CHANGED',
+    });
+}
+export function assertExpectedProgram(
+  current: boolean,
+  expected: boolean | undefined,
+): void {
+  if (expected !== undefined && current !== expected)
+    throw Object.assign(new Error('安装状态已变化，请重新运行并检查当前状态'), {
+      code: 'AVRU_STATE_CHANGED',
+    });
 }

@@ -75,7 +75,7 @@ async function exerciseInstall(root, cache, port) {
   const options = {
     root,
     sourceRoot: join(cache, 'payload'),
-    version: '0.1.0-dev',
+    version: '0.1.0-dev.1',
     execPath: process.execPath,
     hooks,
   };

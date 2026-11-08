@@ -24,12 +24,46 @@ async function inspectManaged(filePath: string): Promise<boolean> {
   }
 }
 
+export async function inspectAutostart(
+  options: AutostartOptions,
+): Promise<'configured' | 'missing' | 'unknown'> {
+  try {
+    const plan = planAutostart(options);
+    if (!(await inspectManaged(plan.filePath))) return 'missing';
+    return (await readFile(plan.filePath, 'utf8')) === plan.content
+      ? 'configured'
+      : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+export async function verifyAutostart(
+  options: AutostartOptions,
+  expected: 'configured' | 'missing' | 'unknown',
+): Promise<void> {
+  const current = await inspectAutostart(options);
+  if (current === 'unknown' || expected === 'unknown')
+    throw Object.assign(
+      new Error('Autostart ownership could not be verified'),
+      {
+        code: 'AVRU_AUTOSTART_UNVERIFIED',
+      },
+    );
+  if (current !== expected)
+    throw Object.assign(new Error('Autostart changed since inspection'), {
+      code: 'AVRU_STATE_CHANGED',
+    });
+}
+
 /** Writes the next-login entry; does not invoke launchctl or start a process. */
 export async function enableAutostart(
   options: AutostartOptions,
+  beforeWrite?: () => Promise<void>,
 ): Promise<AutostartPlan> {
   const plan = planAutostart(options);
   const exists = await inspectManaged(plan.filePath);
+  await beforeWrite?.();
   await mkdir(dirname(plan.filePath), { recursive: true });
   await writeFile(plan.filePath, plan.content, {
     encoding: 'utf8',
@@ -42,7 +76,10 @@ export async function enableAutostart(
 /** Removes only an Avru-owned next-login entry, preserving unrelated files. */
 export async function disableAutostart(
   options: AutostartOptions,
+  beforeRemove?: () => Promise<void>,
 ): Promise<void> {
   const { filePath } = planAutostart(options);
-  if (await inspectManaged(filePath)) await unlink(filePath);
+  const exists = await inspectManaged(filePath);
+  await beforeRemove?.();
+  if (exists) await unlink(filePath);
 }

@@ -1,4 +1,5 @@
 import { AutoChallenge } from './auto-challenge';
+import { channelPort } from '../../../packages/protocol/environment.js';
 import type { ConnectionStatus } from './connection-status';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { consentRequest } from './oauth-consent';
@@ -21,6 +22,7 @@ export interface Socket {
 }
 import type { Metadata } from './metadata';
 export interface Ports {
+  local?: boolean;
   channel?: ReleaseChannel;
   readBlocked?: () => Promise<boolean>;
   saveBlocked?: (blocked: boolean) => Promise<void>;
@@ -57,21 +59,77 @@ export class Connection {
   async start(): Promise<void> {
     const generation = this.generation;
     const value = await this.ports.read();
+    if (this.ports.local) {
+      if (generation === this.generation) await this.startLocal(value);
+      return;
+    }
     const blocked = await this.ports.readBlocked?.();
     if (generation !== this.generation) return;
     this.blocked = blocked === true;
     this.saved = credentials(value, this.ports.channel);
     this.reconnect();
   }
+  private async startLocal(value: unknown): Promise<void> {
+    const channel = this.ports.channel;
+    if (!channel)
+      throw new Error('Local connection requires a compiled channel');
+    const previous = record(value);
+    const legacy = credentials(value, channel);
+    if (previous?.channel !== undefined && previous.channel !== channel)
+      throw new Error('Stored connection belongs to another channel');
+    const profileId =
+      typeof previous?.profileId === 'string' &&
+      previous.profileId.length > 0 &&
+      previous.profileId.length <= 64
+        ? previous.profileId
+        : this.ports.uuid();
+    this.saved = {
+      channel,
+      endpoint: `http://127.0.0.1:${String(channelPort(channel))}`,
+      profileId,
+      name:
+        typeof previous?.name === 'string' &&
+        previous.name.length > 0 &&
+        previous.name.length <= 80
+          ? previous.name
+          : `Browser ${profileId.slice(0, 8)}`,
+      browserId: legacy?.browserId ?? '',
+      token: legacy?.token ?? '',
+    };
+    const generation = this.generation;
+    const saved = this.saved;
+    await this.write(async () => {
+      if (generation === this.generation) await this.ports.save(saved);
+    });
+    if (generation !== this.generation) return;
+    this.blocked = false;
+    this.reconnect();
+  }
   reconnect(): void {
-    if (!this.blocked && !this.socket && this.saved?.token)
-      this.connect(this.saved.endpoint, {
-        v: 1,
-        type: 'authenticate',
-        ...(this.ports.channel ? { channel: this.ports.channel } : {}),
-        browserId: this.saved.browserId,
-        token: this.saved.token,
-      });
+    if (
+      !this.blocked &&
+      !this.socket &&
+      this.saved &&
+      (this.ports.local || this.saved.token)
+    )
+      this.connect(
+        this.saved.endpoint,
+        !this.ports.local
+          ? {
+              v: 1,
+              type: 'authenticate',
+              ...(this.ports.channel ? { channel: this.ports.channel } : {}),
+              browserId: this.saved.browserId,
+              token: this.saved.token,
+            }
+          : {
+              v: 1,
+              type: 'local-connect',
+              channel: this.ports.channel,
+              profileId: this.saved.profileId,
+              name: this.saved.name,
+            },
+      );
   }
   inspect() {
     return {
@@ -320,7 +378,10 @@ export class Connection {
     if (generation === this.generation) this.heartbeat();
   }
   private async reject(code: unknown): Promise<void> {
-    if (this.saved?.token && (code === 'timeout' || code === 'busy')) {
+    if (
+      (this.ports.local || this.saved?.token) &&
+      (code === 'timeout' || code === 'busy')
+    ) {
       this.retry();
       return;
     }
@@ -349,7 +410,7 @@ export class Connection {
   private retry(): void {
     this.stop();
     this.state = { code: 'reconnecting' };
-    if (!this.saved?.token) return;
+    if (!this.saved || (!this.ports.local && !this.saved.token)) return;
     const delay = Math.min(1000 * 2 ** this.attempt++, 30000);
     this.timer = this.ports.later(() => {
       this.reconnect();

@@ -35,7 +35,7 @@ describe('local daemon HTTP trust boundary', () => {
     expect(
       (await instance.inject({ url: '/api/status', headers: { host } }))
         .statusCode,
-    ).toBe(401);
+    ).toBe(200);
     expect(
       (await instance.inject({ url: '/api/status', headers })).json<unknown>(),
     ).toEqual({
@@ -54,7 +54,7 @@ describe('local daemon HTTP trust boundary', () => {
     expect(
       (await instance.inject({ url: '/api/browsers', headers: { host } }))
         .statusCode,
-    ).toBe(401);
+    ).toBe(200);
     expect(
       (
         await instance.inject({
@@ -62,7 +62,7 @@ describe('local daemon HTTP trust boundary', () => {
           headers: { host, authorization: `Bearer ${'b'.repeat(64)}` },
         })
       ).statusCode,
-    ).toBe(401);
+    ).toBe(200);
     expect(
       (
         await instance.inject({
@@ -120,7 +120,7 @@ describe('local daemon HTTP trust boundary', () => {
     apps.push(defaults);
     expect(
       (await defaults.inject({ url: '/api/browsers', headers })).statusCode,
-    ).toBe(401);
+    ).toBe(200);
   });
 });
 describe('management Web assets', () => {
@@ -172,13 +172,13 @@ it('exposes call history only through authenticated local management', async () 
   expect(
     (await instance.inject({ url: '/api/calls', headers: { host } }))
       .statusCode,
-  ).toBe(401);
+  ).toBe(200);
   expect(
     (await instance.inject({ url: '/api/calls', headers })).json<unknown>(),
   ).toEqual({ calls: [], retention: { limit: 200, persistent: false } });
 });
 
-it('requires management authentication and same origin to issue a scoped connection ticket', async () => {
+it('requires same origin to issue a scoped connection ticket', async () => {
   const instance = app();
   const url = '/api/connection-ticket';
   const payload = { challenge: 'a'.repeat(64) };
@@ -191,7 +191,7 @@ it('requires management authentication and same origin to issue a scoped connect
         headers: { host, origin: headers.origin },
       })
     ).statusCode,
-  ).toBe(401);
+  ).toBe(404);
   expect(
     (
       await instance.inject({

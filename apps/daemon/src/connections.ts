@@ -124,9 +124,12 @@ export class Connections {
   private completePairing(
     session: Session,
     identity: { name: string; profileId: string },
+    local = false,
   ): boolean {
     const token = randomBytes(32).toString('hex');
-    const item = this.store.add({ ...identity, origin: session.origin }, token);
+    const item = local
+      ? this.store.connectLocal({ ...identity, origin: session.origin }, token)
+      : this.store.add({ ...identity, origin: session.origin }, token);
     const delivered = this.send(session, {
       type: 'paired',
       browserId: item.id,
@@ -134,7 +137,7 @@ export class Connections {
       connectionId: session.connectionId,
     });
     if (!delivered) {
-      this.store.remove(item.id);
+      if (!local) this.store.remove(item.id);
       return false;
     }
     this.activate(session, item.id);
@@ -245,13 +248,7 @@ export class Connections {
     }
     try {
       const message = parseMessage(raw);
-      if (
-        (message.type === 'pair' ||
-          message.type === 'auto-probe' ||
-          message.type === 'authenticate') &&
-        this.channel &&
-        message.channel !== this.channel
-      ) {
+      if (!this.acceptsChannel(message)) {
         this.fail(session, 'channel-mismatch');
         return;
       }
@@ -261,6 +258,8 @@ export class Connections {
         return;
       } else if (session.pendingId) {
         this.fail(session, 'pending');
+      } else if (message.type === 'local-connect') {
+        this.completePairing(session, message, true);
       } else if (message.type === 'pair') {
         this.requestPairing(session, message);
       } else if (message.type === 'authenticate') {
@@ -275,6 +274,17 @@ export class Connections {
     } catch {
       this.fail(session, 'invalid');
     }
+  }
+  private acceptsChannel(message: ReturnType<typeof parseMessage>): boolean {
+    if (
+      !['pair', 'local-connect', 'auto-probe', 'authenticate'].includes(
+        message.type,
+      )
+    )
+      return true;
+    return this.channel
+      ? 'channel' in message && message.channel === this.channel
+      : message.type !== 'local-connect';
   }
   private receiveAutomatic(
     session: Session,

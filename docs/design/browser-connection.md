@@ -2,6 +2,14 @@
 
 本文件拥有 WS、浏览器身份、配对与管理接口合同；实施与测试证据归[连接阶段](../development/phases/01-browser-connection.md)。远程 OAuth 不是本机配对。
 
+## 当前本机信任合同（2026-11-08）
+
+用户确认默认信任同机程序：本机 Web 不要求管理 capability，继续严格校验 literal Host、可选 Origin、跨站 Fetch Metadata；所有写接口要求同源 Origin。仅 `/api/runtime` 与 `/api/shutdown` 保留启动器实例凭据，防止错误实例被安装器操作。远程 OAuth、MCP 和 FRPC 接口的认证不因此取消；不向隧道暴露管理接口。
+
+新插件在加载时发送 `{v:1,type:"local-connect",channel,profileId,name}`，服务器按本环境与扩展来源下的稳定 profileId 登记，直接返回既有 `paired`/`ready` 格式，无待批准请求或短码。内部 token 仅为旧协议兼容与恢复存储，不是新客户端取得本机信任的证明。相同 profile 重连保留 browserId，独立 profile 不相互替换；元数据、标签与 OAuth 同意仍只在 ready 后交换。新插件工具栏图标打开对应端口的 `/#overview`，不设置 default_popup 或 externally_connectable。
+
+旧版已保存凭据的 authenticate 及配对/票据消息暂保留兼容，以下相关协议章节仅说明旧版行为；新 Web 不调用它们。用户通过禁用或移除插件停止连接。同 OS 用户的其他本地程序被信任，可以访问本机管理及模拟连接；普通网页仍受 Origin/Host 限制，dev/prod 端口、扩展 ID、数据库与消息环境继续隔离。
+
 ## 多浏览器发现与目标路由
 
 ### 已确认的使用体验
@@ -61,7 +69,7 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 
 ## 已实现的本机连接 v1 合同
 
-### 信任与配对
+### 旧版兼容：信任与配对
 
 - daemon 仅监听 `127.0.0.1:43821`。管理 API 需要本次 daemon 启动生成的随机管理 capability；开发启动链接以 fragment 携带，Web 读取到 sessionStorage 后立即移除 fragment。重启后旧链接失效。该入口不能暴露到隧道。
 - 旧版本兼容配对由扩展主动发起待批准请求；服务器绑定当前 WebSocket、扩展 Origin、配置身份与有效期，在扩展和管理页展示同一六位核对码。用户比较后在可信管理页点击批准。不复制、输入或保存配对码。
@@ -85,9 +93,9 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 
 所有消息含 `v: 1` 和 `type`。`paired` 后发送 `ready`；只有 ready 后才同步标签。每个配置可有同名标签 ID，身份必须结合 browserId 和连接代次。替换连接后旧 socket 的关闭/消息不得覆盖新连接。
 
-### 管理接口
+### 管理接口（访问规则以上文当前合同为准）
 
-所有接口要求 `Authorization: Bearer <启动 capability>`，响应不缓存。
+管理接口响应不缓存；旧客户端仍可发送已有 bearer，当前访问规则见本文件开头。
 
 - `GET /api/browsers`：连接配置、在线状态、连接代次、标签清单及可空 `metadata`（浏览器名称、版本、版本来源、扩展版本）。离线时元数据清空，不将旧版本冒充实时。
 - `GET /api/status`：同样需要本机管理认证，返回 `daemonVersion`、`expectedExtensionVersion` 与 MCP/ChatGPT/FRPC 的 `notImplemented` 状态，不提供公网通道。
@@ -108,9 +116,9 @@ WXT、TypeScript、pnpm 的初始开发版本、入口布局见 [架构](archite
 
 `release-info.ts` 声明当前发行与预期扩展版本；测试核对 CLI 包身份及 WXT 清单防止常量漂移。当前 `0.1.0-dev.1` daemon 与 `0.0.1` 扩展分别是应用发行和浏览器清单版本，不拿二者直接判插件不一致；插件比较目标为 `expectedExtensionVersion`。
 
-### 当前浏览器免短码连接
+### 旧版兼容：当前浏览器免短码连接
 
-新版默认安装引导使用当前浏览器内的 external messaging，而不是从全部在线浏览器猜测本页身份。管理页须先持有本次 daemon 的管理 capability；打开普通地址、知道扩展 ID 或伪造 WS Origin 都不能批准连接。欢迎页只探测；用户进入安装页后，新安装且允许自动连接的扩展才开始以下握手：
+旧版安装引导使用当前浏览器内的 external messaging，而不是从全部在线浏览器猜测本页身份。管理页须先持有本次 daemon 的管理 capability；打开普通地址、知道扩展 ID 或伪造 WS Origin 都不能批准连接。欢迎页只探测；用户进入安装页后，新安装且允许自动连接的扩展才开始以下握手：
 
 1. 页面定向调用当前环境的固定扩展 ID；扩展逐次校验 sender 的 origin、精确根 URL、顶层 frameId、documentId、tab.id 和非隐私上下文，禁止其他扩展调用。扩展只返回实际版本、连接状态与非凭据 browserId，不返回长期凭据。
 2. 当前配置扩展经原 WS 发 `auto-probe`，daemon 生成 256 位随机 challenge，绑定原 socket、扩展 Origin、profileId 与 channel，30 秒失效。探测不授予标签读取或 OAuth 权限，也不进入六位码列表。

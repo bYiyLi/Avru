@@ -81,6 +81,22 @@ export class BrowserStore {
       return undefined;
     return { id, name: row.name, origin };
   }
+  connectLocal(
+    identity: { name: string; origin: string; profileId: string },
+    token: string,
+  ): BrowserRecord {
+    const row = this.db
+      .prepare(
+        'SELECT id FROM browsers WHERE origin = ? AND profile_id = ? ORDER BY rowid LIMIT 1',
+      )
+      .get(identity.origin, identity.profileId);
+    if (!row) return this.add(identity, token);
+    if (typeof row.id !== 'string') throw new Error('Invalid browser database');
+    this.db
+      .prepare('UPDATE browsers SET name = ?, token_hash = ? WHERE id = ?')
+      .run(identity.name, digest(token), row.id);
+    return { id: row.id, name: identity.name, origin: identity.origin };
+  }
   remove(id: string): boolean {
     return (
       this.db.prepare('DELETE FROM browsers WHERE id = ?').run(id).changes > 0

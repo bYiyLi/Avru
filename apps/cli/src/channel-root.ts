@@ -97,8 +97,11 @@ async function rejectPrevious(legacy: string): Promise<void> {
       ['program', 'runtime.json', 'browsers.sqlite'].includes(name),
     )
   ) {
-    throw new Error(
-      'Legacy Avru installation detected: stop the old daemon, remove its old Avru startup entry, and back up its data before migrating to ~/Avru. The new installation needs fresh browser pairing; no data or authorization was moved.',
+    throw Object.assign(
+      new Error(
+        'Legacy Avru installation detected: stop the old daemon, remove its old Avru startup entry, and back up its data before migrating to ~/Avru. The new installation needs fresh browser pairing; no data or authorization was moved.',
+      ),
+      { code: 'AVRU_LEGACY_INSTALLATION' },
     );
   }
 }

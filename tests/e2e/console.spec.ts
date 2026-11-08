@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { startDaemon } from './daemon-fixture.js';
+import { startDaemon, testChannel } from './daemon-fixture.js';
 
 test.use({
   locale: 'en-US',
@@ -36,15 +36,24 @@ test('English system-dark console keeps truthful three-page empty states', async
       )
       .not.toBe(dark);
     await page.getByRole('button', { name: 'Enter Avru' }).click();
-    await expect(page.getByText(/No prepared extension folder/)).toBeVisible();
+    await expect(page.locator('.overview')).toBeVisible();
+    await page
+      .getByRole('button', { name: 'Install extension', exact: true })
+      .click();
+    await expect(page.locator('.install')).toContainText('chrome://extensions');
+    await expect(page.locator('.install')).toContainText('edge://extensions');
     await page.screenshot({
       path: testInfo.outputPath('install-light-en.png'),
       fullPage: true,
     });
-    await page.getByRole('button', { name: 'Open system overview' }).click();
-    await expect(page.getByText('0.1.0-dev.1', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Back to management' }).click();
+    await expect(
+      page.getByText(testChannel === 'prod' ? '0.1.0' : '0.1.0-dev.1', {
+        exact: true,
+      }),
+    ).toBeVisible();
     await expect(page.getByText('No real call records')).toBeVisible();
-    await expect(page.getByText(/No paired browsers/)).toBeVisible();
+    await expect(page.getByText(/No browser connections/)).toBeVisible();
     await expect(
       page.getByRole('button', { name: /theme|language|save/i }),
     ).toHaveCount(0);

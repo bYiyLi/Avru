@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import type { Ports } from '../utils/connection';
 const mock = vi.hoisted(() => ({
+  clicked: vi.fn(),
+  tabCreate: vi.fn().mockResolvedValue({}),
   decideOAuth: vi.fn(),
   windowCreate: vi.fn().mockResolvedValue({ id: 7 }),
   windowRemove: vi.fn().mockResolvedValue(undefined),
@@ -43,6 +45,7 @@ vi.mock('wxt/utils/define-background', () => ({
 }));
 vi.mock('wxt/browser', () => ({
   browser: {
+    action: { onClicked: { addListener: mock.clicked } },
     windows: {
       create: mock.windowCreate,
       remove: mock.windowRemove,
@@ -50,6 +53,7 @@ vi.mock('wxt/browser', () => ({
     },
     storage: { local: { get: mock.get, set: mock.set, remove: mock.remove } },
     tabs: {
+      create: mock.tabCreate,
       query: mock.query,
       onCreated: { addListener: mock.created },
       onUpdated: { addListener: mock.updated },
@@ -108,42 +112,24 @@ it('wires the browser adapter, popup-only requests, events and retry alarm', asy
   alarm({ name: 'other' });
   alarm({ name: 'avru-reconnect' });
   expect(mock.reconnect).toHaveBeenCalledOnce();
+  const click = mock.clicked.mock.calls[0]?.[0] as () => void;
+  click();
+  await Promise.resolve();
+  expect(mock.tabCreate).toHaveBeenCalledWith({
+    url: 'http://127.0.0.1:43822/#overview',
+  });
+  mock.tabCreate.mockRejectedValueOnce(new Error('closed'));
+  click();
+  await Promise.resolve();
   const message = mock.message.mock.calls[0]?.[0] as (
     value: unknown,
     sender: { id: string; url: string },
     respond: (value: unknown) => void,
   ) => boolean;
-  const respond = vi.fn();
-  const sender = {
-    id: 'extension',
-    url: 'chrome-extension://extension/popup.html',
-  };
-  expect(message({}, { ...sender, id: 'evil' }, respond)).toBe(false);
-  expect(message({}, { ...sender, url: 'https://evil.test' }, respond)).toBe(
+  expect(message({}, { id: 'evil', url: 'https://evil.test' }, vi.fn())).toBe(
     false,
   );
-  for (const value of [
-    null,
-    { type: 'pair' },
-    { type: 'pair', endpoint: 'http://127.0.0.1' },
-    { type: 'pair', endpoint: 'http://127.0.0.1', name: 'Work' },
-    { type: 'disconnect' },
-    { type: 'status' },
-  ]) {
-    expect(message(value, sender, respond)).toBe(true);
-    await Promise.resolve();
-    await Promise.resolve();
-  }
-  expect(mock.pair).toHaveBeenCalledWith({
-    endpoint: 'http://127.0.0.1',
-    name: 'Work',
-  });
-  expect(mock.disconnect).toHaveBeenCalled();
-  mock.pair.mockRejectedValueOnce(new Error('invalid'));
-  message({ type: 'pair', endpoint: 'bad', name: 'n' }, sender, respond);
-  await Promise.resolve();
-  for (let i = 0; i < 10; i++) await Promise.resolve();
-  expect(respond).toHaveBeenCalledWith({ status: { code: 'requestFailed' } });
+  expect(ports.local).toBe(true);
 });
 
 it('routes OAuth only through extension-owned consent window', async () => {
@@ -197,28 +183,4 @@ it('routes OAuth only through extension-owned consent window', async () => {
   ports.resetOAuth?.();
   mock.windowCreate.mockResolvedValueOnce({});
   await ports.onOAuthRequest?.(request);
-});
-it('wires external requests only from the exact top-level management document', async () => {
-  const background = await import('../entrypoints/background');
-  (background.default as unknown as () => void)();
-  expect(await ports.readBlocked?.()).toBe(false);
-  await ports.saveBlocked?.(true);
-  expect(mock.set).toHaveBeenCalledWith({ autoBlocked: true });
-  const external = mock.external.mock.calls[0]?.[0] as (
-    raw: unknown,
-    sender: unknown,
-    respond: (value: unknown) => void,
-  ) => boolean;
-  const respond = vi.fn();
-  expect(external({}, {}, respond)).toBe(false);
-  const sender = {
-    url: 'http://127.0.0.1:43822/',
-    origin: 'http://127.0.0.1:43822',
-    frameId: 0,
-    documentId: 'doc',
-    tab: { id: 1, incognito: false },
-  };
-  expect(external({ type: 'invalid' }, sender, respond)).toBe(true);
-  for (let i = 0; i < 10; i++) await Promise.resolve();
-  expect(respond).toHaveBeenCalledWith({ error: 'unavailable' });
 });

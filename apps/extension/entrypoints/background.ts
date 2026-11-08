@@ -1,4 +1,3 @@
-import { ExternalConnection } from '../utils/external-connection';
 import { defaultEndpoint } from '../utils/channel';
 import { extensionChannel } from '../utils/channel';
 import type { ConsentRequest } from '../utils/oauth-consent';
@@ -36,10 +35,16 @@ function createConsent(
 }
 
 export default defineBackground(() => {
+  browser.action.onClicked.addListener(() => {
+    browser.tabs.create({ url: `${defaultEndpoint()}/#overview` }).catch(() => {
+      console.warn('Avru management page unavailable');
+    });
+  });
   const consent = createConsent((request, approved) => {
     connection.decideOAuth(request, approved);
   });
   const connection = new Connection({
+    local: true,
     channel: extensionChannel(),
     onOAuthRequest: (request) => consent.show(request),
     onOAuthClose: (id) => {
@@ -50,9 +55,6 @@ export default defineBackground(() => {
     },
     metadata: () =>
       browserMetadata(navigator, browser.runtime.getManifest().version),
-    readBlocked: async () =>
-      (await browser.storage.local.get('autoBlocked')).autoBlocked === true,
-    saveBlocked: (autoBlocked) => browser.storage.local.set({ autoBlocked }),
     read: async () =>
       (await browser.storage.local.get('connection')).connection,
     save: async (value) => {
@@ -69,7 +71,7 @@ export default defineBackground(() => {
       clearTimeout(timer);
     },
   });
-  const started = connectExternal(connection);
+  const started = connection.start();
   const handleError = () => {
     console.warn('Avru local connection unavailable');
   };
@@ -82,17 +84,6 @@ export default defineBackground(() => {
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'avru-reconnect') connection.reconnect();
   });
-  const handleMessage = async (raw: unknown) => {
-    const message = record(raw);
-    if (
-      message?.type === 'pair' &&
-      typeof message.endpoint === 'string' &&
-      typeof message.name === 'string'
-    ) {
-      await connection.pair({ endpoint: message.endpoint, name: message.name });
-    } else if (message?.type === 'disconnect') await connection.disconnect();
-    return { status: connection.status() };
-  };
   browser.runtime.onMessage.addListener((raw: unknown, sender, respond) => {
     if (
       sender.id === browser.runtime.id &&
@@ -109,39 +100,10 @@ export default defineBackground(() => {
         });
       return true;
     }
-    if (
-      sender.id !== browser.runtime.id ||
-      sender.url !== `chrome-extension://${browser.runtime.id}/popup.html`
-    )
-      return false;
-    handleMessage(raw).then(respond, () => {
-      respond({ status: { code: 'requestFailed' } });
-    });
-    return true;
+    return false;
   });
   browser.alarms
     .create('avru-reconnect', { periodInMinutes: 1 })
     .catch(handleError);
   started.catch(handleError);
 });
-
-function connectExternal(connection: Connection) {
-  const external = new ExternalConnection(
-    connection,
-    defaultEndpoint(),
-    browser.runtime.getManifest().version,
-  );
-  const started = connection.start();
-  browser.runtime.onMessageExternal.addListener(
-    (raw: unknown, sender, respond) => {
-      if (!external.trusted(sender)) return false;
-      started
-        .then(() => external.message(raw, sender))
-        .then(respond, () => {
-          respond({ error: 'unavailable' });
-        });
-      return true;
-    },
-  );
-  return started;
-}

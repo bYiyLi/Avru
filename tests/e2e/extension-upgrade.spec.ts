@@ -3,8 +3,12 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { install } from '../../apps/cli/src/install.js';
-import { startDaemon } from './daemon-fixture.js';
-import { openProfile, pairProfile, readProfiles } from './browser-fixture.js';
+import { startDaemon, testPackage, testChannel } from './daemon-fixture.js';
+import {
+  openProfile,
+  waitForProfile,
+  readProfiles,
+} from './browser-fixture.js';
 
 test.use({ locale: 'zh-CN' });
 test('package upgrade preserves pairing and reports the running version until browser restart', async ({
@@ -14,8 +18,9 @@ test('package upgrade preserves pairing and reports the running version until br
   const data = join(root, 'dev');
   const options = {
     root: data,
-    sourceRoot: resolve('artifacts/avru/payload'),
-    version: '0.1.0-dev.1',
+    sourceRoot: resolve(testPackage, 'payload'),
+    version: testChannel === 'prod' ? '0.1.0' : '0.1.0-dev.1',
+    channel: testChannel,
     execPath: process.execPath,
     hooks: {
       stop: async () => {},
@@ -23,7 +28,7 @@ test('package upgrade preserves pairing and reports the running version until br
       autostart: async () => {},
       open: async () => {},
     },
-  };
+  } satisfies Parameters<typeof install>[0];
   let daemon: Awaited<ReturnType<typeof startDaemon>> | undefined;
   let profile: Awaited<ReturnType<typeof openProfile>> | undefined;
   try {
@@ -42,8 +47,8 @@ test('package upgrade preserves pairing and reports the running version until br
     daemon = await startDaemon(data);
     profile = await openProfile(join(root, 'browser'), 'zh-CN', extension);
     await page.goto(daemon.url);
-    await page.getByRole('button', { name: '总览', exact: true }).click();
-    await pairProfile(profile.popup, page, 'Upgrade acceptance');
+    await page.getByRole('button', { name: '进入 Avru', exact: true }).click();
+    await waitForProfile(profile, page);
     await expect(
       page.getByText('不一致 · 期望 0.0.1', { exact: true }),
     ).toBeVisible();
@@ -55,7 +60,7 @@ test('package upgrade preserves pairing and reports the running version until br
     daemon = await startDaemon(data);
     const current = daemon;
     await page.goto(current.url);
-    await page.getByRole('button', { name: '总览', exact: true }).click();
+    await page.getByRole('button', { name: '进入 Avru', exact: true }).click();
     await expect
       .poll(
         async () =>

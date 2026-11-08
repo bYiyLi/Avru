@@ -1,15 +1,23 @@
 import { prepareExtension } from './extension-files.js';
 import { removeConnectionData } from './connection-cleanup.js';
 import { releaseChannel } from '../../../packages/protocol/environment.js';
-import { claimRoot, type ReleaseChannel } from './channel-root.js';
+import {
+  claimRoot,
+  readRootChannel,
+  type ReleaseChannel,
+} from './channel-root.js';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { compareVersions } from './version-order.js';
 import {
   assertPayload,
+  assertExpectedActive,
+  assertExpectedProgram,
   lockRoot,
   ownedProgram,
   readActive,
+  readOwnedProgram,
   rejectLinks,
   writeActive,
 } from './install-files.js';
@@ -17,6 +25,7 @@ import type { ActiveRelease } from './install-files.js';
 export type { ActiveRelease } from './install-files.js';
 
 export interface InstallHooks {
+  beforeChange?(): Promise<void>;
   stop(): Promise<void>;
   start(active: ActiveRelease): Promise<string>;
   autostart(active: ActiveRelease): Promise<void>;
@@ -28,6 +37,8 @@ export interface InstallOptions {
   sourceRoot: string;
   version: string;
   execPath: string;
+  expected?: ActiveRelease | null;
+  expectedProgram?: boolean;
   hooks: InstallHooks;
 }
 export interface InstallResult {
@@ -101,15 +112,26 @@ async function activate(
       await options.hooks.autostart(previous);
     }
     await rm(join(program, 'releases', active.release), { recursive: true });
+    if (previous)
+      throw Object.assign(
+        new Error(error instanceof Error ? error.message : '安装失败', {
+          cause: error,
+        }),
+        { code: 'AVRU_INSTALL_ROLLED_BACK' },
+      );
     throw error;
   }
 }
 export async function install(options: InstallOptions): Promise<InstallResult> {
   const unlock = await lockRoot(options.root);
   try {
+    await options.hooks.beforeChange?.();
     await claimRoot(options.root, options.channel ?? releaseChannel());
-    const program = await ownedProgram(options.root);
-    const previous = await readActive(program);
+    const existing = await readOwnedProgram(options.root);
+    assertExpectedProgram(existing !== undefined, options.expectedProgram);
+    const previous = existing ? await readActive(existing) : undefined;
+    assertExpectedActive(previous, options.expected);
+    const program = existing ?? (await ownedProgram(options.root));
     const active = await stage(options, program);
     const managementUrl = await activate(options, program, active, previous);
     let browserOpened = true;
@@ -120,7 +142,7 @@ export async function install(options: InstallOptions): Promise<InstallResult> {
     }
     return {
       mode: previous
-        ? previous.version === active.version
+        ? compareVersions(active.version, previous.version) === 0
           ? 'repair'
           : 'update'
         : 'install',
@@ -136,16 +158,28 @@ export interface UninstallOptions {
   root: string;
   channel?: ReleaseChannel;
   removeData?: boolean;
-  hooks: { stop(): Promise<void>; removeAutostart(): Promise<void> };
+  expected?: ActiveRelease | null;
+  expectedProgram?: boolean;
+  hooks: {
+    beforeChange?(): Promise<void>;
+    stop(): Promise<void>;
+    removeAutostart(): Promise<void>;
+  };
 }
 export async function uninstall(options: UninstallOptions): Promise<void> {
   const unlock = await lockRoot(options.root);
   try {
+    await options.hooks.beforeChange?.();
     await claimRoot(options.root, options.channel ?? releaseChannel());
-    const program = await ownedProgram(options.root);
+    const program = await readOwnedProgram(options.root);
+    assertExpectedProgram(program !== undefined, options.expectedProgram);
+    assertExpectedActive(
+      program ? await readActive(program) : undefined,
+      options.expected,
+    );
     await options.hooks.stop();
     await options.hooks.removeAutostart();
-    await rm(program, { recursive: true });
+    if (program) await rm(program, { recursive: true });
     if (options.removeData) {
       await removeConnectionData(options.root);
       // Delete only Avru-owned database files, not arbitrary files under a caller-supplied root.
@@ -161,5 +195,35 @@ export async function uninstall(options: UninstallOptions): Promise<void> {
     }
   } finally {
     await unlock();
+  }
+}
+
+export async function openInstalled(options: {
+  root: string;
+  channel: ReleaseChannel;
+  expected: ActiveRelease;
+  hooks: Pick<InstallHooks, 'start' | 'open'>;
+}): Promise<{ managementUrl: string; browserOpened: boolean }> {
+  const unlock = await lockRoot(options.root, false);
+  let managementUrl: string;
+  try {
+    if ((await readRootChannel(options.root)) !== options.channel)
+      throw new Error('Avru 环境不匹配，请使用对应环境的安装目录');
+    const program = await readOwnedProgram(options.root);
+    const current = program ? await readActive(program) : undefined;
+    if (!current)
+      throw Object.assign(new Error('未找到已安装的 Avru 程序'), {
+        code: 'AVRU_STATE_CHANGED',
+      });
+    assertExpectedActive(current, options.expected);
+    managementUrl = await options.hooks.start(current);
+  } finally {
+    await unlock();
+  }
+  try {
+    await options.hooks.open(managementUrl);
+    return { managementUrl, browserOpened: true };
+  } catch {
+    return { managementUrl, browserOpened: false };
   }
 }

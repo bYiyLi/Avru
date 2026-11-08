@@ -6,15 +6,35 @@
 
 MCP 是正式对外接口，OAuth 是正式远程授权方式。传输版本、客户端注册方式、服务发现与兼容范围仍需按选定 MCP 规范核对，不能仅凭服务返回 JSON 就宣称兼容 ChatGPT。
 
-建议按“发现 → 观察 → 操作 → 验证”组织工具：
+MCP 不把每个 SDK 函数都复制成独立工具。用少量 MCP 工具管理脚本执行，让脚本通过 SDK 完成多步操作（SDK 能力面见[浏览器 SDK](browser-sdk.md)）。工具名前缀 `browser_`，与脚本里的 `browser` 入口一致。执行走异步：提交后返回执行 id，再用查询工具取结果。
 
-| 能力组              | 草案输入                           | 草案输出                                 | 当前状态                           |
-| ------------------- | ---------------------------------- | ---------------------------------------- | ---------------------------------- |
-| 发现浏览器与标签页  | 分页/过滤条件（如最终需要）        | 完整可分页目标集合、能力、在线/受限状态  | R-03、R-04 所需；具体 schema 待定  |
-| 观察页面            | 明确目标引用、读取方式             | 文本/结构/截图、页面版本、受限或截断说明 | 先前建议，具体范围待确认           |
-| 执行浏览器动作      | 目标引用、动作、参数、前置页面状态 | 执行状态、后置状态或结果引用             | 点击、输入等候选，完整动作集待确认 |
-| 连接与控制状态      | 当前连接或操作引用                 | 在线状态、当前操作、失败原因             | 建议                               |
-| 停止控制 / 撤销授权 | 具体授权或操作对象                 | 撤销/停止结果及未能撤回的已执行动作      | 安全设计建议，语义待确认           |
+### browser_list —— 列出已连接的浏览器与标签页
+
+只读，只发现，不取得控制权。入参 `{ limit?: number; cursor?: string; browserId?: BrowserId }`。返回 `{ browsers: [{ browserId, name, type: 'extension' | 'cdp', profileName?, tabs: [{ tabId, title?, url?, claimed }] }], nextCursor?: string, total: number }`，total 为符合过滤条件的浏览器总数。默认 limit 拟定 100；cursor 为不透明翻页标记。标题与 URL 敏感、只发给已授权客户端。守护进程连不上时报 `DAEMON_UNAVAILABLE`；没有已连接的浏览器时返回空列表，不算错。
+
+### browser_claim_tab —— 认领标签页
+
+显式取得一个用户标签页的控制权；发现不等于控制。入参 `{ browserId: string（必填）, tabId: string（必填）, title?: string, url?: string }`，title 与 url 是快照校验用的，防止浏览器重启后数字 id 被复用。返回 `{ browserId, tabId, title?, url?, claimedAt }`。错误：`INVALID_TARGET`（标签页不存在或已关闭）、`TAB_ALREADY_CLAIMED`（正被别的任务控制）、`DAEMON_UNAVAILABLE`。认领按任务持有，任务的执行结束或取消时自动释放；编号只是定位用的，不当凭证。
+
+### browser_run_script —— 执行脚本
+
+提交一段受控 JavaScript 到指定目标执行，脚本通过 SDK（`browser` 入口）完成多步操作。入参 `{ browserId: string（必填）, tabId: string（必填）, script: string（必填）, taskName?: string, timeoutMs?: number, limits?: { maxOutputBytes?, maxSteps? } }`。返回 `{ executionId, state: 'queued' | 'running', submittedAt }`。错误：`TAB_NOT_CLAIMED`（没认领就执行）、`SCRIPT_TOO_LARGE`、`QUEUE_FULL`、`INVALID_TARGET`。首版串行执行；每个任务独立运行时，变量不互串；守护进程对每次 SDK 调用都检查授权、目标和能力范围。
+
+### browser_get_execution —— 查询执行
+
+查询一次执行的当前状态和结果。入参 `{ executionId: string（必填） }`。返回 `{ executionId, state: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown', startedAt?, endedAt?, result?, error?: { code, message, step? }, steps?: [{ stepId, action, target, durationMs, result }] }`。错误：`EXECUTION_NOT_FOUND`（不存在或已过期清理）。`unknown` 是正式状态，意思是结果没法确定，这时先去页面上查，不自动重放整个脚本。
+
+### browser_cancel_execution —— 取消执行
+
+停止后续执行，报告已经发生的动作。入参 `{ executionId: string（必填） }`。返回 `{ executionId, state: 'cancelled', completedSteps: [...], pendingStepsCancelled: number }`。错误：`EXECUTION_NOT_FOUND`；已经结束的执行直接返回它的最终状态。取消撤不回已经提交的表单和点过的按钮。
+
+### browser_sdk_docs —— SDK 使用说明
+
+提供当前版本的 SDK 能力和示例。入参 `{ topic?: string | string[] }`。不填返回索引，不返回全文；填一个主题返回该文档全文；填多个主题（数组）一次返回多个文档全文。
+
+不填时返回 `{ version, index: [{ topic, title, description }] }`，索引只列主题名、标题与一句话说明，AI 按需再取全文。填了时返回 `{ version, documents: [{ topic, title, content }] }`，按请求顺序返回。请求的任一主题不存在时报 `TOPIC_NOT_FOUND`，并指明是哪个主题。
+
+数字限制（超时、输出大小、步数、排队数）待阶段 0 确定。直接读页面的 MCP 工具首版不列入，简单任务先走“认领 + 执行一段只读脚本”；SDK 说明先用工具，不单独设 Resource。
 
 公开接口应区分协议错误、授权失败、目标离线、标签页不存在、页面已变化、页面不可访问、动作不支持、排队冲突、超时与结果未知。错误不能一律包装为成功文本。
 

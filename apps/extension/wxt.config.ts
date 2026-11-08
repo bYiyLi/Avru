@@ -16,7 +16,7 @@ export default defineConfig({
     version: '0.0.1',
     minimum_chrome_version: '116',
     permissions: ['storage', 'tabs', 'alarms'],
-    externally_connectable: { ids: [], matches: ['http://127.0.0.1/*'] },
+    action: { default_title: channel === 'dev' ? 'Avru Dev' : 'Avru' },
     host_permissions: ['http://127.0.0.1/*'],
   },
 });

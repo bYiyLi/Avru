@@ -34,7 +34,7 @@ it('protects imported credentials, auto-applies only the matching environment an
           headers: { host: headers.host },
         })
       ).statusCode,
-    ).toBe(401);
+    ).toBe(200);
     expect(
       (
         await app.inject({

@@ -9,7 +9,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { install, uninstall } from '../src/install.js';
+import { install, openInstalled, uninstall } from '../src/install.js';
 import {
   assertPayload,
   isSystemAlias,
@@ -94,9 +94,141 @@ it('rolls back a failed candidate and restarts the previous release', async () =
   const options = await fixture();
   const first = await install(options);
   options.hooks.start.mockRejectedValueOnce(new Error('failed start'));
-  await expect(install(options)).rejects.toThrow('failed start');
+  await expect(install(options)).rejects.toMatchObject({
+    message: 'failed start',
+    code: 'AVRU_INSTALL_ROLLED_BACK',
+  });
   expect(await readActive(join(options.root, 'program'))).toEqual(first.active);
   expect(options.hooks.start).toHaveBeenLastCalledWith(first.active);
+});
+it('does not claim recovery if restarting the prior version also fails', async () => {
+  const options = await fixture();
+  await install(options);
+  options.hooks.start
+    .mockRejectedValueOnce(new Error('candidate failed'))
+    .mockRejectedValueOnce(new Error('restore failed'));
+  await expect(install(options)).rejects.toThrow('restore failed');
+});
+it('reports a confirmed rollback even when a dependency throws a non-Error', async () => {
+  const options = await fixture();
+  await install(options);
+  options.hooks.start.mockRejectedValueOnce('unexpected failure');
+  await expect(install(options)).rejects.toMatchObject({
+    code: 'AVRU_INSTALL_ROLLED_BACK',
+    message: '安装失败',
+  });
+});
+it('rechecks the selected installation under the lock before changing it', async () => {
+  const options = await fixture();
+  const first = await install(options);
+  options.hooks.stop.mockClear();
+  const changed = {
+    ...first.active,
+    release: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  };
+  await expect(
+    install({ ...options, expected: changed }),
+  ).rejects.toMatchObject({ code: 'AVRU_STATE_CHANGED' });
+  await expect(
+    install({ ...options, expected: first.active, expectedProgram: false }),
+  ).rejects.toMatchObject({ code: 'AVRU_STATE_CHANGED' });
+  await expect(
+    uninstall({
+      root: options.root,
+      expected: null,
+      hooks: { stop: options.hooks.stop, removeAutostart: vi.fn() },
+    }),
+  ).rejects.toMatchObject({ code: 'AVRU_STATE_CHANGED' });
+  expect(options.hooks.stop).not.toHaveBeenCalled();
+  expect(await readActive(join(options.root, 'program'))).toEqual(first.active);
+});
+it('does not stop a service when startup ownership fails revalidation', async () => {
+  const options = await fixture();
+  const first = await install(options);
+  options.hooks.stop.mockClear();
+  const beforeChange = vi
+    .fn()
+    .mockRejectedValue(new Error('unknown startup owner'));
+  await expect(
+    install({
+      ...options,
+      expected: first.active,
+      hooks: { ...options.hooks, beforeChange },
+    }),
+  ).rejects.toThrow('unknown startup owner');
+  await expect(
+    uninstall({
+      root: options.root,
+      expected: first.active,
+      hooks: {
+        beforeChange,
+        stop: options.hooks.stop,
+        removeAutostart: vi.fn(),
+      },
+    }),
+  ).rejects.toThrow('unknown startup owner');
+  expect(options.hooks.stop).not.toHaveBeenCalled();
+  expect(await readActive(join(options.root, 'program'))).toEqual(first.active);
+});
+it('opens the selected installed version without replacing or stopping it', async () => {
+  const options = await fixture();
+  const first = await install(options);
+  options.hooks.stop.mockClear();
+  const result = await openInstalled({
+    root: options.root,
+    channel: 'dev',
+    expected: first.active,
+    hooks: options.hooks,
+  });
+  expect(result.browserOpened).toBe(true);
+  expect(options.hooks.stop).not.toHaveBeenCalled();
+  expect(await readActive(join(options.root, 'program'))).toEqual(first.active);
+  options.hooks.open.mockRejectedValueOnce(new Error('browser unavailable'));
+  expect(
+    (
+      await openInstalled({
+        root: options.root,
+        channel: 'dev',
+        expected: first.active,
+        hooks: options.hooks,
+      })
+    ).browserOpened,
+  ).toBe(false);
+  const changed = { ...first.active, version: '0.9.0' };
+  await expect(
+    openInstalled({
+      root: options.root,
+      channel: 'dev',
+      expected: changed,
+      hooks: options.hooks,
+    }),
+  ).rejects.toMatchObject({ code: 'AVRU_STATE_CHANGED' });
+  await rm(join(options.root, 'program/active.json'));
+  await expect(
+    openInstalled({
+      root: options.root,
+      channel: 'dev',
+      expected: first.active,
+      hooks: options.hooks,
+    }),
+  ).rejects.toMatchObject({ code: 'AVRU_STATE_CHANGED' });
+  await rm(join(options.root, 'program'), { recursive: true });
+  await expect(
+    openInstalled({
+      root: options.root,
+      channel: 'dev',
+      expected: first.active,
+      hooks: options.hooks,
+    }),
+  ).rejects.toMatchObject({ code: 'AVRU_STATE_CHANGED' });
+  await expect(
+    openInstalled({
+      root: options.root,
+      channel: 'prod',
+      expected: first.active,
+      hooks: options.hooks,
+    }),
+  ).rejects.toThrow('环境不匹配');
 });
 it('first-install failure leaves no active pointer and can be retried', async () => {
   const options = await fixture();
@@ -126,6 +258,23 @@ it('uninstall defaults to retaining data and removes only known files when reque
     readFile(join(options.root, 'browsers.sqlite')),
   ).rejects.toThrow();
   expect(await readFile(join(options.root, 'notes.txt'), 'utf8')).toBe('keep');
+});
+it('can remove retained data after the program has already been uninstalled', async () => {
+  const options = await fixture();
+  await install(options);
+  await writeFile(join(options.root, 'browsers.sqlite'), 'retained');
+  const hooks = { stop: options.hooks.stop, removeAutostart: vi.fn() };
+  await uninstall({ root: options.root, hooks });
+  await uninstall({
+    root: options.root,
+    hooks,
+    removeData: true,
+    expected: null,
+    expectedProgram: false,
+  });
+  await expect(
+    readFile(join(options.root, 'browsers.sqlite')),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
 });
 it('rejects concurrent runs, invalid payload/runtime and unowned directories', async () => {
   const options = await fixture();

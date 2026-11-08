@@ -12,7 +12,7 @@ export interface BrowserMetadata {
 export type Message =
   | {
       v: 1;
-      type: 'pair' | 'auto-probe';
+      type: 'pair' | 'auto-probe' | 'local-connect';
       channel?: string;
       profileId: string;
       name: string;
@@ -98,6 +98,7 @@ export function parseMessage(raw: string): Message {
   if (!record(value) || value.v !== 1) throw new Error('Invalid version');
   switch (value.type) {
     case 'auto-probe':
+    case 'local-connect':
     case 'pair':
       if (!text(value.profileId, 64) || !text(value.name, 80))
         throw new Error('Invalid identity');

@@ -108,7 +108,6 @@ metas.push(web.metafile);
 const extension = await build({
   entryPoints: [
     'apps/extension/entrypoints/background.ts',
-    'apps/extension/entrypoints/popup/main.ts',
     'apps/extension/entrypoints/consent/main.ts',
   ],
   bundle: true,

@@ -3,8 +3,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { startDaemon } from './daemon-fixture.js';
-import { endpoint, openProfile, pairProfile } from './browser-fixture.js';
+import { startDaemon, testChannel } from './daemon-fixture.js';
+import { endpoint, openProfile, waitForProfile } from './browser-fixture.js';
 
 test.use({ locale: 'zh-CN' });
 test('real paired extension popup alone approves OAuth and revoked grants stop MCP', async ({
@@ -20,7 +20,7 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
     JSON.stringify({
       issuer,
       port: 43823,
-      channel: 'dev',
+      channel: testChannel,
       clients: [
         {
           id: 'test-client',
@@ -35,10 +35,9 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
   try {
     await page.goto(daemon.url);
     await page.getByRole('button', { name: '进入 Avru' }).click();
-    await page.getByRole('button', { name: /^查看系统总览/ }).click();
     const first = await openProfile(join(directory, 'profile'));
     profiles.push(first);
-    await pairProfile(first.popup, page, 'OAuth browser');
+    await waitForProfile(first, page);
     const verifier = 'v'.repeat(43);
     const query = new URLSearchParams({
       client_id: 'test-client',
@@ -140,7 +139,6 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
     daemon = await startDaemon(join(directory, 'data'), configuration);
     await page.goto(daemon.url);
     await page.getByRole('button', { name: '进入 Avru' }).click();
-    await page.getByRole('button', { name: /^查看系统总览/ }).click();
     const restored = page.locator('.calls');
     await expect(restored).toContainText('本机保存');
     await expect(

@@ -132,11 +132,11 @@ test(
       assert.notEqual(dev.runtime.port, prod.runtime.port);
       assert.notEqual(dev.extensionId, prod.extensionId);
       assert.equal(
-        (await api(prod.runtime, '/api/status', dev.runtime)).status,
+        (await api(prod.runtime, '/api/runtime', dev.runtime)).status,
         401,
       );
       assert.equal(
-        (await api(dev.runtime, '/api/status', prod.runtime)).status,
+        (await api(dev.runtime, '/api/runtime', prod.runtime)).status,
         401,
       );
       assert.equal(await inspectRuntime(dev.root, 'prod'), undefined);

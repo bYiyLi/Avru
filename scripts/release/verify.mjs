@@ -24,7 +24,6 @@ const exact = new Set([
   'payload/web/index.html',
   'payload/extension/manifest.json',
   'payload/extension/background.js',
-  'payload/extension/popup.html',
   'payload/extension/consent.html',
   'payload/extension/_locales/en/messages.json',
   'payload/extension/_locales/zh_CN/messages.json',

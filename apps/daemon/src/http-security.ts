@@ -37,12 +37,18 @@ export function secureHttp(
     );
     if (
       request.headers.host !== host ||
+      request.headers['sec-fetch-site'] === 'cross-site' ||
       (request.headers.origin !== undefined &&
         request.headers.origin !== `http://${host}`)
     ) {
       return reply.code(403).send({ error: 'Untrusted origin' });
     }
-    if (request.url.startsWith('/api/') && !authorized(request, key))
+    if (
+      ['/api/runtime', '/api/shutdown'].includes(
+        request.url.split('?')[0] ?? '',
+      ) &&
+      !authorized(request, key)
+    )
       return reply.code(401).send({ error: 'Unauthorized' });
     if (
       request.method !== 'GET' &&

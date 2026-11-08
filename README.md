@@ -4,7 +4,7 @@ Avru 是一个独立的浏览器控制项目：让 ChatGPT 等 AI 通过 MCP，�
 
 ## 当前状态
 
-本仓库已实现第一阶段本机连接：Fastify daemon 托管管理 Web，Chromium MV3 扩展经管理页批准配对，同步多个浏览器配置的普通网页标签并在断线后恢复。实现与验证范围见[本机连接记录](docs/development/phases/01-browser-connection.md)。Clack 安装/修复/卸载与登录启动实现见[安装阶段](docs/development/phases/02-installer.md)，实际跨平台验收状态单独记录。网页操作与 QuickJS 生产接线尚未实现；独立执行基础见[运行器阶段](docs/development/phases/07-runner-foundation.md)，已有 MCP/OAuth 只读切片见[授权阶段](docs/development/phases/04-oauth.md)；未发布 npm 包或浏览器扩展，不代表完整产品验收。
+本仓库已实现第一阶段本机连接：Fastify daemon 托管管理 Web，Chromium MV3 扩展加载后自动连接本机服务，同步多个浏览器配置的普通网页标签并在断线后恢复。实现与验证范围见[本机连接记录](docs/development/phases/01-browser-connection.md)。Clack 安装/修复/卸载与登录启动实现见[安装阶段](docs/development/phases/02-installer.md)，实际跨平台验收状态单独记录。网页操作与 QuickJS 生产接线尚未实现；独立执行基础见[运行器阶段](docs/development/phases/07-runner-foundation.md)，已有 MCP/OAuth 只读切片见[授权阶段](docs/development/phases/04-oauth.md)；未发布 npm 包或浏览器扩展，不代表完整产品验收。
 
 项目名称已确定为 **Avru**。仓库名不代表 npm 包名、域名或商标已取得。
 

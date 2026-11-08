@@ -38,10 +38,13 @@ it('exposes persistent history only to the matching local management capability'
       (
         await dev.inject({
           url: '/api/calls',
-          headers: headers(43822, 'prod-key'),
+          headers: {
+            ...headers(43822, 'prod-key'),
+            origin: 'http://127.0.0.1:43821',
+          },
         })
       ).statusCode,
-    ).toBe(401);
+    ).toBe(403);
     const saved = (
       await dev.inject({
         url: '/api/calls',
