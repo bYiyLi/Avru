@@ -7,7 +7,7 @@ import { startDaemon } from './daemon-fixture.js';
 import { openProfile, pairProfile, readProfiles } from './browser-fixture.js';
 
 test.use({ locale: 'zh-CN' });
-test('package upgrade preserves pairing and reports the running extension until a real reload', async ({
+test('package upgrade preserves pairing and reports the running version until browser restart', async ({
   page,
 }) => {
   const root = await mkdtemp(join(tmpdir(), 'avru-extension-upgrade-'));
@@ -47,8 +47,6 @@ test('package upgrade preserves pairing and reports the running extension until 
     await expect(
       page.getByText('不一致 · 期望 0.0.1', { exact: true }),
     ).toBeVisible();
-    const originalWorker = profile.context.serviceWorkers()[0];
-    expect(originalWorker).toBeDefined();
     await daemon.stop();
     await install(options);
     expect(JSON.parse(await readFile(manifestPath, 'utf8'))).toMatchObject({
@@ -69,9 +67,9 @@ test('package upgrade preserves pairing and reports the running extension until 
     await expect(
       page.getByText('不一致 · 期望 0.0.1', { exact: true }),
     ).toBeVisible();
-    const reloaded = profile.context.waitForEvent('serviceworker');
-    await originalWorker?.evaluate('chrome.runtime.reload()').catch(() => {});
-    await reloaded;
+    // Restart the same real browser profile to load the updated files and recover its saved pairing.
+    await profile.context.close();
+    profile = await openProfile(join(root, 'browser'), 'zh-CN', extension);
     await expect
       .poll(
         async () =>
