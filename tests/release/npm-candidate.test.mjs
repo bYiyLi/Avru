@@ -12,6 +12,7 @@ test('npm channel requires explicit opt-in and exact dev metadata', async () => 
     await assert.rejects(verifyPackage(dir, 'npm-dev'));
     const path = join(dir, 'package.json');
     const manifest = JSON.parse(await readFile(path, 'utf8'));
+    manifest.name = 'avru';
     manifest.private = false;
     manifest.repository = { url: 'git+https://github.com/bYiyLi/Avru.git' };
     manifest.publishConfig = {
@@ -30,7 +31,7 @@ test('npm channel requires explicit opt-in and exact dev metadata', async () => 
     await assert.rejects(verifyPackage(dir, 'unknown'));
     manifest.publishConfig.tag = 'latest';
     await writeFile(path, JSON.stringify(manifest));
-    await assert.rejects(verifyPackage(dir, 'npm-dev'));
+    await assert.rejects(verifyPackage(dir, 'npm-scoped-dev'));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

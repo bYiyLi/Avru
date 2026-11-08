@@ -53,6 +53,7 @@ jobs:
           run-id: ${{ inputs.candidate_run }}
           github-token: ${{ github.token }}
           path: artifacts/npm-distribution
+          merge-multiple: true
       - run: node scripts/release/verify-npm-candidate.mjs
         env:
           AVRU_EXPECTED_SOURCE: ${{ steps.source.outputs.source_sha }}
