@@ -1,4 +1,5 @@
 import { prepareExtension } from './extension-files.js';
+import { removeConnectionData } from './connection-cleanup.js';
 import { releaseChannel } from '../../../packages/protocol/environment.js';
 import { claimRoot, type ReleaseChannel } from './channel-root.js';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
@@ -146,6 +147,7 @@ export async function uninstall(options: UninstallOptions): Promise<void> {
     await options.hooks.removeAutostart();
     await rm(program, { recursive: true });
     if (options.removeData) {
+      await removeConnectionData(options.root);
       // Delete only Avru-owned database files, not arbitrary files under a caller-supplied root.
       for (const name of [
         'browsers.sqlite',

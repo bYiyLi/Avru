@@ -611,3 +611,21 @@ nav {
   padding-left: 14px;
   font-size: 12px;
 }
+.connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.connection-actions label {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.connection-actions input {
+  max-width: 100%;
+}
+.connection-settings code {
+  overflow-wrap: anywhere;
+}

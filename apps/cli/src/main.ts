@@ -38,7 +38,7 @@ const auto = {
 if (args.includes('--help') || args.includes('--version')) {
   console.log(
     args.includes('--version')
-      ? `${RELEASE_VERSION} (unpublished)`
+      ? RELEASE_VERSION
       : 'Usage: avru [--yes] | avru uninstall [--yes] [--remove-data]\nInstalls, starts and configures user-login startup on Windows/macOS.',
   );
 } else if (process.platform !== 'darwin' && process.platform !== 'win32') {

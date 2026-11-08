@@ -2,14 +2,16 @@ import { record } from './messages.js';
 import type { InstalledExtension } from './installed-extension.js';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { CallTraces } from './call-traces.js';
-import { attachOAuth } from './oauth/integration.js';
+import { OAuthListener } from './oauth/integration.js';
+import { ConnectionManager } from './transports/connection-manager.js';
+import type { ConnectionDriver } from './transports/frpc-process.js';
 import type { OAuthConfig } from './oauth/config.js';
 import { releaseInfo } from './release-info.js';
 import { randomBytes } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { BrowserStore } from './store.js';
 import { Connections } from './connections.js';
-import { secureHttp } from './http-security.js';
+import { secureHttp, secureErrors } from './http-security.js';
 import { serveWeb } from './static-web.js';
 import { connectWebSockets } from './websocket.js';
 
@@ -21,23 +23,51 @@ export interface AppOptions {
   webRoot?: string;
   port?: number;
   oauth?: OAuthConfig & { port: number };
+  connection?: {
+    dataRoot: string;
+    payloadRoot: string;
+    driver?: ConnectionDriver;
+  };
 }
 export function buildApp(options: AppOptions = {}) {
   const port = options.port ?? 43821;
   const app = Fastify({ logger: false, bodyLimit: 1024 });
+  secureErrors(app);
   const store = new BrowserStore(options.databasePath ?? ':memory:');
   const connections = new Connections(
     store,
     Date.now,
     (sessionId, browserId, decision) => {
-      authority?.decide(sessionId, browserId, decision);
+      remote.authority?.decide(sessionId, browserId, decision);
     },
     options.channel,
   );
-  const traces = new CallTraces();
-  const authority = attachOAuth(app, connections, options.oauth, {
+  const traces = new CallTraces(options.databasePath);
+  const remote = new OAuthListener(connections, {
     port,
     traces,
+  });
+  if (options.oauth) remote.prepare(options.oauth);
+  const connection =
+    options.connection && options.channel
+      ? new ConnectionManager({
+          ...options.connection,
+          channel: options.channel,
+          localPort: port,
+          ...(options.databasePath
+            ? { databasePath: options.databasePath }
+            : {}),
+          external: !!options.oauth,
+          remote,
+        })
+      : undefined;
+  app.addHook('onReady', async () => {
+    await remote.listen();
+    await connection?.initialize();
+  });
+  app.addHook('preClose', async () => {
+    await connection?.close();
+    await remote.close();
   });
   secureHttp(app, port, options.adminKey ?? randomBytes(32).toString('hex'));
   app.get('/health', () => ({
@@ -49,21 +79,44 @@ export function buildApp(options: AppOptions = {}) {
     ...releaseInfo,
     extensionFiles: options.installedExtension ?? null,
     channel: options.channel,
-    mcp: authority ? 'oauthReadOnly' : 'notImplemented',
-    chatgpt: 'notImplemented',
-    frpc: 'notImplemented',
+    mcp: remote.authority ? 'oauthReadOnly' : 'notImplemented',
+    chatgpt: 'notVerified',
+    frpc: connection ? 'managed' : 'notImplemented',
   }));
   app.get('/api/calls', () => traces.snapshot());
-  app.get('/api/grants', () => ({ grants: authority?.grants() ?? [] }));
+  connectionRoutes(app, connection);
+  app.get('/api/grants', () => ({ grants: remote.authority?.grants() ?? [] }));
   app.delete<{ Params: { id: string } }>(
     '/api/grants/:id',
     (request, reply) => {
-      authority?.revoke(request.params.id);
+      remote.authority?.revoke(request.params.id);
       return reply.code(204).send();
     },
   );
   app.get('/api/browsers', () => ({ browsers: connections.browsers() }));
   connectionTicketRoute(app, connections);
+  browserRoutes(app, connections);
+  serveWeb(app, options.webRoot);
+  const closeSockets = connectWebSockets(
+    app.server,
+    connections,
+    port,
+    options.channel,
+  );
+  const timer = setInterval(() => {
+    connections.sweep();
+  }, 1000);
+  timer.unref();
+  app.addHook('preClose', (done) => {
+    clearInterval(timer);
+    connections.close();
+    closeSockets();
+    done();
+  });
+  app.addHook('onClose', closeStores(traces, store));
+  return app;
+}
+function browserRoutes(app: FastifyInstance, connections: Connections): void {
   app.get('/api/pairings', () => ({ pairings: connections.pairings() }));
   app.post<{ Params: { id: string } }>(
     '/api/pairings/:id/approve',
@@ -89,28 +142,44 @@ export function buildApp(options: AppOptions = {}) {
         .send();
     },
   );
-  serveWeb(app, options.webRoot);
-  const closeSockets = connectWebSockets(
-    app.server,
-    connections,
-    port,
-    options.channel,
+}
+
+function connectionRoutes(
+  app: FastifyInstance,
+  connection: ConnectionManager | undefined,
+): void {
+  app.get(
+    '/api/connection',
+    (_request, reply) =>
+      connection?.snapshot() ??
+      reply.code(503).send({ error: 'connection_unavailable' }),
   );
-  const timer = setInterval(() => {
-    connections.sweep();
-  }, 1000);
-  timer.unref();
-  app.addHook('preClose', (done) => {
-    clearInterval(timer);
-    connections.close();
-    closeSockets();
-    done();
+  app.post(
+    '/api/connection/import',
+    { bodyLimit: 262144 },
+    async (request, reply) => {
+      if (!connection)
+        return await reply.code(503).send({ error: 'connection_unavailable' });
+      try {
+        await connection.import(request.body);
+        return connection.snapshot();
+      } catch {
+        return await reply
+          .code(400)
+          .send({ error: 'connection_configuration_failed' });
+      }
+    },
+  );
+  app.delete('/api/connection', async (_request, reply) => {
+    if (!connection)
+      return await reply.code(503).send({ error: 'connection_unavailable' });
+    try {
+      await connection.clear();
+      return await reply.code(204).send();
+    } catch {
+      return await reply.code(409).send({ error: 'connection_clear_failed' });
+    }
   });
-  app.addHook('onClose', (_instance, done) => {
-    store.close();
-    done();
-  });
-  return app;
 }
 
 function connectionTicketRoute(
@@ -128,4 +197,12 @@ function connectionTicketRoute(
     const issued = connections.issueConnectionTicket(body.challenge);
     return issued ?? reply.code(404).send({ error: 'Challenge unavailable' });
   });
+}
+
+function closeStores(traces: CallTraces, store: BrowserStore) {
+  return (_instance: FastifyInstance, done: () => void) => {
+    traces.close();
+    store.close();
+    done();
+  };
 }

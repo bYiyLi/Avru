@@ -6,7 +6,9 @@ export const endpoint = 'http://127.0.0.1:43822';
 export async function openProfile(
   directory: string,
   locale = 'zh-CN',
-  extension = resolve('apps/extension/.output/dev/chrome-mv3'),
+  extension = process.env.AVRU_E2E_PACKAGE_ROOT
+    ? resolve(process.env.AVRU_E2E_PACKAGE_ROOT, 'payload/extension')
+    : resolve('apps/extension/.output/dev/chrome-mv3'),
 ) {
   const context = await chromium.launchPersistentContext(directory, {
     channel: 'chromium',

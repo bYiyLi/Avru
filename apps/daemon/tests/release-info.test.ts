@@ -13,7 +13,8 @@ it('keeps the console versions aligned with actual release and extension build i
   expect(read('apps/extension/package.json')).toContain(
     `"version": "${releaseInfo.expectedExtensionVersion}"`,
   );
-  expect(packaging).toContain(`version: '${releaseInfo.daemonVersion}'`);
+  expect(packaging).toContain('version,');
+  expect(packaging).toContain('releaseIdentity(version)');
   expect(cli).toContain('version: RELEASE_VERSION');
   expect(RELEASE_VERSION).toBe(releaseInfo.daemonVersion);
 });

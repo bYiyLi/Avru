@@ -30,7 +30,7 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
       ],
     }),
   );
-  const daemon = await startDaemon(join(directory, 'data'), configuration);
+  let daemon = await startDaemon(join(directory, 'data'), configuration);
   const profiles: Awaited<ReturnType<typeof openProfile>>[] = [];
   try {
     await page.goto(daemon.url);
@@ -136,6 +136,17 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
       ).status(),
     ).toBe(204);
     expect((await call()).status()).toBe(401);
+    await daemon.stop();
+    daemon = await startDaemon(join(directory, 'data'), configuration);
+    await page.goto(daemon.url);
+    await page.getByRole('button', { name: '进入 Avru' }).click();
+    await page.getByRole('button', { name: /^查看系统总览/ }).click();
+    const restored = page.locator('.calls');
+    await expect(restored).toContainText('本机保存');
+    await expect(
+      restored.getByText('browsers_list', { exact: true }).first(),
+    ).toBeVisible();
+    await expect(restored).not.toContainText(token);
   } finally {
     for (const profile of profiles) await profile.context.close();
     await daemon.stop();

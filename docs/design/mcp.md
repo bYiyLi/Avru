@@ -75,9 +75,21 @@ HTTP不接受浏览器跨源Origin请求，不提供CORS授权端点或Web批准
 - [Chrome action.openPopup](https://developer.chrome.com/docs/extensions/reference/api/action#method-openPopup)：常规扩展自Chrome127才可调用；118–126限制策略安装扩展，因此未选作唯一弹出机制。
 - [RFC9700](https://www.rfc-editor.org/rfc/rfc9700.html)、[RFC7636](https://www.rfc-editor.org/rfc/rfc7636)、[RFC9207](https://www.rfc-editor.org/rfc/rfc9207)：精确回调、PKCE及issuer识别的安全依据；不是对自定义实现的认证或安全保证。
 
-## 远程通道接线：离线预检边界
+## 本机自动连接合同（2026-11-08 批准实施）
 
-`apps/daemon/src/transports/frpc-plan.ts` 的 `planFrpc` 是纯配置预览，供后续受保护的管理向导调用；目前没有 Web/CLI 入口，也不启动或监测 frpc。它不读写文件、不取密钥、不申请账户权限、不连接公网。返回 `previewOnly`、`enabled=false`、`verified=false`，不得把预览当连接成功。
+本轮用户只导入 `ConnectionBundleV1` JSON 文件，由 Avru 自动管理 FRPC。文件包含 `schemaVersion:1`、`channel`、`oauth:{issuer,port,clients}` 和 `frp:{serverAddr,serverPort,token,serverCaPem,certificatePem,privateKeyPem}`。最大 256 KiB，字段固定，证书及私钥采用 PEM，不接受任意 FRPC 配置、文件路径、可执行路径或命令。channel 必须匹配构建，OAuth 端口不能占用本机管理或另一环境管理端口；issuer、证书名称和密钥必须匹配。配置只经受管理 capability 和 Host/Origin 保护的本机接口导入，不传到远程 MCP。
+
+`GET /api/connection` 返回脱敏配置摘要、程序版本、连接状态及最近 200 条固定活动事件；`POST /api/connection/import` 校验、原子保存并自动应用；`DELETE /api/connection` 停止连接、撤销授权并清除 Avru 自有连接配置。导入有效配置即启动，重启自动恢复；用户不管理 FRPC 启停。未配置时不启动 FRPC。外部 AVRU_OAUTH_CONFIG 与导入配置冲突时远程入口停用，管理页保持可用并报告冲突。
+
+连接配置、TLS材料和私密运行描述符只保存在各环境私有根；macOS 使用 0700/0600，Windows 限当前用户 ACL。配置切换串行，旧进程未确认停止时不启动第二个实例、不删除现场。FRPC 管理 API 仅监听随机 loopback 端口，使用每实例随机用户名/密码；只代理 OAuth 端口，不代理管理 API。崩溃恢复先用私密描述符证明旧实例归属，再停止或复用其管理状态；不能只凭 PID 杀进程。进程异常确认退出后以 1 秒起、最多 30 秒退避恢复，公网故障由 FRPC 自身重连。
+
+状态为 unconfigured、applying、connecting、registered、unavailable、unknown；registered 只说明 FRPC 管理 API 报告本环境 HTTPS 代理运行。公网可达性和 ChatGPT 联调另记为未验证。固定活动事件持久化到对应 SQLite，不保存配置、token、证书/私钥或原始 FRPC 输出。OAuth 仍为 browser:read、预登记客户端、PKCE S256 和本机可信扩展确认。
+
+内嵌官方 FRP v0.72.0 的 darwin-amd64、darwin-arm64、windows-amd64、windows-arm64 FRPC。资产在构建准备时下载，校验固定 archive/程序 SHA-256 与可执行文件架构，许可随包；终端用户无需另装或下载。仅支持 Windows/macOS。此次验收只执行替身进程与模拟管理 API；不运行官方 FRPC（包括 --version/verify）、不部署 FRPS、不做公网或真实 ChatGPT 联调。
+
+### 纯预检与自动管理的分工
+
+`apps/daemon/src/transports/frpc-plan.ts` 的 `planFrpc` 继续作为纯配置生成和校验接口，不读写文件、不取密钥、不连接公网，返回 `previewOnly`、`enabled=false`、`verified=false`。本机管理器消费其类型化配置，负责已导入配置的保存与进程生命周期；纯预检不能作为连接成功的证据。
 
 输入必须来自当前环境已验证 OAuth 配置以及部署者明确提供的 FRPS 主机/端口、FRPS CA 文件路径、公开域名证书/私钥路径。默认只支持无显式端口的 HTTPS issuer（公开 443）；其他 TLS 拓扑暂不自动生成。输出 FRP JSON 配置，只映射 OAuth 独立 `127.0.0.1` 端口，拒绝管理端口。`https2http` 在本机客户端终止公开 HTTPS；Host 重写到精确 issuer，不能照抄官方示例的 `127.0.0.1`，否则 Avru 正确拒绝。FRPC→FRPS 开启 TLS 且指定受信 CA/serverName，不仅依赖链路加密。
 

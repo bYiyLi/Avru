@@ -29,7 +29,8 @@ await writeFile(
   `${target}/README.md`,
   'Avru 0.1.0-dev.1 development preview. Windows/macOS, Node >=24.22.1 <25.\n' +
     `After npm publication: npx -y ${scoped ? '@avru/setup' : 'avru'}@dev\n` +
-    'Includes local browser extension files and management UI. Load the unpacked extension manually through your browser extension manager. Browser control and tunnel connectivity are not implied by installation.\n' +
+    'Includes local browser extension, persistent bounded call history, isolated environments and FRPC 0.72.0 for Windows/macOS x64/ARM64. Load the unpacked extension from the stable installed directory. Import a connection file in Avru; Avru manages the connection automatically.\n' +
+    'Official FRPC programs have only been checked statically in this acceptance; real FRP and ChatGPT connectivity are unverified. Browser SDK actions and QuickJS production integration are not included.\n' +
     'Bundling and obfuscation are not secrecy guarantees. Third-party licenses are in THIRD_PARTY_NOTICES.txt.\n',
 );
 await verifyPackage(target, scoped ? 'npm-scoped-dev' : 'npm-dev');

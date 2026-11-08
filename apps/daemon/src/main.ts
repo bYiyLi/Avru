@@ -24,6 +24,10 @@ async function bootstrap(): Promise<void> {
   const app = buildApp({
     ...(oauth ? { oauth } : {}),
     channel,
+    connection: {
+      dataRoot,
+      payloadRoot: dirname(resolve(process.argv[1] ?? '.')),
+    },
     installedExtension: await installedExtension(dataRoot, channel),
     adminKey,
     port,

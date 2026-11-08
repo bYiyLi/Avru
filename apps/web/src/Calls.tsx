@@ -47,7 +47,9 @@ function TraceDetail({ call, locale }: { call: CallTrace; locale: Language }) {
             <li key={span.spanId}>
               <strong>{names[span.name]}</strong> ·{' '}
               {statusLabel(span.status, locale, span.events)} ·{' '}
-              {number(locale, span.durationMs, 2)} ms
+              {span.status === 'unknown'
+                ? '—'
+                : `${number(locale, span.durationMs, 2)} ms`}
               <small>
                 {t(locale, 'calls.spanIdentity', {
                   span: span.spanId,
@@ -133,7 +135,11 @@ export function Calls({
                       call.spans.flatMap((span) => span.events),
                     )}
                   </td>
-                  <td>{number(locale, call.durationMs, 2)} ms</td>
+                  <td>
+                    {call.status === 'unknown'
+                      ? '—'
+                      : `${number(locale, call.durationMs, 2)} ms`}
+                  </td>
                   <td>
                     <TraceDetail call={call} locale={locale} />
                   </td>

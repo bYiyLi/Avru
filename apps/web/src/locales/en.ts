@@ -138,4 +138,42 @@ export const en = {
   'version.expectedValue': 'Expected {version}',
   'pairing.requestTitle': '{name} · Pairing requested',
   'shell.footer': 'AVRU / LOCAL',
+  'connection.title': 'Remote connection',
+  'connection.description':
+    'Import a connection file. Avru applies the configuration and manages the connection automatically.',
+  'connection.unavailable': 'Connection status unavailable',
+  'connection.program': 'Connection component {version}',
+  'connection.prepared': 'Included in this installation',
+  'connection.programMissing':
+    'Installation incomplete; run the installer again',
+  'connection.address': 'Configured MCP address',
+  'connection.notVerified':
+    'Public reachability and a real ChatGPT connection have not been verified. A running proxy alone does not verify either.',
+  'connection.import': 'Import connection file',
+  'connection.remove': 'Remove connection configuration',
+  'connection.activity': 'Connection activity · up to 200 local records',
+  'connection.fileInvalid':
+    'Could not apply the file. Check its format, environment, certificates and connection status.',
+  'connection.saved':
+    'Configuration saved. Avru manages the connection automatically.',
+  'connection.state.unconfigured': 'Not configured',
+  'connection.state.applying': 'Applying configuration',
+  'connection.state.connecting': 'Connecting',
+  'connection.state.registered': 'Proxy registered',
+  'connection.state.unavailable': 'Connection unavailable',
+  'connection.state.unknown':
+    'Connection result unknown; recovery requires inspection',
+  'connection.event.configuration_imported':
+    'Connection configuration imported',
+  'connection.event.configuration_removed': 'Connection configuration removed',
+  'connection.event.configuration_invalid': 'Connection configuration rejected',
+  'connection.event.configuration_conflict':
+    'Imported and external configurations conflict',
+  'connection.event.process_started': 'Connection component started',
+  'connection.event.process_exited': 'Connection component exited unexpectedly',
+  'connection.event.process_stopped': 'Connection component stopped',
+  'connection.event.proxy_registered': 'Proxy registration reported',
+  'connection.event.connection_unavailable': 'Connection component unavailable',
+  'connection.event.ownership_unknown':
+    'Previous connection process could not be safely identified or stopped',
 } as const;

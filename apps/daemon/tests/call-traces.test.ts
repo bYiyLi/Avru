@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest';
 import { CallTraces } from '../src/call-traces.js';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 it('records bounded server-owned IDs and fixed events without arbitrary request data', () => {
   const traces = new CallTraces();
   const secret = 'private page content and authorization';
@@ -53,4 +57,108 @@ it('handles malformed input without storing it', () => {
   ])
     traces.begin(raw).finish('rejected', 'protocol_error');
   expect(traces.snapshot().calls).toHaveLength(6);
+});
+
+it('persists sanitized calls and leaves interrupted requests unknown across restart', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'avru-traces-'));
+  const path = join(dir, 'history.sqlite');
+  const secret = 'private-content-token-example';
+  try {
+    const first = new CallTraces(path);
+    const completed = first.begin({
+      method: 'tools/call',
+      id: secret,
+      params: { name: 'browsers_list', arguments: { secret } },
+    });
+    completed.step('authorization', 'succeeded', 'authorized');
+    completed.finish('succeeded', 'completed');
+    const interrupted = first.begin({ method: secret });
+    interrupted.step('authorization', 'succeeded', 'authorized');
+    first.close();
+    const restored = new CallTraces(path);
+    const history = restored.snapshot();
+    expect(history.retention).toEqual({ limit: 200, persistent: true });
+    expect(history.calls).toHaveLength(2);
+    expect(history.calls[0]?.traceId).toBe(interrupted.traceId);
+    expect(history.calls[0]?.status).toBe('unknown');
+    expect(history.calls[0]?.spans[0]?.status).toBe('unknown');
+    expect(history.calls[1]?.status).toBe('succeeded');
+    expect(JSON.stringify(history)).not.toContain(secret);
+    restored.close();
+    expect(readFileSync(path).includes(Buffer.from(secret))).toBe(false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('bounds persistent history even across restarts', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'avru-traces-limit-'));
+  const path = join(dir, 'history.sqlite');
+  try {
+    const traces = new CallTraces(path);
+    for (let i = 0; i < 205; i++)
+      traces.begin({ method: 'ping' }).finish('succeeded', 'completed');
+    expect(traces.snapshot().calls).toHaveLength(200);
+    traces.close();
+    const db = new DatabaseSync(path);
+    expect(db.prepare('SELECT count(*) AS n FROM call_traces').get()?.n).toBe(
+      200,
+    );
+    db.close();
+    const restored = new CallTraces(path);
+    expect(restored.snapshot().calls).toHaveLength(200);
+    restored.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('keeps an unfinished request unknown after an abrupt process exit', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const dir = mkdtempSync(join(tmpdir(), 'avru-traces-crash-'));
+  const path = join(dir, 'history.sqlite');
+  try {
+    const script = `import { CallTraces } from './apps/daemon/src/call-traces.ts';
+      const traces = new CallTraces(process.argv[1]);
+      const call = traces.begin({ method: 'ping' });
+      call.step('authorization', 'succeeded', 'authorized');
+      process.exit(0);`;
+    const child = spawnSync(
+      process.execPath,
+      ['--import', 'tsx', '--input-type=module', '-e', script, path],
+      { cwd: process.cwd() },
+    );
+    expect(child.status, child.stderr.toString()).toBe(0);
+    const restored = new CallTraces(path);
+    const call = restored.snapshot().calls[0];
+    expect(call?.status).toBe('unknown');
+    expect(call?.spans.map((span) => [span.name, span.status])).toEqual([
+      ['request', 'unknown'],
+      ['authorization', 'succeeded'],
+    ]);
+    restored.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+it('rolls back a failed insert and can record a later request', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'avru-traces-rollback-'));
+  const path = join(dir, 'history.sqlite');
+  const traces = new CallTraces(path);
+  const db = new DatabaseSync(path);
+  try {
+    db.exec(
+      "CREATE TRIGGER reject_trace BEFORE INSERT ON call_traces BEGIN SELECT RAISE(ABORT, 'failure'); END",
+    );
+    expect(() => traces.begin({ method: 'ping' })).toThrow();
+    expect(traces.snapshot().calls).toHaveLength(0);
+    db.exec('DROP TRIGGER reject_trace');
+    traces.begin({ method: 'ping' }).finish('succeeded', 'completed');
+    expect(traces.snapshot().calls).toHaveLength(1);
+  } finally {
+    db.close();
+    traces.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

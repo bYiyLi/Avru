@@ -43,7 +43,7 @@ describe('local daemon HTTP trust boundary', () => {
       expectedExtensionVersion: '0.0.1',
       extensionFiles: null,
       mcp: 'notImplemented',
-      chatgpt: 'notImplemented',
+      chatgpt: 'notVerified',
       frpc: 'notImplemented',
     });
     expect(health.headers['cache-control']).toBe('no-store');
@@ -158,7 +158,7 @@ it('rejects an empty JSON DELETE but accepts a bodyless mutation without content
     headers: { ...headers, 'content-type': 'application/json' },
   });
   expect(bad.statusCode).toBe(400);
-  expect(bad.json<{ code: string }>().code).toBe('FST_ERR_CTP_EMPTY_JSON_BODY');
+  expect(bad.json<{ error: string }>().error).toBe('request_failed');
   const valid = await instance.inject({
     method: 'DELETE',
     url: '/api/browsers/missing',

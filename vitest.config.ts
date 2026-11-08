@@ -13,6 +13,7 @@ export default defineConfig({
         'apps/extension/**/*.{ts,tsx}',
         'packages/*/src/**/*.{ts,tsx}',
         'packages/protocol/environment.js',
+        'packages/protocol/frpc-assets.js',
       ],
       exclude: [
         '**/*.d.ts',

@@ -4,6 +4,8 @@
 
 先准备 Node.js 24.22.1 与 pnpm 11.25.0，在仓库根目录运行：
 
+配置文件的证书反例测试使用 OpenSSL CLI 生成临时测试证书；开发验证环境需提供该命令。已发布程序解析证书使用 Node 内建能力，终端用户不需要 OpenSSL 或 Go。
+
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
@@ -18,13 +20,15 @@ pnpm dev:daemon
 
 管理页显示普通 HTTP/HTTPS 标签的标题和去掉查询参数/片段的地址；不采集无痕、浏览器系统或文件页面，不读取页面正文。关闭浏览器后显示离线，重新打开会使用内部凭据恢复连接。需要停止访问时，在管理页撤销该浏览器配对。扩展弹窗“断开并清除本地凭据”只清除扩展端，服务端登记需在管理页撤销。
 
-daemon 默认使用当前 OS 用户的数据目录保存配对身份与凭据哈希（不保存标签）。可用 `AVRU_DATA_DIR` 指定专用开发目录；不要指向含其他应用数据的目录。`AVRU_PORT` 可调整开发端口，扩展弹窗需使用相同端口。`pnpm dev:web` 只用于界面开发；完整配对须使用 daemon 同源托管页面，而不是 Vite 的独立端口。
+daemon 默认使用当前 OS 用户的数据目录保存配对身份与凭据哈希（不保存标签）。可用 `AVRU_DATA_DIR` 指定专用开发目录；不要指向含其他应用数据的目录。`AVRU_PORT` 可调整 daemon 的开发测试端口；扩展固定连接本环境默认端口，不能自动连接自定义端口。`pnpm dev:web` 只用于界面开发；完整配对须使用 daemon 同源托管页面，而不是 Vite 的独立端口。
 
 端到端开发检查需要浏览器：正常开发环境先 `pnpm exec playwright install chromium`，再 `pnpm test:e2e`。也可用 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` 指定现有测试 Chromium；此选项不改变产品接入用户浏览器的方案。实际端到端执行证据见本机连接记录；测试配置存在不等于通过。
 
 ## 构建安装包
 
-运行 `pnpm package:cli` 生成 `artifacts/avru`，`pnpm test:installer` 验证真实 daemon bundle 的安装/修复/缓存删除/卸载。正式 npm 包尚未发布。不要使用开发源码目录作为登录自启动位置。
+先运行 `pnpm prepare:frpc` 从官方固定版本下载并静态核对四平台程序，再运行 `pnpm package:cli` 生成 `artifacts/avru`。打包本身只读取已准备资产，不隐式下载或执行 FRPC。`pnpm test:installer` 验证真实 bundle 的安装/修复/缓存删除/卸载。`pnpm package:prod` 生成仅用于本机隔离验收的 private `artifacts/avru-prod`，编译身份为 0.1.0。不要使用源码目录作为登录自启动位置。
+
+当前五项交付状态见[06 阶段](../development/phases/06-local-connection-delivery.md)。连接文件导入方式见[连接指南](connection.md)。本轮测试执行替身进程和模拟管理 API，不执行内嵌的官方 FRPC。
 
 详细安装影响、命令和恢复见[安装指南](installation.md)。门禁阈值见[质量指南](quality.md)。
 

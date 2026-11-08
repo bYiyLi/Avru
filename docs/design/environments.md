@@ -4,7 +4,7 @@
 
 ## 身份与目录
 
-环境来自编译产物版本：`X.Y.Z-dev.N` 为 dev，`X.Y.Z` 为 prod，其余预发行格式先拒绝。不能仅依赖 npx dist-tag 或临时环境变量决定已安装程序身份。当前共享版本为 `0.1.0-dev.1`；未来正式构建必须同步升级此版本和发行合同，不把 dev 包通过改目录伪装正式包。
+环境来自编译产物版本：`X.Y.Z-dev.N` 为 dev，`X.Y.Z` 为 prod，其余预发行格式拒绝。不能依赖 npx dist-tag 或运行时环境变量决定身份。默认共享版本为 `0.1.0-dev.1`；`package:prod` 构建仅供本机验收的 private `0.1.0` 包，编译时同步固化 CLI、daemon、launcher 与 MCP 身份，插件使用 prod 身份。这不是正式版公开发布。
 
 | 项目                 | dev                                      | prod                                      |
 | -------------------- | ---------------------------------------- | ----------------------------------------- |
@@ -18,7 +18,9 @@
 
 Windows 未设置 LOCALAPPDATA 时回落用户 `AppData\Local`；Startup仍尊重APPDATA重定向。AVRU_DATA_DIR继续表示完整自定义根，不偷偷追加目录或搬走数据，但必须是独立绝对目录。根目录不可跨环境共用。每个根的`.avru-channel`固定记录`dev`或`prod`，安装、运行、升级、卸载都检查归属；未知非空根拒绝自动收编。
 
-根内分别保存`program/releases`、`program/active.json`、稳定launcher、`browsers.sqlite`及其WAL、`runtime.json`、`daemon.log`，因此程序版本、安装锁、实例管理capability、配对库与日志互不共享。runtime描述符和认证响应均需channel一致；不能仅凭PID停止进程。SQLite内部schema不因目录变更而改写。
+根内分别保存`program/releases`、`program/active.json`、稳定launcher、`browsers.sqlite`（含本环境调用记录）及其WAL、`runtime.json`、`daemon.log`，因此程序版本、安装锁、实例管理capability、配对库与日志互不共享。runtime描述符和认证响应均需channel一致；不能仅凭PID停止进程。SQLite内部schema不因目录变更而改写。
+
+connection/ 保存本环境配置、证书材料和 FRPC 私密进程描述符；FRPC 程序属于本环境 release。连接活动保存在对应 SQLite，导入文件 channel 必须匹配。两环境不能复用配置、管理口令、OAuth 端口或 issuer；运行时未知归属不能靠改 PID 或目录接管。卸载数据清理范围归[安装合同](installation.md)维护。
 
 ## 扩展与连接边界
 
@@ -40,7 +42,7 @@ OAuth默认关闭。显式AVRU_OAUTH_CONFIG文件必须包含与当前环境一�
 
 迁移是显式操作：用旧版本正常停止/卸载程序并保留数据，备份整个旧根和登录项；确认旧实例及登录项已停，再安装新环境到空根。保留旧数据库备份供人工恢复，不自动导入旧配对凭据；重新加载正确channel扩展并配对。自定义旧非空根同样拒绝自动采用，选择新空根后原目录保持不变。切勿手写marker绕过检查。需要保留其他将来的业务配置时，先制定相应schema迁移，不把本轮目录拆分当作通用迁移工具。
 
-同环境更新沿用原安装事务、旧release和launcher回滚，不改变另一环境。卸载仅认证并停止目标根实例、删除该channel登录项和program；默认保留数据库，`--remove-data`仅删除已知SQLite文件。配置、日志、备份及手工加载的扩展不自动删除，避免不受控扩大清理范围。恢复旧版应先停止新实例，再恢复备份与旧版本，不让两个版本同时写同一根。
+同环境更新沿用原安装事务、旧 release 和 launcher 回滚，不改变另一环境。卸载认证并停止目标根实例及其连接，删除该 channel 登录项和 program；默认保留数据库与配置，明确删除数据的范围以[安装合同](installation.md)列出的 Avru 自有文件为准，不递归清理未知文件。恢复旧版先停止新实例，再恢复备份及旧版本，避免两版本写同一根。
 
 ## 验证边界
 

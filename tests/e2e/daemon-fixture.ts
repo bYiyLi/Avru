@@ -3,11 +3,18 @@ import { once } from 'node:events';
 import { resolve } from 'node:path';
 
 export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
-  const child = spawn(process.execPath, [resolve('apps/daemon/dist/main.js')], {
+  const packageRoot = process.env.AVRU_E2E_PACKAGE_ROOT;
+  const entry = packageRoot
+    ? resolve(packageRoot, 'payload/daemon.cjs')
+    : resolve('apps/daemon/dist/main.js');
+  const child = spawn(process.execPath, [entry], {
     env: {
       ...process.env,
       AVRU_PORT: '43822',
       AVRU_DATA_DIR: dataDirectory,
+      ...(packageRoot
+        ? { AVRU_WEB_ROOT: resolve(packageRoot, 'payload/web') }
+        : {}),
       ...(oauthConfig ? { AVRU_OAUTH_CONFIG: oauthConfig } : {}),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
