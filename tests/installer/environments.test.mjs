@@ -89,6 +89,37 @@ async function environment(directory, channel) {
   };
 }
 
+async function verifyRollback(prod) {
+  const activePath = join(prod.root, 'program/active.json');
+  const previous = JSON.parse(await readFile(activePath, 'utf8'));
+  const releasesPath = join(prod.root, 'program/releases');
+  const releases = await readdir(releasesPath);
+  let failedInstance;
+  await assert.rejects(
+    install({
+      ...prod.options,
+      hooks: {
+        ...prod.options.hooks,
+        autostart: async (active) => {
+          if (active.release !== previous.release) {
+            failedInstance = (await inspectRuntime(prod.root, 'prod')).instance;
+            throw new Error('simulated login registration failure');
+          }
+          await prod.options.hooks.autostart(active);
+        },
+      },
+    }),
+    /simulated login registration failure/,
+  );
+  assert.deepEqual(JSON.parse(await readFile(activePath, 'utf8')), previous);
+  assert.deepEqual(await readdir(releasesPath), releases);
+  const rolledBack = await inspectRuntime(prod.root, 'prod');
+  assert.ok(
+    rolledBack && failedInstance && rolledBack.instance !== failedInstance,
+  );
+  assert.equal((await api(rolledBack, '/api/status')).status, 200);
+}
+
 test(
   'compiled dev/prod packages coexist, reject cross credentials, roll back failed updates and uninstall separately',
   { timeout: 45000 },
@@ -127,38 +158,7 @@ test(
           },
         ),
       );
-      const activePath = join(prod.root, 'program/active.json');
-      const previous = JSON.parse(await readFile(activePath, 'utf8'));
-      const releasesPath = join(prod.root, 'program/releases');
-      const releases = await readdir(releasesPath);
-      let failedInstance;
-      await assert.rejects(
-        install({
-          ...prod.options,
-          hooks: {
-            ...prod.options.hooks,
-            autostart: async (active) => {
-              if (active.release !== previous.release) {
-                failedInstance = (await inspectRuntime(prod.root, 'prod'))
-                  .instance;
-                throw new Error('simulated login registration failure');
-              }
-              await prod.options.hooks.autostart(active);
-            },
-          },
-        }),
-        /simulated login registration failure/,
-      );
-      assert.deepEqual(
-        JSON.parse(await readFile(activePath, 'utf8')),
-        previous,
-      );
-      assert.deepEqual(await readdir(releasesPath), releases);
-      const rolledBack = await inspectRuntime(prod.root, 'prod');
-      assert.ok(
-        rolledBack && failedInstance && rolledBack.instance !== failedInstance,
-      );
-      assert.equal((await api(rolledBack, '/api/status')).status, 200);
+      await verifyRollback(prod);
       await install(prod.options);
       assert.equal(
         (await inspectRuntime(dev.root, 'dev')).instance,
