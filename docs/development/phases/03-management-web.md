@@ -65,3 +65,9 @@
 国际化交付核验：PR #5 已合入 main `d6d39786bdaa96c86ddc908abd1c35f1cc14df2f`，集成 [CI 42404941157](https://github.com/bYiyLi/Avru/actions/runs/42404941157) 的标准 Windows/macOS 门禁、安装包、4 项真实 E2E 与 audit 全通过（仅原有 1 moderate）。
 
 安装引导继续使用同一 typed catalog，在真实目录已准备时显示当前环境绝对路径和文件版本、手动加载及重新加载步骤；无目录时不生成默认猜测路径，明确需重新运行安装器。Chrome/Edge 按当前浏览器提供内部设置地址；未知浏览器不冒充适配。目录和文件版本不代表已安装、启用或已热更新，仍以认证连接报告的版本核对。验收由安装阶段维护。
+
+## 本机持久调用记录（2026-11-08）
+
+在基线 `4bee8df4a18ab8efc093dc63f54a06da19b4329e` 的未提交工作树中，将现有只读 MCP 服务端记录写入各环境配对数据库，最多保留最近开始的 200 条；开始和每个已完成步骤均写入，进程中断后尚未完成的根记录保持结果未知。字段白名单及故障边界见[Web 合同](../../design/web.md#本机调用记录合同)。这不采集未接入的浏览器操作或远程隧道步骤，也不提供完整审计记录。
+
+在 macOS Apple Silicon、Node 24.22.1、pnpm 11.25.0 的隔离副本上，`pnpm check` 通过（51 文件、262 测试及逐文件覆盖门禁），`pnpm check:audit` 高危门槛通过但报告 1 个既有 moderate；准备本地包后 `pnpm test:e2e` 5 项通过，包括实际 Chromium 扩展 OAuth、MCP 调用及 daemon 重启后 Web 回读。测试还覆盖独立 dev/prod 数据库与管理 key 的负向隔离、子进程突然退出后的 unknown、容量、脱敏及事务回滚。沙箱内首次 check 因 loopback 监听 EPERM 失败；放行测试端口后通过。E2E 首次缺少包产物及新增选择器匹配两行导致两项失败，准备产物并修正断言后通过。不是实际 ChatGPT/FRPC、公网链路、正式发布包并存或 Windows 实机验收。

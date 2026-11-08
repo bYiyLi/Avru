@@ -1,4 +1,5 @@
 import { record } from '../messages.js';
+import { RELEASE_VERSION } from '../../../../packages/protocol/environment.js';
 const version = '2025-11-25';
 export function mcpResponse(
   raw: unknown,
@@ -27,7 +28,7 @@ export function mcpResponse(
       result = {
         protocolVersion: version,
         capabilities: { tools: {} },
-        serverInfo: { name: 'avru', version: '0.1.0-dev.1' },
+        serverInfo: { name: 'avru', version: RELEASE_VERSION },
       };
       break;
     case 'ping':
@@ -49,6 +50,10 @@ export function mcpResponse(
               readOnlyHint: true,
               destructiveHint: false,
               openWorldHint: false,
+            },
+            securitySchemes: [{ type: 'oauth2', scopes: ['browser:read'] }],
+            _meta: {
+              securitySchemes: [{ type: 'oauth2', scopes: ['browser:read'] }],
             },
           },
         ],

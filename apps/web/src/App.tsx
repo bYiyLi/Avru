@@ -8,13 +8,19 @@ import { Install } from './Install.js';
 import { Overview } from './Overview.js';
 import { Pairings } from './Pairings.js';
 import type { Actions } from './Pairings.js';
+import type { ConnectionActions } from './Connection.js';
 export function Dashboard({
   state,
   approve,
   reject,
   revoke,
   locale = 'zh',
-}: { state: ViewState; locale?: Language } & Actions) {
+  connectionActions,
+}: {
+  state: ViewState;
+  locale?: Language;
+  connectionActions?: ConnectionActions;
+} & Actions) {
   return (
     <>
       <Pairings
@@ -23,7 +29,12 @@ export function Dashboard({
         approve={approve}
         reject={reject}
       />
-      <Overview state={state} locale={locale} revoke={revoke} />
+      <Overview
+        state={state}
+        locale={locale}
+        revoke={revoke}
+        connectionActions={connectionActions}
+      />
     </>
   );
 }
@@ -96,7 +107,12 @@ export function App({
           </>
         )}
         {page === 'overview' && state.authorized && (
-          <Dashboard state={state} locale={locale} {...actions} />
+          <Dashboard
+            state={state}
+            locale={locale}
+            {...actions}
+            connectionActions={controller}
+          />
         )}
       </main>
       <footer>

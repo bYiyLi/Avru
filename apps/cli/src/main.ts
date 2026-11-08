@@ -2,7 +2,11 @@ import {
   releaseChannel,
   RELEASE_VERSION,
 } from '../../../packages/protocol/environment.js';
-import { defaultDataRoot, rejectLegacyDefault } from './channel-root.js';
+import {
+  defaultDataRoot,
+  previousDataRoot,
+  rejectLegacyDefault,
+} from './channel-root.js';
 import * as clack from '@clack/prompts';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -21,9 +25,6 @@ const root = defaultDataRoot({
   platform: process.platform,
   home,
   channel,
-  ...(process.env.LOCALAPPDATA
-    ? { localAppData: process.env.LOCALAPPDATA }
-    : {}),
   ...(process.env.AVRU_DATA_DIR ? { custom: process.env.AVRU_DATA_DIR } : {}),
 });
 const launcherPath = join(root, 'program', 'launcher.mjs');
@@ -38,7 +39,7 @@ const auto = {
 if (args.includes('--help') || args.includes('--version')) {
   console.log(
     args.includes('--version')
-      ? `${RELEASE_VERSION} (unpublished)`
+      ? RELEASE_VERSION
       : 'Usage: avru [--yes] | avru uninstall [--yes] [--remove-data]\nInstalls, starts and configures user-login startup on Windows/macOS.',
   );
 } else if (process.platform !== 'darwin' && process.platform !== 'win32') {
@@ -64,7 +65,18 @@ if (args.includes('--help') || args.includes('--version')) {
     },
     {
       install: async () => {
-        if (!process.env.AVRU_DATA_DIR) await rejectLegacyDefault(home);
+        if (!process.env.AVRU_DATA_DIR)
+          await rejectLegacyDefault(
+            home,
+            previousDataRoot({
+              platform: process.platform,
+              home,
+              channel,
+              ...(process.env.LOCALAPPDATA
+                ? { localAppData: process.env.LOCALAPPDATA }
+                : {}),
+            }),
+          );
         return install({
           root,
           channel,

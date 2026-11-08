@@ -5,6 +5,7 @@ import {
 } from './current-browser.js';
 import type { CurrentBrowser, ExtensionMessage } from './current-browser.js';
 import type { CallHistory } from './call-types.js';
+import type { ConnectionStatus } from '../../../packages/protocol/connection.d.ts';
 export interface BrowserProfile {
   id: string;
   name: string;
@@ -35,12 +36,13 @@ export interface SystemStatus {
   daemonVersion: string;
   expectedExtensionVersion: string;
   mcp: 'notImplemented' | 'oauthReadOnly';
-  chatgpt: 'notImplemented';
-  frpc: 'notImplemented';
+  chatgpt: 'notImplemented' | 'notVerified';
+  frpc: 'notImplemented' | 'managed';
 }
 export interface ViewState {
   current?: CurrentBrowser;
   history?: CallHistory | null;
+  connection?: ConnectionStatus | null;
   system?: SystemStatus | null;
   browsers: BrowserProfile[];
   pairings: Pairing[];
@@ -51,6 +53,17 @@ export interface ViewState {
 export interface Session {
   key: string | null;
   clear: () => void;
+}
+function resetView(message: ViewState['message']): Partial<ViewState> {
+  return {
+    browsers: [],
+    pairings: [],
+    current: { status: 'unavailable' },
+    system: null,
+    history: null,
+    connection: null,
+    message,
+  };
 }
 function createApi(
   session: Session,
@@ -74,13 +87,8 @@ function createApi(
     if (response.status === 401) {
       session.clear();
       update({
+        ...resetView('session.expired'),
         authorized: false,
-        browsers: [],
-        pairings: [],
-        current: { status: 'unavailable' },
-        system: null,
-        history: null,
-        message: 'session.expired',
       });
       throw new Error('session.expired');
     }
@@ -149,14 +157,7 @@ export function createController(
         model.state.authorized &&
         started === revision
       )
-        update({
-          browsers: [],
-          pairings: [],
-          current: { status: 'unavailable' },
-          system: null,
-          history: null,
-          message: 'connection.retrying',
-        });
+        update(resetView('connection.retrying'));
     }
     if (running && epoch === generation && model.state.authorized)
       timer = setTimeout(() => {
@@ -202,10 +203,46 @@ export function createController(
     connectCurrent: createCurrentConnector(model, api, send, () => {
       revision++;
     }),
+    ...connectionActions(model, api, () => {
+      revision++;
+    }),
     ...actions(action),
   };
 }
 export type Controller = ReturnType<typeof createController>;
+function connectionActions(
+  model: ReturnType<typeof createModel>,
+  api: ReturnType<typeof createApi>,
+  bump: () => void,
+) {
+  const mutate = async (method: 'POST' | 'DELETE', raw?: unknown) => {
+    if (!model.state.authorized || model.state.busy)
+      throw new Error('request.failed');
+    bump();
+    model.update({ busy: true });
+    try {
+      let connection: ConnectionStatus | null = null;
+      if (method === 'DELETE') await api('connection', method);
+      else
+        connection = (await api(
+          'connection/import',
+          method,
+          raw,
+        )) as ConnectionStatus;
+      model.update({ connection });
+    } catch (error) {
+      model.update({ connection: null });
+      throw new Error('request.failed', { cause: error });
+    } finally {
+      bump();
+      model.update({ busy: false });
+    }
+  };
+  return {
+    importConnection: (raw: unknown) => mutate('POST', raw),
+    clearConnection: () => mutate('DELETE'),
+  };
+}
 
 function actions(action: (path: string, method: string) => Promise<void>) {
   return {
@@ -266,10 +303,14 @@ async function readCurrentState(
   const { pairings } = (await api('pairings')) as { pairings: Pairing[] };
   const system = (await api('status')) as SystemStatus;
   const history = (await api('calls')) as CallHistory;
+  const connection =
+    system.frpc === 'managed'
+      ? ((await api('connection')) as ConnectionStatus)
+      : null;
   const current = system.extensionFiles
     ? await detectCurrent(system.extensionFiles.extensionId, send)
     : { status: 'unavailable' as const };
-  return { browsers, pairings, system, history, current };
+  return { browsers, pairings, system, history, current, connection };
 }
 
 function retainFailure(

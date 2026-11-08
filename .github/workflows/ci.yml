@@ -18,10 +18,12 @@ jobs:
           node-version-file: .node-version
       - run: npm install --global pnpm@11.25.0
       - run: pnpm install --frozen-lockfile
+      - run: pnpm prepare:frpc
       - run: pnpm check
       - run: pnpm test:runner
       - run: pnpm test:gates
       - run: pnpm package:cli
+      - run: pnpm package:prod
       - run: pnpm test:installer
       - run: pnpm exec playwright install chromium
       - run: pnpm --filter @avru/extension build

@@ -1,5 +1,6 @@
 import { CallTraces } from '../call-traces.js';
 import { record } from '../messages.js';
+import { secureErrors } from '../http-security.js';
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type { Authority } from './authority.js';
@@ -16,6 +17,7 @@ export function buildRemote(
     bodyLimit: 8192,
     requestTimeout: 130_000,
   });
+  secureErrors(app);
   app.addContentTypeParser(
     'application/x-www-form-urlencoded',
     { parseAs: 'string' },

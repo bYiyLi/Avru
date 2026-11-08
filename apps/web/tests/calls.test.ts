@@ -167,3 +167,21 @@ it('labels accepted notifications without claiming tool completion in list and s
     expect(rejected).toContain(locale === 'zh' ? '已拒绝' : 'Rejected');
   }
 });
+
+it('does not present an unknown outcome as a completed duration', () => {
+  const first = requiredCall();
+  const root = first.spans[1];
+  if (!root) throw new Error('missing root span');
+  const unknown = {
+    ...first,
+    status: 'unknown' as const,
+    durationMs: 0,
+    spans: [{ ...root, status: 'unknown' as const, durationMs: 0 }],
+  };
+  const html = renderToStaticMarkup(
+    Calls({ history: { ...history, calls: [unknown] }, locale: 'en' }),
+  );
+  expect(html).toContain('Outcome unknown');
+  expect(html).toContain('Do not retry blindly');
+  expect(html).not.toContain('0 ms');
+});

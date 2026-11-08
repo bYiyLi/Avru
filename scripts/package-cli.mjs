@@ -1,12 +1,19 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
-import { releaseChannel } from '../packages/protocol/environment.js';
+import {
+  releaseChannel,
+  RELEASE_VERSION,
+} from '../packages/protocol/environment.js';
+import { FRPC_VERSION } from '../packages/protocol/frpc-assets.js';
+import { releaseIdentity } from './release/build-identity.mjs';
 import { cp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { obfuscationPlugin } from './release/obfuscate.mjs';
 import { collectLicenses } from './release/licenses.mjs';
 import { verifyPackage } from './release/verify.mjs';
 const metas = [];
-const out = 'artifacts/avru';
+const version = process.argv.includes('--prod') ? '0.1.0' : RELEASE_VERSION;
+const channel = releaseChannel(version);
+const out = channel === 'prod' ? 'artifacts/avru-prod' : 'artifacts/avru';
 await rm(out, { recursive: true, force: true });
 await mkdir(`${out}/payload`, { recursive: true });
 const common = {
@@ -16,6 +23,7 @@ const common = {
   sourcemap: false,
   minify: true,
   metafile: true,
+  plugins: [releaseIdentity(version)],
 };
 metas.push(
   (
@@ -48,7 +56,7 @@ metas.push(
     await build({
       ...common,
       entryPoints: ['apps/daemon/src/main.ts'],
-      plugins: [obfuscationPlugin],
+      plugins: [releaseIdentity(version), obfuscationPlugin],
       outfile: `${out}/payload/daemon.cjs`,
       format: 'cjs',
     })
@@ -57,16 +65,21 @@ metas.push(
 await cp(`${out}/launcher.mjs`, `${out}/payload/launcher.mjs`);
 await cp('apps/web/dist', `${out}/payload/web`, { recursive: true });
 await cp(
-  `apps/extension/.output/${releaseChannel()}/chrome-mv3`,
+  `apps/extension/.output/${channel}/chrome-mv3`,
   `${out}/payload/extension`,
   { recursive: true },
+);
+await cp('artifacts/frpc', `${out}/payload/frpc`, { recursive: true });
+await writeFile(
+  `${out}/payload/release.json`,
+  JSON.stringify({ version, channel, frpcVersion: FRPC_VERSION }),
 );
 await writeFile(
   `${out}/package.json`,
   JSON.stringify(
     {
       name: 'avru',
-      version: '0.1.0-dev.1',
+      version,
       private: true,
       type: 'module',
       bin: { avru: 'cli.mjs' },
@@ -122,10 +135,13 @@ metas.push({
     ]),
   ),
 });
-await writeFile(`${out}/THIRD_PARTY_NOTICES.txt`, await collectLicenses(metas));
+await writeFile(
+  `${out}/THIRD_PARTY_NOTICES.txt`,
+  `${await collectLicenses(metas)}\nFRP ${FRPC_VERSION}: Apache-2.0; see payload/frpc/LICENSE. Go runtime and embedded dependency notices: payload/frpc/NOTICES.txt.\n`,
+);
 await writeFile(
   `${out}/README.md`,
-  'Avru 0.1.0-dev.1 private test package. Windows/macOS, Node >=24.22.1 <25.\nLocal CLI/daemon/Web only. Includes prebuilt browser extension; user must manually Load unpacked from the stable installation directory. QuickJS and remote transport setup are not included.\nNot a public npm release. Bundling and obfuscation are not secrecy guarantees.\n',
+  `Avru ${version} local candidate. Windows/macOS, Node >=24.22.1 <25.\nIncludes browser extension and FRPC ${FRPC_VERSION} for both architectures. Load the extension from the stable installation directory. Import a connection file in Avru; its connection lifecycle is automatic.\nBrowser actions, public FRP and real ChatGPT integration have not been accepted. Official FRPC executables have not been run in this acceptance. Bundling and obfuscation are not secrecy guarantees.\n`,
 );
 await verifyPackage(out);
 console.log('Local package prepared; no npm publication performed.');

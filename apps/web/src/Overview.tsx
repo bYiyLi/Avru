@@ -1,4 +1,6 @@
 import { Calls } from './Calls.js';
+import { Connection } from './Connection.js';
+import type { ConnectionActions } from './Connection.js';
 import type { ViewState, BrowserProfile } from './controller.js';
 import type { Actions } from './Pairings.js';
 import { versionStatus } from './presentation.js';
@@ -119,7 +121,12 @@ export function Overview({
   state,
   locale,
   revoke,
-}: { state: ViewState; locale: Language } & Pick<Actions, 'revoke'>) {
+  connectionActions,
+}: {
+  state: ViewState;
+  locale: Language;
+  connectionActions?: ConnectionActions | undefined;
+} & Pick<Actions, 'revoke'>) {
   const online = state.browsers.filter((browser) => browser.connected).length;
   return (
     <section className="overview">
@@ -165,7 +172,16 @@ export function Overview({
         <span>{t(locale, 'version.comparison')}</span>
       </div>
       <BrowserContent state={state} locale={locale} revoke={revoke} />
-      <Capabilities locale={locale} />
+      {state.system?.frpc === 'managed' ? (
+        <Connection
+          status={state.connection}
+          locale={locale}
+          busy={state.busy}
+          actions={connectionActions}
+        />
+      ) : (
+        <Capabilities locale={locale} />
+      )}
       <Calls
         history={state.system ? (state.history ?? null) : null}
         locale={locale}

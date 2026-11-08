@@ -1,5 +1,18 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+export function secureErrors(app: FastifyInstance): void {
+  app.setErrorHandler((error, _request, reply) => {
+    const status =
+      error instanceof Error &&
+      'statusCode' in error &&
+      typeof error.statusCode === 'number'
+        ? error.statusCode
+        : 500;
+    reply
+      .code(status >= 400 && status <= 599 ? status : 500)
+      .send({ error: 'request_failed' });
+  });
+}
 
 export function authorized(request: FastifyRequest, key: string): boolean {
   const expected = Buffer.from(`Bearer ${key}`);

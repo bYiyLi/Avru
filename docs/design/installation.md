@@ -4,7 +4,7 @@
 
 ## 目录、事务与恢复
 
-数据根按[dev/prod环境合同](environments.md)选择；原`~/.avru`仅为拒绝自动采用的旧版根。各环境根内：`browsers.sqlite` 为配对数据；`program/releases/<uuid>` 保存完整 bundle 与 Web；`program/active.json` 原子切换当前版本；`program/launcher.mjs` 为稳定登录入口。daemon 不依赖 npx 缓存。`runtime.json` 保存当前实例与私密管理链接，权限 0600；日志同样私有，不能将原始日志或链接贴到公开报告。
+数据根按[dev/prod环境合同](environments.md)选择；原`~/.avru`仅为拒绝自动采用的旧版根。各环境根内：`browsers.sqlite` 保存配对数据与本环境脱敏调用记录；`program/releases/<uuid>` 保存完整 bundle 与 Web；`program/active.json` 原子切换当前版本；`program/launcher.mjs` 为稳定登录入口。daemon 不依赖 npx 缓存。`runtime.json` 保存当前实例与私密管理链接，权限 0600；日志同样私有，不能将原始日志或链接贴到公开报告。
 
 安装持有 `.install.lock` 排他锁，拒绝未知 program 归属及符号链接。候选完整后停止旧实例，再切换指针、启动并认证就绪，然后配置登录入口。失败恢复旧指针并重启旧实例；停止失败时不删除可能仍在使用的版本。旧 release 暂保留，不自动清理或迁移用户数据。崩溃遗留锁不自动抢占，先确认没有安装进程再人工处理，不能盲重试。浏览器打开失败不会回滚健康实例，而是给出本机私密链接。
 
@@ -18,7 +18,7 @@ macOS 写用户 `~/Library/LaunchAgents/ai.avru.daemon.<channel>.plist`，Window
 
 登录入口从自身稳定路径推导数据根，不依赖临时 npx 环境变量。launcher 随 release 保存，切换失败恢复旧版本 launcher；注册失败原子撤销本次 launcher 替换。
 
-QuickJS WASM/FRPC 尚未随 bundle 交付；今后纳入安装事务需要对应资产和版本验证。软件版本来自此次 npx 解析的包，npm 发布、包名归属、签名/公证、最终平台架构矩阵和未来数据迁移仍未解决。
+QuickJS WASM 尚未随 bundle 交付。FRPC v0.72.0 的 Windows/macOS x64/ARM64 程序随 payload/frpc 交付，构建准备时按固定来源、归档和程序摘要下载，发行校验包含许可和可执行文件架构，运行前再次核对摘要。它随 release 切换和回滚；升级、卸载和退出先停止本环境连接。软件版本来自此次 npx 解析的包，发布、签名/公证和真实运行验收状态分别记录。
 
 ## 一般运行恢复约束
 
@@ -39,9 +39,11 @@ QuickJS WASM/FRPC 尚未随 bundle 交付；今后纳入安装事务需要对应
 
 ## 私有测试包构建边界
 
-开发测试发行由[发行指南](../guide/release.md)定义。`0.1.0-dev.1` 构建包含 CLI、daemon、Web 及下述预构建扩展；本地候选 `private:true` 阻止误发 npm，公开 dev 发布另走发行流程。MCP 目前只有只读授权阶段，不含完整浏览器操作、FRPC 或 QuickJS。项目源仓库和编译分发物分别控制，编译 JS 仍可被分析，不承诺绝对保密。
+开发测试发行由[发行指南](../guide/release.md)定义。`0.1.0-dev.1` 构建包含 CLI、daemon、Web、预构建扩展及 FRPC；本地候选 `private:true` 阻止误发 npm，公开 dev 发布另走发行流程。MCP 仍为只读能力，不含完整浏览器操作或 QuickJS。FRPC 自动管理按[MCP 合同](mcp.md)实施，本轮不执行真实 FRPC 或公网联调。编译 JS 仍可被分析，不承诺绝对保密。
 
 构建仅在本机使用精确锁定的 `javascript-obfuscator@4.1.1` 同步 API；只变换 `apps/daemon/src/http-security.ts`，第三方代码、CLI、Web、扩展不进行混淆。禁用全局/属性重命名、控制流平坦化、反调试、控制台抑制、自防护与 source map；其余 bundle 常规压缩。无云 API、网络混淆或源码上传。依赖安装禁生命周期脚本，只有既有批准的 esbuild/WXT准备显式运行。
+
+FRPC 的原始 LICENSE 与固定摘要的 NOTICES.txt 随包。后者依据四份程序的静态 Go build info 汇总 37 个依赖模块，并按程序中记录的 h1 摘要核对模块源码归档，再收集版权、许可和 NOTICE；还包含 Go 1.26.10 runtime 许可。核对没有运行 FRPC，不要求终端用户或常规打包环境安装 Go。
 
 包校验按文件白名单拒绝源码/映射/未知文件、源码路径与部分高风险秘密格式，逐包收集实际 bundle 依赖许可正文；这些检查不是穷尽秘密检测或防逆向保证。缺许可则失败，不能为完成打包删除第三方版权；上游缺许可文件的精确版本采用来源及 hash 固定的官方许可副本，不改变 Avru 自有代码的授权。
 
@@ -53,4 +55,4 @@ QuickJS WASM/FRPC 尚未随 bundle 交付；今后纳入安装事务需要对应
 
 `GET /api/status.extensionFiles` 在 daemon 启动时检查实际安装目录与归属、manifest/channel，返回 `{directory,version,extensionId}` 或 null；仅受本机管理 capability 保护。此结果是已准备的磁盘文件快照，不是插件已安装/启用/重新加载的证据。浏览器实际运行的插件版本仍来自认证连接元数据；升级后需用户在浏览器扩展管理页点击重新加载，不能将磁盘替换描述成已热更新浏览器。浏览器版本不用于授权判断。
 
-卸载停止服务并移除 program/登录项，保留稳定 extension 目录和其备份。原因是浏览器管理其已加载记录，本程序不能假装移除该记录；用户先从各浏览器移除扩展后可自行删除保留目录。`--remove-data`仍只覆盖原有明确 SQLite 文件，不扩展到任意用户文件。重新安装同环境可重用受标记保护的目录。首次免短码连接采用[原 WS 一次性票据合同](browser-connection.md)，不把目录存在等同可信连接；现有安全核对批准保留为兼容路径。
+卸载停止服务及本环境连接，移除 program/登录项，保留稳定 extension 目录和其备份。浏览器管理其已加载记录，用户先在浏览器移除扩展后可自行删除保留目录。默认保留数据库和连接配置；`--remove-data`清除明确 SQLite 文件及 connection 内 configuration.json、process.json、frpc.json、ca.pem、certificate.pem、key.pem，拒绝链接并保留未知文件和用户原始导入文件。重新安装可重用受标记保护的目录。首次免短码连接采用[原 WS 一次性票据合同](browser-connection.md)，不把目录存在等同可信连接；现有人工核对保留为兼容路径。

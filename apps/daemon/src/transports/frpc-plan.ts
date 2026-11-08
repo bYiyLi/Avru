@@ -75,7 +75,7 @@ export function planFrpc(context: FrpcContext, input: FrpcInput) {
           hostHeaderRewrite: issuer.host,
         },
       },
-    ],
+    ] as const,
   };
   return {
     state: 'previewOnly' as const,
@@ -83,6 +83,7 @@ export function planFrpc(context: FrpcContext, input: FrpcInput) {
     verified: false as const,
     mcpUrl: `${oauth.issuer}/mcp`,
     requiredSecretEnvironment: tokenEnv,
+    configuration: config,
     configJson: JSON.stringify(config, null, 2),
   };
 }
