@@ -36,4 +36,6 @@ GitHub [PR #10](https://github.com/bYiyLi/Avru/pull/10) 已推送。初次 Windo
 
 实现已通过最终分支 `786d7bf` 的双平台 [CI 42449126191](https://github.com/bYiyLi/Avru/actions/runs/42449126191)，并由 PR #10 合入主分支 `7d08749`。首轮精确候选运行 [42449533291](https://github.com/bYiyLi/Avru/actions/runs/42449533291) 在读取来源记录前失败：download-artifact v4 按 ID 下载时默认多加一层产物名称目录。另已本机复现三条旧发行测试仅兼容私有包形态的问题；修复下载路径及测试夹具后，私有包和公开 scoped 包分别通过全部 5 项发行测试，公开 scoped 包也通过 2 项安装测试。实际候选仍须新来源运行的两个 validate 作业全部成功，不能复用失败运行。
 
+主分支 `ae3e26c` 的 [工程 CI 42450551918](https://github.com/bYiyLi/Avru/actions/runs/42450551918) 全部成功；[精确候选 42450551899](https://github.com/bYiyLi/Avru/actions/runs/42450551899) 的 macOS 验收通过，Windows 在 Git Bash 环境误选 PATH 中同名的 GNU whoami，导致当前用户 ACL 设置失败，不能发布此候选。权限设置改用绝对的 Windows System32 命令路径，缺少有效系统根时拒绝执行，新增对应回归。本机完整 `pnpm check` 通过 67 文件、292 测试，串行负向门禁 7 项通过，审计仍为 1 个 moderate、无 high；仍须修复后新候选的双平台验收。
+
 尚未完成最终精确候选双平台结果、真实注销/登录、精确候选最终批准或实际 npm 发布。后续在此记录对应提交、CI、候选及本机安装证据。

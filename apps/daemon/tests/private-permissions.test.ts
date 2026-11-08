@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -8,14 +8,21 @@ vi.mock('node:child_process', async () => {
   const { promisify } = await import('node:util');
   return { execFile: Object.assign(() => {}, { [promisify.custom]: command }) };
 });
+afterEach(() => vi.unstubAllEnvs());
 it('limits Windows connection files to the resolved current user SID and fails closed on missing identity', async () => {
+  vi.stubEnv('SystemRoot', 'C:\\Windows');
   command.mockResolvedValue({
     stdout: '"user","S-1-5-21-123-456-1001"',
     stderr: '',
   });
   await restrictPrivate('C:\\Avru\\private', false, 'win32');
+  expect(command).toHaveBeenCalledWith(
+    'C:\\Windows\\System32\\whoami.exe',
+    ['/user', '/fo', 'csv', '/nh'],
+    { windowsHide: true },
+  );
   expect(command).toHaveBeenLastCalledWith(
-    'icacls.exe',
+    'C:\\Windows\\System32\\icacls.exe',
     [
       'C:\\Avru\\private',
       '/inheritance:r',
@@ -24,9 +31,11 @@ it('limits Windows connection files to the resolved current user SID and fails c
     ],
     { windowsHide: true },
   );
+  vi.stubEnv('SystemRoot', undefined);
+  vi.stubEnv('SYSTEMROOT', 'C:\\Windows');
   await restrictPrivate('C:\\Avru\\directory', true, 'win32');
   expect(command).toHaveBeenLastCalledWith(
-    'icacls.exe',
+    'C:\\Windows\\System32\\icacls.exe',
     expect.arrayContaining(['*S-1-5-21-123-456-1001:(OI)(CI)F']),
     expect.any(Object),
   );
@@ -44,4 +53,15 @@ it('limits Windows connection files to the resolved current user SID and fails c
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+it('fails before executing any PATH command if the Windows system directory is unavailable', async () => {
+  command.mockClear();
+  vi.stubEnv('SYSTEMROOT', undefined);
+  for (const root of [undefined, 'relative-path']) {
+    vi.stubEnv('SystemRoot', root);
+    await expect(
+      restrictPrivate('C:\\Avru\\private', false, 'win32'),
+    ).rejects.toThrow('private_permissions_failed');
+  }
+  expect(command).not.toHaveBeenCalled();
 });
