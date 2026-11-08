@@ -42,6 +42,8 @@ export class FrpcProcess implements ConnectionDriver {
     );
     this.identity = prepared.identity;
     this.exited = false;
+    // A crash between spawn and PID persistence must block recovery, not allow a second instance.
+    await writePrivate(this.descriptor, JSON.stringify(this.identity));
     const child = (this.options.spawn ?? spawn)(
       program,
       ['-c', prepared.configPath],

@@ -15,8 +15,7 @@ import { buildApp } from './app.js';
 async function bootstrap(): Promise<void> {
   const channel = runtimeChannel(process.env.AVRU_CHANNEL);
   const dataRoot =
-    process.env.AVRU_DATA_DIR ??
-    defaultDataRoot(homedir(), process.platform, process.env.LOCALAPPDATA);
+    process.env.AVRU_DATA_DIR ?? defaultDataRoot(homedir(), process.platform);
   const port = runtimePort(channel, process.env.AVRU_PORT);
   await verifyDataRoot(dataRoot, channel);
   const adminKey = randomBytes(32).toString('hex');

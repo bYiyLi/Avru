@@ -10,7 +10,6 @@ export function defaultDataRoot(options: {
   platform: string;
   home: string;
   channel: ReleaseChannel;
-  localAppData?: string;
   custom?: string;
 }): string {
   const paths = options.platform === 'win32' ? win32 : posix;
@@ -19,15 +18,22 @@ export function defaultDataRoot(options: {
       throw new Error('AVRU_DATA_DIR must be absolute');
     return options.custom;
   }
-  if (options.platform === 'win32') {
-    if (options.localAppData && !win32.isAbsolute(options.localAppData))
-      throw new Error('LOCALAPPDATA must be absolute');
+  return paths.join(options.home, 'Avru', options.channel);
+}
+
+/** Previous unpublished layout, used only to refuse silently leaving an old installation running. */
+export function previousDataRoot(options: {
+  platform: string;
+  home: string;
+  channel: ReleaseChannel;
+  localAppData?: string;
+}): string {
+  if (options.platform === 'win32')
     return win32.join(
       options.localAppData ?? win32.join(options.home, 'AppData', 'Local'),
       'Avru',
       options.channel,
     );
-  }
   return posix.join(
     options.home,
     'Library',
@@ -71,8 +77,14 @@ export async function claimRoot(
 }
 
 /** Do not leave an old default installation running invisibly beside the new layout. */
-export async function rejectLegacyDefault(home: string): Promise<void> {
-  const legacy = join(home, '.avru');
+export async function rejectLegacyDefault(
+  home: string,
+  previous?: string,
+): Promise<void> {
+  for (const legacy of [join(home, '.avru'), ...(previous ? [previous] : [])])
+    await rejectPrevious(legacy);
+}
+async function rejectPrevious(legacy: string): Promise<void> {
   let entries: string[];
   try {
     entries = await readdir(legacy);
@@ -86,7 +98,7 @@ export async function rejectLegacyDefault(home: string): Promise<void> {
     )
   ) {
     throw new Error(
-      'Legacy ~/.avru installation detected: stop the old daemon, remove its old Avru startup entry, and back up its data before migrating. The new channel needs fresh browser pairing; no data or authorization was moved.',
+      'Legacy Avru installation detected: stop the old daemon, remove its old Avru startup entry, and back up its data before migrating to ~/Avru. The new installation needs fresh browser pairing; no data or authorization was moved.',
     );
   }
 }

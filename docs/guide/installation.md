@@ -27,7 +27,7 @@
 
 ## 在当前浏览器加载本地扩展
 
-安装器准备的是预构建文件，不会替你点击浏览器的安装确认。完成安装后打开 CLI 提供的本机管理页，在“安装扩展”查看此安装实例返回的实际目录。默认分别位于 macOS `~/Library/Application Support/Avru/dev/extension` 或 Windows `%LOCALAPPDATA%\Avru\dev\extension`；正式环境为 `prod/extension`，自定义数据根以页面实际路径为准，不选择 npx 缓存或源码目录。
+安装器准备的是预构建文件，不会替你点击浏览器的安装确认。完成安装后打开 CLI 提供的本机管理页，在“安装扩展”查看此安装实例返回的实际目录。默认位于个人目录的 Avru 文件夹：macOS 为 `~/Avru/dev/extension`，Windows 为 `%USERPROFILE%\Avru\dev\extension`；正式环境为 `prod/extension`。可在访达/文件资源管理器进入个人目录 → Avru → dev → extension。自定义数据根以页面实际路径为准，不选择 npx 缓存或源码目录。
 
 1. Chrome 在地址栏打开 `chrome://extensions`；Edge 打开 `edge://extensions`。普通网页可能不能直接跳到内部管理页，可复制地址手动粘贴。其他浏览器不能仅凭相似 UA 视作已适配。
 2. 开启浏览器扩展管理页的“开发者模式”，选择“加载已解压的扩展”（Chrome）或“加载解压缩的扩展”（Edge），选中上一步目录。macOS 文件选择器可按 `⌘⇧G` 粘贴完整目录；Windows 可在文件选择器地址栏粘贴。若页面没有真实目录，应先重跑安装命令或查看安装错误，而不是选择一个猜测路径。

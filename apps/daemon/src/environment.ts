@@ -64,25 +64,11 @@ export async function verifyDataRoot(
       'Unowned or different-channel data directory; no automatic migration',
     );
 }
-export function defaultDataRoot(
-  home: string,
-  platform: string,
-  localAppData?: string,
-): string {
+export function defaultDataRoot(home: string, platform: string): string {
   if (platform === 'win32')
-    return win32.resolve(
-      localAppData ?? win32.join(home, 'AppData', 'Local'),
-      'Avru',
-      releaseChannel(),
-    );
+    return win32.resolve(home, 'Avru', releaseChannel());
   if (platform === 'darwin')
-    return posix.resolve(
-      home,
-      'Library',
-      'Application Support',
-      'Avru',
-      releaseChannel(),
-    );
+    return posix.resolve(home, 'Avru', releaseChannel());
   // Source development/CI only. Public installer rejects unsupported platforms.
   return posix.resolve(home, '.local', 'share', 'Avru', releaseChannel());
 }

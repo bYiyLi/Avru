@@ -68,6 +68,12 @@ it('imports, auto-starts, restores and clears only private configuration and san
     expect(f.driver.start).toHaveBeenCalledTimes(2);
     await restored.clear();
     expect(restored.snapshot().state).toBe('unconfigured');
+    expect(
+      restored
+        .snapshot()
+        .events.slice(0, 2)
+        .map((event) => event.code),
+    ).toEqual(['configuration_removed', 'process_stopped']);
     await expect(
       readFile(join(f.root, 'connection/configuration.json')),
     ).rejects.toThrow();

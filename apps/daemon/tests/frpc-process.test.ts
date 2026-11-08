@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -24,8 +25,16 @@ it('runs a substitute process, obtains authenticated proxy status and recovers a
     localPort: 43822,
     channel: 'dev' as const,
     verify: () => Promise.resolve(process.execPath),
-    spawn: (_file: string, args: string[], opts: Parameters<typeof spawn>[2]) =>
-      spawn(process.execPath, ['-e', frpcStub, args[1] ?? ''], opts),
+    spawn: (
+      _file: string,
+      args: string[],
+      opts: Parameters<typeof spawn>[2],
+    ) => {
+      expect(
+        JSON.parse(readFileSync(join(directory, 'process.json'), 'utf8')),
+      ).toMatchObject({ pid: 0 });
+      return spawn(process.execPath, ['-e', frpcStub, args[1] ?? ''], opts);
+    },
   };
   const first = new FrpcProcess(options);
   try {
@@ -102,6 +111,14 @@ it('never kills a PID without ownership proof and rejects wrong-channel descript
       expect(() => processIdentity(value)).toThrow();
     await writePrivate(join(directory, 'process.json'), '{');
     await expect(driver.stop()).rejects.toThrow('ownership_unknown');
+    await writePrivate(
+      join(directory, 'process.json'),
+      JSON.stringify({ ...descriptor, pid: 0 }),
+    );
+    await expect(driver.start(connectionBundle())).rejects.toThrow(
+      'ownership_unknown',
+    );
+    expect(processExists(process.pid)).toBe(true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -37,6 +37,7 @@ export class ConnectionManager {
   private state: ConnectionState = 'unconfigured';
   private available = false;
   private busy = false;
+  private started = false;
   private closing = false;
   private closeResult: Promise<void> | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -162,12 +163,15 @@ export class ConnectionManager {
     clearTimeout(this.timer);
     await this.options.remote.close();
     await this.driver?.stop();
+    if (this.started) this.events.record('process_stopped');
+    this.started = false;
   }
   private async activate(): Promise<void> {
     if (!this.bundle || !this.driver || this.closing) return;
     try {
       await this.options.remote.configure(this.bundle.oauth);
       await this.driver.start(this.bundle);
+      this.started = true;
       this.report('connecting', 'process_started');
       this.schedule(1000);
     } catch (error) {

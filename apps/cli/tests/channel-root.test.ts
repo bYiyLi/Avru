@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import {
   claimRoot,
   defaultDataRoot,
+  previousDataRoot,
   readRootChannel,
   rejectLegacyDefault,
 } from '../src/channel-root.js';
@@ -27,22 +28,32 @@ async function root() {
 it('resolves platform data roots and honors absolute custom roots', () => {
   expect(
     defaultDataRoot({ platform: 'darwin', home: '/Users/a', channel: 'dev' }),
-  ).toBe('/Users/a/Library/Application Support/Avru/dev');
+  ).toBe('/Users/a/Avru/dev');
   expect(
     defaultDataRoot({
       platform: 'win32',
       home: 'C:\\Users\\a',
       channel: 'prod',
     }),
-  ).toBe('C:\\Users\\a\\AppData\\Local\\Avru\\prod');
+  ).toBe('C:\\Users\\a\\Avru\\prod');
   expect(
-    defaultDataRoot({
+    previousDataRoot({
       platform: 'win32',
       home: 'C:\\Users\\a',
       localAppData: 'D:\\Local',
       channel: 'dev',
     }),
   ).toBe('D:\\Local\\Avru\\dev');
+  expect(
+    previousDataRoot({
+      platform: 'win32',
+      home: 'C:\\Users\\a',
+      channel: 'prod',
+    }),
+  ).toBe('C:\\Users\\a\\AppData\\Local\\Avru\\prod');
+  expect(
+    previousDataRoot({ platform: 'darwin', home: '/Users/a', channel: 'dev' }),
+  ).toBe('/Users/a/Library/Application Support/Avru/dev');
   expect(
     defaultDataRoot({
       platform: 'darwin',
@@ -189,5 +200,18 @@ it('detects old default installation before migration and permits absent legacy 
   );
   expect(await readFile(join(home, '.avru', 'runtime.json'), 'utf8')).toBe(
     'old runtime',
+  );
+});
+it('refuses the previous platform directory without adopting or deleting it', async () => {
+  const home = await root();
+  const previous = join(home, 'previous');
+  await rejectLegacyDefault(home, previous);
+  await mkdir(previous);
+  await writeFile(join(previous, 'browsers.sqlite'), 'preserved');
+  await expect(rejectLegacyDefault(home, previous)).rejects.toThrow(
+    'stop the old daemon',
+  );
+  expect(await readFile(join(previous, 'browsers.sqlite'), 'utf8')).toBe(
+    'preserved',
   );
 });

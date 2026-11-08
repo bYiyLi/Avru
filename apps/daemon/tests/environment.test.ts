@@ -24,17 +24,12 @@ it('binds the runtime build, paths and ports to its channel', () => {
   for (const value of ['43821', '80', '65536', 'no'])
     expect(() => runtimePort('dev', value)).toThrow();
   expect(runtimePort('dev', '45000')).toBe(45000);
-  expect(defaultDataRoot('/users/a', 'darwin')).toContain(
-    'Library/Application Support/Avru/dev',
-  );
+  expect(defaultDataRoot('/users/a', 'darwin')).toContain('/users/a/Avru/dev');
   expect(defaultDataRoot('/users/a', 'linux')).toContain(
     '.local/share/Avru/dev',
   );
   expect(defaultDataRoot('C:\\Users\\a', 'win32')).toContain(
-    'AppData\\Local\\Avru\\dev',
-  );
-  expect(defaultDataRoot('C:\\Users\\a', 'win32', 'D:\\redirect')).toContain(
-    'D:\\redirect\\Avru\\dev',
+    'C:\\Users\\a\\Avru\\dev',
   );
 });
 it('rejects legacy and cross-channel roots without changing data', async () => {
