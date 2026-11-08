@@ -15,6 +15,7 @@ test('staging checks exact source, dev metadata and tarball checksum', async () 
     await cp('artifacts/avru', join(root, 'package'), { recursive: true });
     const manifestPath = join(root, 'package/package.json');
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    manifest.name = 'avru';
     manifest.private = false;
     manifest.repository = { url: 'git+https://github.com/bYiyLi/Avru.git' };
     manifest.publishConfig = {

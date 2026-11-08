@@ -74,6 +74,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.build.outputs.artifact }}
           path: artifacts/npm-distribution
+          merge-multiple: true
       - run: node scripts/release/verify-npm-candidate.mjs
         env:
           AVRU_EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
