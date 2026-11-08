@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { expect, it } from 'vitest';
 import { ConnectionEvents } from '../src/transports/connection-events.js';
+// Capacity acceptance performs 205 durable transactions on the actual platform filesystem.
 it('persists only bounded fixed events and rolls back a failed write', async () => {
   const root = await mkdtemp(join(tmpdir(), 'avru-events-'));
   const path = join(root, 'data.sqlite');
@@ -37,4 +38,4 @@ it('persists only bounded fixed events and rolls back a failed write', async () 
     db.close();
     await rm(root, { recursive: true, force: true });
   }
-});
+}, 15000);

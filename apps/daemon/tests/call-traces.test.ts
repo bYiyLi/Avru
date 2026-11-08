@@ -91,6 +91,7 @@ it('persists sanitized calls and leaves interrupted requests unknown across rest
   }
 });
 
+// Every begin/finish is durably written; Windows hosted disks may exceed the default five seconds.
 it('bounds persistent history even across restarts', () => {
   const dir = mkdtempSync(join(tmpdir(), 'avru-traces-limit-'));
   const path = join(dir, 'history.sqlite');
@@ -111,7 +112,7 @@ it('bounds persistent history even across restarts', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-});
+}, 15000);
 
 it('keeps an unfinished request unknown after an abrupt process exit', async () => {
   const { spawnSync } = await import('node:child_process');
