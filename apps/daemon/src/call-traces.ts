@@ -39,6 +39,7 @@ export class CallTraces {
   constructor(databasePath?: string) {
     if (databasePath !== undefined && databasePath !== ':memory:') {
       this.db = new DatabaseSync(databasePath);
+      this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
       this.db.exec(
         'CREATE TABLE IF NOT EXISTS call_traces (trace_id TEXT PRIMARY KEY, trace TEXT NOT NULL)',
       );

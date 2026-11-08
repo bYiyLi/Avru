@@ -10,6 +10,7 @@ export class ConnectionEvents {
   constructor(path = ':memory:') {
     this.persistent = path !== ':memory:';
     this.db = new DatabaseSync(path);
+    this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
     this.db.exec(
       'CREATE TABLE IF NOT EXISTS connection_events (id TEXT PRIMARY KEY, at INTEGER NOT NULL, code TEXT NOT NULL)',
     );

@@ -102,6 +102,7 @@ it('bounds persistent history even across restarts', () => {
     expect(traces.snapshot().calls).toHaveLength(200);
     traces.close();
     const db = new DatabaseSync(path);
+    expect(db.prepare('PRAGMA journal_mode').get()?.journal_mode).toBe('wal');
     expect(db.prepare('SELECT count(*) AS n FROM call_traces').get()?.n).toBe(
       200,
     );

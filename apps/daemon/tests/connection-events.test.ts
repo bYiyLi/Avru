@@ -10,6 +10,7 @@ it('persists only bounded fixed events and rolls back a failed write', async () 
   const path = join(root, 'data.sqlite');
   const events = new ConnectionEvents(path);
   const db = new DatabaseSync(path);
+  expect(db.prepare('PRAGMA journal_mode').get()?.journal_mode).toBe('wal');
   try {
     for (let i = 0; i < 205; i++) events.record('process_started');
     expect(events.snapshot().events).toHaveLength(200);

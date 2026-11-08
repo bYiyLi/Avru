@@ -18,7 +18,7 @@
 
 按用户于 2026-11-08 确认，默认目录直接放在个人目录的 Avru 下，便于在浏览器中选择插件文件夹。Windows Startup 仍尊重 APPDATA 重定向。AVRU_DATA_DIR 继续表示完整自定义根，不偷偷追加目录或搬走数据，但必须是独立绝对目录。根目录不可跨环境共用。每个根的 `.avru-channel` 固定记录 `dev` 或 `prod`，安装、运行、升级、卸载都检查归属；未知非空根拒绝自动收编。
 
-根内分别保存`program/releases`、`program/active.json`、稳定launcher、`browsers.sqlite`（含本环境调用记录）及其WAL、`runtime.json`、`daemon.log`，因此程序版本、安装锁、实例管理capability、配对库与日志互不共享。runtime描述符和认证响应均需channel一致；不能仅凭PID停止进程。SQLite内部schema不因目录变更而改写。
+根内分别保存`program/releases`、`program/active.json`、稳定launcher、`browsers.sqlite`（含本环境调用记录）及其WAL、`runtime.json`、`daemon.log`，因此程序版本、安装锁、实例管理capability、配对库与日志互不共享。runtime描述符和认证响应均需channel一致；不能仅凭PID停止进程。SQLite内部schema不因目录变更而改写。日志连接使用 WAL 和 `synchronous=FULL`，保留逐次提交的持久性，减少 Windows 上反复创建/删除回滚日志的磁盘同步开销；侧文件属于对应环境，关闭数据库后才能清理。参见 [SQLite WAL](https://www.sqlite.org/wal.html) 与 [同步合同](https://www.sqlite.org/pragma.html#pragma_synchronous)。
 
 connection/ 保存本环境配置、证书材料和 FRPC 私密进程描述符；FRPC 程序属于本环境 release。连接活动保存在对应 SQLite，导入文件 channel 必须匹配。两环境不能复用配置、管理口令、OAuth 端口或 issuer；运行时未知归属不能靠改 PID 或目录接管。卸载数据清理范围归[安装合同](installation.md)维护。
 
