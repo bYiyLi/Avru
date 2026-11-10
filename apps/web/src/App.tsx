@@ -22,7 +22,7 @@ import { LogsPage } from './Logs.js';
 import { EventLogsPage } from './EventLogs.js';
 import { ConsoleNavigation, ConsoleTopbar } from './ConsoleShell.js';
 import type { ConsolePage } from './ConsoleShell.js';
-import { ConnectionsPage, MaintenancePage } from './WorkspacePages.js';
+import { ConnectionsPage } from './WorkspacePages.js';
 import type { ConnectionActions } from './Connection.js';
 
 const LANGUAGE_BUTTON_KEYS = {
@@ -42,6 +42,8 @@ export function Dashboard({
   onOpenBrowsers = onOpenLogs,
   onOpenActivity = onOpenLogs,
   onOpenConnection = onOpenLogs,
+  onOpenInstall,
+  runDiagnostics,
 }: {
   state: ViewState;
   locale?: Language;
@@ -50,8 +52,8 @@ export function Dashboard({
   onOpenBrowsers?: () => void;
   onOpenActivity?: () => void;
   onOpenConnection?: () => void;
-  onOpenInstall?: ((anchor?: string) => void) | undefined;
-  runDiagnostics?: (() => Promise<DiagnosticReport>) | undefined;
+  onOpenInstall: (anchor?: string) => void;
+  runDiagnostics: () => Promise<DiagnosticReport>;
 }) {
   return (
     <Overview
@@ -60,6 +62,8 @@ export function Dashboard({
       onOpenBrowsers={onOpenBrowsers}
       onOpenActivity={onOpenActivity}
       onOpenConnection={onOpenConnection}
+      onOpenInstall={onOpenInstall}
+      runDiagnostics={runDiagnostics}
     />
   );
 }
@@ -260,6 +264,8 @@ function WorkspacePages({
         onOpenConnection={() => {
           goTo('connection');
         }}
+        onOpenInstall={openInstall}
+        runDiagnostics={() => controller.runDiagnostics()}
       />
     );
   if (page === 'browsers')
@@ -291,18 +297,6 @@ function WorkspacePages({
       <EventLogsPage
         history={state.system ? (state.history ?? null) : null}
         locale={locale}
-      />
-    );
-  if (page === 'maintenance')
-    return (
-      <MaintenancePage
-        state={state}
-        locale={locale}
-        onOpenInstall={openInstall}
-        onOpenConnection={() => {
-          goTo('connection');
-        }}
-        runDiagnostics={() => controller.runDiagnostics()}
       />
     );
   return null;

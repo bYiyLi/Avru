@@ -13,13 +13,14 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
   const directory = await mkdtemp(join(tmpdir(), 'avru-oauth-e2e-'));
   const configuration = join(directory, 'oauth.json');
   const issuer = 'https://avru.example';
-  const remote = 'http://127.0.0.1:43823';
+  const oauthPort = Number(process.env.AVRU_E2E_OAUTH_PORT ?? 43823);
+  const remote = `http://127.0.0.1:${String(oauthPort)}`;
   const headers = { host: 'avru.example' };
   await writeFile(
     configuration,
     JSON.stringify({
       issuer,
-      port: 43823,
+      port: oauthPort,
       channel: testChannel,
       clients: [
         {
@@ -105,7 +106,7 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
         },
       });
     expect((await call()).status()).toBe(200);
-    await page.getByRole('button', { name: '日志', exact: true }).click();
+    await page.getByRole('button', { name: '调用记录', exact: true }).click();
     const history = page.locator('.calls');
     await expect(
       history.getByText('browser_list', { exact: true }),
@@ -144,7 +145,7 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
     daemon = await startDaemon(join(directory, 'data'), configuration);
     await page.goto(daemon.url);
     await page.getByRole('button', { name: '进入 Avru' }).click();
-    await page.getByRole('button', { name: '日志', exact: true }).click();
+    await page.getByRole('button', { name: '调用记录', exact: true }).click();
     const restored = page.locator('.calls');
     await expect(restored).toContainText('本机保存');
     await expect(

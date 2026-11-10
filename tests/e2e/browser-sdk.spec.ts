@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { startDaemon, testChannel } from './daemon-fixture.js';
+import { startIsolatedDaemon, testChannel } from './daemon-fixture.js';
 import { endpoint, openProfile } from './browser-fixture.js';
 import { verifyObservability } from './observability-helper.js';
 import { verifyPageExtras } from './page-extras-helper.js';
@@ -325,7 +325,7 @@ test('real extension and QuickJS read page through browser SDK MCP', async ({
       ],
     }),
   );
-  const daemon = await startDaemon(join(root, 'data'), config);
+  const daemon = await startIsolatedDaemon(join(root, 'data'), config, root);
   let profile: Awaited<ReturnType<typeof openProfile>> | undefined;
   let secondary: Awaited<ReturnType<typeof openProfile>> | undefined;
   try {

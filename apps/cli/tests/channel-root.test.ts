@@ -134,7 +134,7 @@ it('parallel channel installs and one uninstall preserve the other installation'
   const base = await root();
   const sourceRoot = join(base, 'payload');
   await mkdir(join(sourceRoot, 'web'), { recursive: true });
-  await writeFile(join(sourceRoot, 'daemon.cjs'), '// fixture');
+  await writeFile(join(sourceRoot, 'daemon.mjs'), '// fixture');
   await writeFile(join(sourceRoot, 'web/index.html'), '<html>fixture</html>');
   const hooks = {
     stop: vi.fn<() => Promise<void>>().mockResolvedValue(),
@@ -154,7 +154,7 @@ it('parallel channel installs and one uninstall preserve the other installation'
       const payload = join(base, `payload-${channel}`);
       await mkdir(join(payload, 'web'), { recursive: true });
       await mkdir(join(payload, 'extension'));
-      await writeFile(join(payload, 'daemon.cjs'), '// fixture');
+      await writeFile(join(payload, 'daemon.mjs'), '// fixture');
       await writeFile(join(payload, 'web/index.html'), '<html>fixture</html>');
       await writeFile(
         join(payload, 'extension/manifest.json'),

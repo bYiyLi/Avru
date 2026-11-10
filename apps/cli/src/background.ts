@@ -21,7 +21,7 @@ if (process.platform === 'darwin') {
     process.env.AVRU_PORT ??= String(channelPort(channel));
     process.env.AVRU_DATA_DIR = root;
     process.env.AVRU_WEB_ROOT = join(payloadRoot, 'web');
-    await import(pathToFileURL(join(payloadRoot, 'daemon.cjs')).href);
+    await import(pathToFileURL(join(payloadRoot, 'daemon.mjs')).href);
   }
 } else {
   await startRuntime({

@@ -135,3 +135,11 @@ Yi Mac 的本地 Vite `:5173` 预览中以真实 Chromium 对照欢迎页与总�
 Yi Mac / macOS / Node 24.22.1 / pnpm 11.25.0：`@avru/web typecheck`、定向 ESLint、Prettier、Vite 前端资源 build 均通过；`vitest run apps/web/tests/install.test.ts apps/web/tests/App.test.ts apps/web/tests/i18n.test.ts` 的 24 项测试通过（5 项安装、14 项页面集成、5 项语言）。Chromium 连接隔离临时 daemon（`:43991`）使用新构建的 Web，检查 1728px 深色中文和 390px 浅色英文的三步切换、Chrome/Edge 地址切换、真实剪贴板复制、未知状态、主题语言切换和返回操作，均通过，无 JS 异常与页面级横向溢出。临时进程/临时数据已清理，不影响现有 `:43822`、`:43823` 服务。此范围没有验证实际安装新扩展、品牌浏览器矩阵、npm 发布或真实用户浏览器重新加载；全仓库门禁结果需独立记录。
 
 补充门禁回读：安装组件 `Install.tsx` 定向 V8 覆盖率 statements 96.66%、branches 93.65%、functions 93.1%、lines 96.29%，均达到逐文件 90% 阈值。全仓库独立执行的 Prettier、ESLint、所有实现包类型检查、严格类型覆盖、依赖边界、重复检查、Secretlint 均通过；依赖 audit 高危/严重阈值通过，仍有 1 个 moderate。仓库 `pnpm check` 总入口在当前 Nexum 进程 PATH 中因内部 `pnpm: command not found` 提前中断（顶层 `corepack pnpm` 可用），因此不视作通过。工具链 `tsc -p tsconfig.tooling.json` 仍有 daemon 执行测试及 Web 日志预览测试类型错误；完整 V8 单测共 991 项，986 项通过、5 项失败（旧管理页拆分相关断言，非安装组件定向测试），不能认定全仓门禁完成。Windows/macOS CI、真实新扩展加载 E2E 未运行。全部改动留在未提交工作树，原安装实例未覆盖。
+
+## 维护诊断归并总览底部（2026-11-10，当前未提交工作树）
+
+按用户新确认的页面布局，控制台侧边栏由六项调整为五项，移除独立“维护诊断”入口；总览的运行概况之后直接复用原有 `MaintenancePage`，保留“接下来要做的事”与“一键诊断”、安装手册版本锚点、连接配置跳转及原诊断调用，不新增接口、配置或折叠交互。对应当前合同见[管理 Web 设计](../../design/web.md)。
+
+Yi Mac / macOS / Node 24.22.1 / pnpm 11.25.0：改动前定向 25 项测试通过，改动后同范围 25 项通过；最终回归时 Web 全部 21 个测试文件、116 项通过（含并行新增的日志布局测试），覆盖总览底部布局和导航取消断言。Web TypeScript、定向 ESLint、受影响文件 Prettier、Vite 生产构建与 `git diff --check` 通过；`corepack pnpm audit --audit-level high` 通过 high/critical 门禁，仍有 1 项 moderate。
+
+本轮全仓 `pnpm check` 使用临时 pnpm 命令入口后已执行，但在 `prettier --check .` 因其他既有未提交修改的 `tests/e2e/bundled-extension.spec.ts`、`console.spec.ts`、`extension-upgrade.spec.ts` 格式失败而停止；未代改这些并行中的文件，也未宣称全仓门禁通过。尚未基于本次修改完成 Chromium UI、Windows/macOS CI 或用户当前已安装 dev 实例的替换验收。本次仅修改本机工作树，无提交、推送、部署。

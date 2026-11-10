@@ -96,6 +96,35 @@ it('opens the explicit toolbar route directly while plain entry retains welcome'
   App({ controller, preferredLanguage: 'zh' });
   expect(initialPage).toBe('overview');
 });
+it('renders workspace routes and keeps maintenance at the bottom of overview', () => {
+  const controller = createController({ key: null, clear: vi.fn() });
+  const wired = {
+    ...controller,
+    snapshot: () => state,
+  };
+  for (const route of ['activity', 'connection', 'logs', 'overview'] as const) {
+    page = route;
+    const view = App({ controller: wired, preferredLanguage: 'en' });
+    const html = renderToStaticMarkup(view);
+    if (route === 'activity') expect(html).toContain('Call history');
+    if (route === 'connection') expect(html).toContain('MCP / ChatGPT');
+    if (route === 'logs') expect(html).toContain('Search events');
+    if (route === 'overview') {
+      expect(html).toContain('One-click diagnosis');
+      expect(
+        html.indexOf('class="console-content-page console-maintenance"'),
+      ).toBeGreaterThan(html.indexOf('class="console-summary"'));
+      const navigation = html.slice(
+        html.indexOf('class="console-nav-pages"'),
+        html.indexOf('class="console-nav-footer"'),
+      );
+      expect(navigation.match(/class="console-nav-icon"/g)).toHaveLength(5);
+      expect(navigation).not.toContain('Diagnostics');
+      clickButtons(view);
+      expect(setPage).toHaveBeenCalledWith('connection');
+    }
+  }
+});
 it('selects system language and compares reported versions', () => {
   expect(language('zh-TW')).toBe('zh');
   expect(language('de')).toBe('en');
@@ -255,6 +284,16 @@ it('shows navigation on the welcome page and routes to the logs page', () => {
   expect(setPage).toHaveBeenCalledWith('logs');
 });
 
+it('opens installation from the browser workspace add action', () => {
+  const controller = createController({ key: null, clear: vi.fn() });
+  page = 'browsers';
+  setPage.mockClear();
+  const view = App({ controller, preferredLanguage: 'zh' });
+  expect(renderToStaticMarkup(view)).toContain('浏览器');
+  clickButtons(view);
+  expect(setPage).toHaveBeenCalledWith('install');
+});
+
 function metadataView(
   locale: 'zh' | 'en',
   browser: typeof profile & {
@@ -343,6 +382,8 @@ it('distinguishes unavailable browser state from a verified empty list', () => {
         locale,
         state: { ...state, system: null, browsers: [], pairings: [] },
         onOpenLogs: openLogs,
+        onOpenInstall: vi.fn(),
+        runDiagnostics: vi.fn().mockResolvedValue({ steps: [] }),
       }),
     );
     expect(overviewHtml).toContain(

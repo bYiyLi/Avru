@@ -125,6 +125,90 @@ describe('CDP console and JavaScript dialog observation', () => {
     expect(h.calls).toEqual([{ method: 'cdp.events', args: [] }]);
   });
 
+  it('exposes dismiss on alert and beforeunload dialogs with no invented accept method', async () => {
+    for (const type of ['alert', 'beforeunload'] as const) {
+      const h = bridge([
+        {
+          sequence: 1,
+          method: 'Page.javascriptDialogOpening',
+          params: { type, message: 'Proceed?' },
+        },
+      ]);
+      const output = await execute(
+        'const dialog=await browser.tab.getJsDialog();' +
+          'const result={type:dialog.type,dismiss:typeof dialog.dismiss,accept:typeof dialog.accept};' +
+          'await dialog.dismiss();return result;',
+        h.invoke,
+      );
+      expect(output).toEqual({
+        status: 'completed',
+        json: JSON.stringify({
+          type,
+          dismiss: 'function',
+          accept: 'undefined',
+        }),
+      });
+      expect(h.calls).toEqual([
+        { method: 'cdp.events', args: [] },
+        {
+          method: 'cdp.send',
+          args: ['Page.handleJavaScriptDialog', { accept: false }],
+        },
+      ]);
+    }
+  });
+
+  it('exposes accept and dismiss on confirm and prompt, enforcing prompt text', async () => {
+    const confirm = bridge([
+      {
+        sequence: 1,
+        method: 'Page.javascriptDialogOpening',
+        params: { type: 'confirm', message: 'Submit?' },
+      },
+    ]);
+    expect(
+      await execute(
+        'const dialog=await browser.tab.getJsDialog();' +
+          'if(dialog.type!=="confirm"||typeof dialog.dismiss!=="function")return "missing";' +
+          'await dialog.accept();return "accepted";',
+        confirm.invoke,
+      ),
+    ).toEqual({ status: 'completed', json: '"accepted"' });
+    expect(confirm.calls).toEqual([
+      { method: 'cdp.events', args: [] },
+      {
+        method: 'cdp.send',
+        args: ['Page.handleJavaScriptDialog', { accept: true }],
+      },
+    ]);
+    const prompt = bridge([
+      {
+        sequence: 1,
+        method: 'Page.javascriptDialogOpening',
+        params: { type: 'prompt', message: 'Name?' },
+      },
+    ]);
+    expect(
+      await execute(
+        'const dialog=await browser.tab.getJsDialog();' +
+          'try{await dialog.accept();return "unexpected";}' +
+          'catch(e){if(e.code!=="INVALID_ARGUMENT")return e.code;}' +
+          'await dialog.accept("Avru");return "accepted";',
+        prompt.invoke,
+      ),
+    ).toEqual({ status: 'completed', json: '"accepted"' });
+    expect(prompt.calls).toEqual([
+      { method: 'cdp.events', args: [] },
+      {
+        method: 'cdp.send',
+        args: [
+          'Page.handleJavaScriptDialog',
+          { accept: true, promptText: 'Avru' },
+        ],
+      },
+    ]);
+  });
+
   it('returns null when the JavaScript dialog was closed', async () => {
     const h = bridge([
       {

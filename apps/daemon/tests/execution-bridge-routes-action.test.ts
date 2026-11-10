@@ -14,7 +14,7 @@ function fixture() {
     limits: { maxOutputBytes: 65_536, maxBridgeCalls: 32 },
   });
   const claims = new ClaimRegistry();
-  const sendAction = vi.fn(() =>
+  const sendAction = vi.fn<Connections['sendAction']>(() =>
     Promise.resolve({ ok: true as const, value: { changed: true } }),
   );
   const liveTab = vi.fn(() => ({
@@ -27,7 +27,7 @@ function fixture() {
     entry,
     target,
     method: 'cdp.send',
-    args: ['Page.navigate'],
+    args: ['Page.navigate'] as unknown[],
     signal: controller.signal,
     acquireLock: true,
   };
@@ -155,12 +155,12 @@ describe('cancellation and unknown browser side effects', () => {
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'TIMEOUT', message: 'slow' },
-    } as never);
+    });
     await expect(h.run()).rejects.toMatchObject({ code: 'UNKNOWN_RESULT' });
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'EXTENSION_OFFLINE', message: 'gone' },
-    } as never);
+    });
     await expect(h.run({ method: 'tabs.close' })).rejects.toMatchObject({
       code: 'UNKNOWN_RESULT',
     });
@@ -171,7 +171,7 @@ describe('cancellation and unknown browser side effects', () => {
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'TIMEOUT', message: 'slow' },
-    } as never);
+    });
     await expect(h.run({ method: 'tab.snapshot' })).rejects.toMatchObject({
       code: 'TIMEOUT',
       message: 'slow',
@@ -179,7 +179,7 @@ describe('cancellation and unknown browser side effects', () => {
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'EXTENSION_OFFLINE', message: 'offline' },
-    } as never);
+    });
     await expect(h.run({ method: 'tab.getJsDialog' })).rejects.toMatchObject({
       code: 'EXTENSION_OFFLINE',
       message: 'offline',
@@ -191,7 +191,7 @@ describe('cancellation and unknown browser side effects', () => {
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'PAGE_NOT_ACCESSIBLE', message: 'blocked' },
-    } as never);
+    });
     await expect(h.run()).rejects.toMatchObject({
       code: 'PAGE_NOT_ACCESSIBLE',
       message: 'blocked',

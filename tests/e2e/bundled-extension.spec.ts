@@ -35,15 +35,14 @@ test('packaged extension loads from stable directory with no popup or browser pr
     await page.goto(endpoint);
     await page.getByRole('button', { name: 'Enter Avru', exact: true }).click();
     await expect(page.locator('.overview')).toBeVisible();
-    await page
-      .getByRole('button', { name: 'Install extension', exact: true })
-      .click();
+    await page.getByRole('button', { name: /Add browser/ }).click();
+    await expect(page.locator('.install')).toContainText('chrome://extensions');
+    await expect(page.locator('.install')).toContainText('edge://extensions');
+    await page.getByRole('button', { name: /Prepare to load/ }).click();
     const extension = join(data, 'extension');
     await expect(page.getByLabel('Prepared extension folder')).toHaveText(
       extension,
     );
-    await expect(page.locator('.install')).toContainText('chrome://extensions');
-    await expect(page.locator('.install')).toContainText('edge://extensions');
     profile = await openProfile(join(root, 'browser'), 'zh-CN', extension);
     await waitForProfile(profile, page);
     const manifest = JSON.parse(

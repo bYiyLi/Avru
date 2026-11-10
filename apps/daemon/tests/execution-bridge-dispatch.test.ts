@@ -13,7 +13,7 @@ const tab = {
 };
 
 function fixture() {
-  const sendAction = vi.fn(() =>
+  const sendAction = vi.fn<Connections['sendAction']>(() =>
     Promise.resolve({ ok: true as const, value: { ok: true } }),
   );
   const browsers = vi.fn(() => [
@@ -297,14 +297,14 @@ describe('selected user tab and native browser management dispatch', () => {
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'TIMEOUT', message: 'slow' },
-    } as never);
+    });
     await expect(h.run('tabs.close', ['7'])).rejects.toMatchObject({
       code: 'UNKNOWN_RESULT',
     });
     h.sendAction.mockResolvedValueOnce({
       ok: false,
       error: { code: 'INVALID_TARGET', message: 'gone' },
-    } as never);
+    });
     await expect(h.run('tabs.close', ['7'])).rejects.toMatchObject({
       code: 'INVALID_TARGET',
     });

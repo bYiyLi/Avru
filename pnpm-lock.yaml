@@ -74,6 +74,9 @@ importers:
 
   apps/daemon:
     dependencies:
+      '@avru/runner':
+        specifier: workspace:*
+        version: link:../../packages/runner
       '@modelcontextprotocol/sdk':
         specifier: 1.32.2
         version: 1.32.2(supports-color@10.2.2)(zod@4.6.7)

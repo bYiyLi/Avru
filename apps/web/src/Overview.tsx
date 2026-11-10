@@ -1,6 +1,7 @@
-import type { ViewState } from './controller.js';
+import type { DiagnosticReport, ViewState } from './controller.js';
 import { OverviewInsights } from './OverviewInsights.js';
 import type { Language } from './presentation.js';
+import { MaintenancePage } from './WorkspacePages.js';
 
 export { deriveNextSteps } from './WorkspacePages.js';
 export type { NextStep, NextStepId } from './WorkspacePages.js';
@@ -15,12 +16,16 @@ export function Overview({
   onOpenBrowsers,
   onOpenActivity,
   onOpenConnection,
+  onOpenInstall,
+  runDiagnostics,
 }: {
   state: ViewState;
   locale: Language;
   onOpenBrowsers: () => void;
   onOpenActivity: () => void;
   onOpenConnection: () => void;
+  onOpenInstall: (anchor?: string) => void;
+  runDiagnostics: () => Promise<DiagnosticReport>;
 }) {
   return (
     <section className="overview console-overview">
@@ -30,6 +35,13 @@ export function Overview({
         onBrowsers={onOpenBrowsers}
         onCalls={onOpenActivity}
         onConnection={onOpenConnection}
+      />
+      <MaintenancePage
+        state={state}
+        locale={locale}
+        onOpenInstall={onOpenInstall}
+        onOpenConnection={onOpenConnection}
+        runDiagnostics={runDiagnostics}
       />
     </section>
   );

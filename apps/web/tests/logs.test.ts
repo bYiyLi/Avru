@@ -423,6 +423,8 @@ it('keeps unknown history unknown and reports an applied notice', () => {
     createElement(LogsPage, { history: null, locale: 'en' }),
   );
   expect(empty).toContain('Call history unavailable');
+  expect(empty).not.toContain('Showing 0 of 0 records');
+  expect(empty).not.toContain('logs-footer-count');
 });
 it('applies filters, search, export, summary copy and paging through controls', async () => {
   const click = vi.fn();

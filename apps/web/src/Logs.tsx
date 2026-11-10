@@ -17,19 +17,11 @@ const LOG_PAGE_SIZE = 20;
 export type LogNotice =
   '' | 'logs.exported' | 'logs.summaryCopied' | 'logs.copyFailed';
 function LogPageHead({
-  history,
   locale,
   onOpenInstall,
-  calls,
-  filtered,
-  onNotice,
 }: {
-  history: CallHistory | null | undefined;
   locale: Language;
   onOpenInstall: (() => void) | undefined;
-  calls: CallTrace[];
-  filtered: CallTrace[];
-  onNotice: (notice: LogNotice) => void;
 }) {
   return (
     <div className="logs-page-head">
@@ -37,29 +29,11 @@ function LogPageHead({
         <h1>{t(locale, 'logs.title')}</h1>
         <p className="lead">{t(locale, 'logs.pageSubtitle')}</p>
       </div>
-      <div className="logs-head-actions">
-        <span
-          className={
-            history
-              ? 'logs-data-state logs-data-state--available'
-              : 'logs-data-state'
-          }
-        >
-          {t(locale, history ? 'logs.sourceNote' : 'logs.sourceUnknown')}
-        </span>
-        {onOpenInstall && (
-          <button type="button" onClick={onOpenInstall}>
-            + {t(locale, 'logs.installGuide')}
-          </button>
-        )}
-        <LogActions
-          locale={locale}
-          disabled={!history}
-          filtered={filtered}
-          calls={calls}
-          onNotice={onNotice}
-        />
-      </div>
+      {onOpenInstall && (
+        <button type="button" onClick={onOpenInstall}>
+          + {t(locale, 'logs.installGuide')}
+        </button>
+      )}
     </div>
   );
 }
@@ -68,41 +42,72 @@ function LogResults({
   history,
   paged,
   filteredHistory,
+  filtered,
+  total,
   filtersActive,
   notice,
   current,
   pageCount,
   onPage,
+  onNotice,
 }: {
   locale: Language;
   history: CallHistory | null | undefined;
   paged: CallTrace[];
   filteredHistory: CallHistory | null;
+  filtered: CallTrace[];
+  total: number;
   filtersActive: boolean;
   notice: LogNotice;
   current: number;
   pageCount: number;
   onPage: (page: number) => void;
+  onNotice: (notice: LogNotice) => void;
 }) {
   const emptyMessage = filtersActive ? 'logs.noResults' : 'calls.empty';
   return (
     <>
-      {notice && (
-        <p role="status" className="notice">
-          {t(locale, notice)}
-        </p>
-      )}
       <Calls
         history={filteredHistory}
         locale={locale}
         emptyMessage={emptyMessage}
       />
-      <LogPagination
-        locale={locale}
-        current={current}
-        pages={pageCount}
-        onPage={onPage}
-      />
+      <footer className="logs-table-footer logs-calls-footer">
+        <div className="logs-table-footer-meta">
+          <span
+            className={`logs-data-state${history ? ' logs-data-state--available' : ''}`}
+          >
+            {t(locale, history ? 'logs.sourceNote' : 'logs.sourceUnknown')}
+          </span>
+          {history && (
+            <span className="logs-footer-count">
+              {t(locale, 'logs.resultCount', {
+                shown: filtered.length,
+                total,
+              })}
+            </span>
+          )}
+          {notice && (
+            <span role="status" className="logs-footer-notice">
+              {t(locale, notice)}
+            </span>
+          )}
+        </div>
+        <div className="logs-table-footer-actions">
+          <LogActions
+            locale={locale}
+            disabled={!history}
+            filtered={filtered}
+            onNotice={onNotice}
+          />
+          <LogPagination
+            locale={locale}
+            current={current}
+            pages={pageCount}
+            onPage={onPage}
+          />
+        </div>
+      </footer>
       <details className="logs-call-archive">
         <summary>{t(locale, 'logs.eventsSectionTitle')}</summary>
         <LogEvents
@@ -173,15 +178,8 @@ export function LogsPage({
       setPage(1);
     };
   return (
-    <section className="logs console-logs">
-      <LogPageHead
-        history={history}
-        locale={locale}
-        onOpenInstall={onOpenInstall}
-        filtered={filtered}
-        calls={calls}
-        onNotice={setNotice}
-      />
+    <section className="logs console-logs" aria-label={t(locale, 'logs.title')}>
+      <LogPageHead locale={locale} onOpenInstall={onOpenInstall} />
       <LogFilters
         locale={locale}
         outcome={outcome}
@@ -204,11 +202,14 @@ export function LogsPage({
         history={history}
         paged={paged}
         filteredHistory={filteredHistory}
+        filtered={filtered}
+        total={calls.length}
         filtersActive={filtersActive}
         notice={notice}
         current={current}
         pageCount={pageCount}
         onPage={setPage}
+        onNotice={setNotice}
       />
     </section>
   );
@@ -396,13 +397,11 @@ function LogActions({
   locale,
   disabled,
   filtered,
-  calls,
   onNotice,
 }: {
   locale: Language;
   disabled: boolean;
   filtered: CallTrace[];
-  calls: CallTrace[];
   onNotice: (notice: LogNotice) => void;
 }) {
   return (
@@ -437,12 +436,6 @@ function LogActions({
       >
         {t(locale, 'logs.copySummary')}
       </button>
-      <span>
-        {t(locale, 'logs.resultCount', {
-          shown: filtered.length,
-          total: calls.length,
-        })}
-      </span>
     </div>
   );
 }

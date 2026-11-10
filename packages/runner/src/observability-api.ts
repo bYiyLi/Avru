@@ -105,7 +105,20 @@ export const OBSERVABILITY_API_SOURCE = String.raw`(() => {
       if (['alert','confirm','prompt','beforeunload'].includes(p.type))
         active = { type: p.type, message: typeof p.message === 'string' ? p.message : '' };
     }
-    return active;
+    if (!active) return null;
+    const dialog = Object.freeze({
+      ...active,
+      dismiss: () => dialogDismiss(),
+      ...(active.type === 'confirm' ? {
+        accept: () => dialogAccept(),
+      } : active.type === 'prompt' ? {
+        accept: text => {
+          if (typeof text !== 'string') invalid('prompt dialog accept requires text');
+          return dialogAccept(text);
+        },
+      } : {}),
+    });
+    return dialog;
   }
   async function dialogAccept(promptText) {
     if (promptText !== undefined && typeof promptText !== 'string')

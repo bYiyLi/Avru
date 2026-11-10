@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { cp } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 export const testChannel =
@@ -8,12 +9,31 @@ export const testPort = testChannel === 'prod' ? 43821 : 43822;
 export const testPackage =
   testChannel === 'prod' ? 'artifacts/avru-prod' : 'artifacts/avru';
 
-export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
+/** Run the candidate from a copied, isolated location outside the checkout. */
+export async function startIsolatedDaemon(
+  dataDirectory: string,
+  oauthConfig: string,
+  isolatedPackageRoot: string,
+) {
+  await cp(
+    resolve(process.env.AVRU_E2E_PACKAGE_ROOT ?? testPackage),
+    isolatedPackageRoot,
+    { recursive: true },
+  );
+  return startDaemon(dataDirectory, oauthConfig, isolatedPackageRoot);
+}
+
+export async function startDaemon(
+  dataDirectory: string,
+  oauthConfig?: string,
+  packageRootOverride?: string,
+) {
   const packageRoot =
+    packageRootOverride ??
     process.env.AVRU_E2E_PACKAGE_ROOT ??
     (testChannel === 'prod' ? resolve(testPackage) : undefined);
   const entry = packageRoot
-    ? resolve(packageRoot, 'payload/daemon.cjs')
+    ? resolve(packageRoot, 'payload/daemon.mjs')
     : resolve('apps/daemon/dist/main.js');
   const child = spawn(process.execPath, [entry], {
     env: {
@@ -28,7 +48,11 @@ export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  child.stderr.resume();
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => {
+    stderr = (stderr + chunk).slice(-4000);
+  });
   const stop = async () => {
     if (child.exitCode !== null || child.signalCode !== null) return;
     const closed = once(child, 'exit');
@@ -50,7 +74,11 @@ export async function startDaemon(dataDirectory: string, oauthConfig?: string) {
       }, 20_000);
       const fail = () => {
         clearTimeout(deadline);
-        reject(new Error('Daemon exited before management endpoint was ready'));
+        reject(
+          new Error(
+            `Daemon exited before management endpoint was ready${stderr ? `:\n${stderr}` : ''}`,
+          ),
+        );
       };
       child.once('error', fail);
       child.once('exit', fail);

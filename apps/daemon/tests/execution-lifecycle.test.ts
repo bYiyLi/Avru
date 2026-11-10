@@ -18,7 +18,9 @@ function fixture() {
   });
   const cancel = vi.fn();
   entry.runner = { cancel } as unknown as NonNullable<Entry['runner']>;
-  const sendAction = vi.fn(() => Promise.resolve({ ok: true as const }));
+  const sendAction = vi.fn<Connections['sendAction']>(() =>
+    Promise.resolve({ ok: true as const }),
+  );
   const connections = { sendAction } as unknown as Connections;
   return { target, entry, cancel, sendAction, connections };
 }
@@ -61,7 +63,7 @@ describe('debugger cancellation is bounded to the selected task', () => {
 
   it('does not require a runner if the task has not started', () => {
     const h = fixture();
-    h.entry.runner = undefined;
+    delete h.entry.runner;
     expect(() => {
       interruptExecution(h.entry, 'browser-a', 7);
     }).not.toThrow();

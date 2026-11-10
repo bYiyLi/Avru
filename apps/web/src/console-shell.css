@@ -1,4 +1,4 @@
-/* Shared six-page frame: inherit the same palette and surfaces as the welcome page. */
+/* Shared five-page frame: inherit the same palette and surfaces as the welcome page. */
 .shell--console {
   --console-bg: var(--paper);
   --console-sidebar: var(--paper);
@@ -111,9 +111,6 @@
 .shell--console .console-nav-pages > button:hover:not([aria-current='page']) {
   background: var(--soft);
   color: var(--ink);
-}
-.shell--console .console-nav-pages > button:nth-child(6) {
-  margin-top: 28px;
 }
 .console-nav-icon {
   display: inline-flex;
@@ -417,9 +414,6 @@
     padding: 0 10px;
     gap: 6px;
     font-size: 11px;
-  }
-  .shell--console .console-nav-pages > button:nth-child(6) {
-    margin-top: 0;
   }
   .console-nav-icon {
     flex-basis: 17px;

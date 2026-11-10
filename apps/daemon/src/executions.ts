@@ -20,8 +20,7 @@ import { Runner } from '../../../packages/runner/dist/supervisor.js';
 import type { RunOptions as RunnerRunOptions } from '../../../packages/runner/dist/supervisor.js';
 import type { Result } from '../../../packages/runner/dist/protocol.js';
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { runnerWorkerPath } from './runner-worker-path.js';
 import type { Connections } from './connections.js';
 import { ClaimRegistry } from './claims.js';
 import type { Claim } from './claims.js';
@@ -60,14 +59,9 @@ import {
 /** Per-daemon execution queue: the OAuth grant owns each result and cancellation. */
 export class Executions {
   private readonly runner = new Runner(() => {
-    // Installed daemon.cjs lives next to payload/runner; source builds use the
-    // repository's private runner. Never depend on an npx cache or user PATH.
-    const worker =
-      typeof import.meta.url === 'string' && import.meta.url.startsWith('file:')
-        ? fileURLToPath(
-            new URL('../../../packages/runner/worker.mjs', import.meta.url),
-          )
-        : join(__dirname, 'runner', 'worker.mjs');
+    // Bundled daemon.mjs and source executions.js have distinct module roots.
+    // Use only their own worker; never resolve through a checkout by accident.
+    const worker = runnerWorkerPath(import.meta.url);
     return spawn(process.execPath, ['--max-old-space-size=64', worker], {
       env: {},
       stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],

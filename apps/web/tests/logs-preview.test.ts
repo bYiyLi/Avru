@@ -9,27 +9,24 @@ import { Overview } from '../src/Overview.js';
 import type { ViewState } from '../src/controller.js';
 
 const setState = vi.fn();
-let mockCopy: { id: string; ok: boolean } | null = null;
-let noticeOverride: string | null = null;
-const occurrences = new Map<string, number>();
+const overviewActions = {
+  onOpenBrowsers: vi.fn(),
+  onOpenActivity: vi.fn(),
+  onOpenConnection: vi.fn(),
+  onOpenInstall: vi.fn(),
+  runDiagnostics: vi.fn().mockResolvedValue({ steps: [] }),
+};
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof React>()),
-  useState: (initial: unknown) => {
-    const key = `${typeof initial}:${String(initial)}`;
-    const count = occurrences.get(key) ?? 0;
-    occurrences.set(key, count + 1);
-    let value: unknown = initial;
-    if (initial === null) value = mockCopy;
-    if (initial === '' && count === 1 && noticeOverride !== null)
-      value = noticeOverride;
-    return [value, setState];
-  },
+  useState: (initial: unknown) => [initial, setState],
 }));
 function resetMocks() {
-  occurrences.clear();
   setState.mockClear();
-  mockCopy = null;
-  noticeOverride = null;
+  overviewActions.onOpenBrowsers.mockClear();
+  overviewActions.onOpenActivity.mockClear();
+  overviewActions.onOpenConnection.mockClear();
+  overviewActions.onOpenInstall.mockClear();
+  overviewActions.runDiagnostics.mockClear();
 }
 beforeEach(resetMocks);
 afterEach(() => {
@@ -248,60 +245,14 @@ const overviewState: ViewState = {
   authorized: true,
   busy: false,
 };
-it('shows a shortened browser id with a copy button and honest feedback', async () => {
-  const openLogs = vi.fn();
+it('keeps the overview focused on aggregate browser health', () => {
   for (const locale of ['zh', 'en'] as const) {
     resetMocks();
     const html = renderToStaticMarkup(
-      Overview({ state: overviewState, locale, onOpenLogs: openLogs }),
+      Overview({ state: overviewState, locale, ...overviewActions }),
     );
-    expect(html).toContain('browser-…7890');
+    expect(html).toContain(locale === 'zh' ? '在线浏览器' : 'Online browsers');
+    expect(html).toContain('1 / 2');
     expect(html).not.toContain('browser-abcdef-1234567890');
-    expect(html).toContain('short');
-    expect(html).toContain(locale === 'zh' ? '复制 ID' : 'Copy ID');
-    expect(html).not.toContain(
-      locale === 'zh' ? '浏览器 ID 已复制' : 'Browser ID copied',
-    );
   }
-  resetMocks();
-  mockCopy = { id: 'browser-abcdef-1234567890', ok: true };
-  expect(
-    renderToStaticMarkup(
-      Overview({ state: overviewState, locale: 'zh', onOpenLogs: openLogs }),
-    ),
-  ).toContain('浏览器 ID 已复制');
-  resetMocks();
-  mockCopy = { id: 'short', ok: false };
-  const failed = renderToStaticMarkup(
-    Overview({ state: overviewState, locale: 'zh', onOpenLogs: openLogs }),
-  );
-  expect(failed).toContain('无法复制浏览器 ID');
-  expect(failed).not.toContain('浏览器 ID 已复制');
-  resetMocks();
-  mockCopy = { id: 'someone-else', ok: true };
-  expect(
-    renderToStaticMarkup(
-      Overview({ state: overviewState, locale: 'en', onOpenLogs: openLogs }),
-    ),
-  ).not.toContain('Browser ID copied');
-  resetMocks();
-  const writeText = vi.fn().mockResolvedValue(undefined);
-  vi.stubGlobal('navigator', { clipboard: { writeText } });
-  const view = Overview({
-    state: overviewState,
-    locale: 'en',
-    onOpenLogs: openLogs,
-  });
-  const copies = nodes(view).filter(
-    (entry) => entry.onClick && entry.children === 'Copy ID',
-  );
-  expect(copies).toHaveLength(2);
-  copies[0]?.onClick?.();
-  await vi.waitFor(() => {
-    expect(setState).toHaveBeenCalledWith({
-      id: 'browser-abcdef-1234567890',
-      ok: true,
-    });
-  });
-  expect(writeText).toHaveBeenCalledWith('browser-abcdef-1234567890');
 });

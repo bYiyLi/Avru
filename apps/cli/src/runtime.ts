@@ -149,7 +149,7 @@ export async function startRuntime(options: {
   const status = { failed: false, closed: false };
   let child: ChildProcess;
   try {
-    child = spawn(options.execPath, [join(options.payloadRoot, 'daemon.cjs')], {
+    child = spawn(options.execPath, [join(options.payloadRoot, 'daemon.mjs')], {
       detached: true,
       windowsHide: true,
       stdio: ['ignore', log.fd, log.fd],

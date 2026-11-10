@@ -26,11 +26,11 @@ test('two real extensions register without pages, restore after restarts and sto
     await page.getByRole('button', { name: '进入 Avru', exact: true }).click();
     await expect(page.locator('.overview')).toBeVisible();
     await expect(page.locator('.install')).toHaveCount(0);
-    await page.getByRole('button', { name: '安装扩展', exact: true }).click();
+    await page.getByRole('button', { name: /添加浏览器/ }).click();
     await expect(page.locator('.install')).toContainText('chrome://extensions');
     await expect(page.locator('.install')).toContainText('edge://extensions');
     await expect(page.locator('.install')).not.toContainText('未检测到');
-    await page.getByRole('button', { name: /返回管理页面/ }).click();
+    await page.getByRole('button', { name: '系统总览' }).click();
     const first = await openProfile(join(directory, 'first'));
     contexts.push(first);
     const one = await waitForProfile(first, page);
@@ -40,6 +40,7 @@ test('two real extensions register without pages, restore after restarts and sto
     expect(one.id).not.toBe(two.id);
     await openObservedTab(first.context, 'First observed page');
     await openObservedTab(second.context, 'Second observed page');
+    await page.getByRole('button', { name: '浏览器', exact: true }).click();
     const firstRow = page
       .getByRole('row')
       .filter({ has: page.getByText(one.name, { exact: true }) });

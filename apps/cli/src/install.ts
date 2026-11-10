@@ -55,7 +55,7 @@ async function stage(
     throw new Error('Runtime path and version are required');
   await assertPayload(options.sourceRoot);
   if (
-    !(await stat(join(options.sourceRoot, 'daemon.cjs'))).isFile() ||
+    !(await stat(join(options.sourceRoot, 'daemon.mjs'))).isFile() ||
     !(await stat(join(options.sourceRoot, 'web', 'index.html'))).isFile()
   )
     throw new Error('Incomplete installation payload');

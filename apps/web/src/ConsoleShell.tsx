@@ -10,7 +10,7 @@ const LANGUAGE_BUTTON_KEYS = {
 } as const;
 
 export type ConsolePage =
-  'overview' | 'browsers' | 'activity' | 'connection' | 'logs' | 'maintenance';
+  'overview' | 'browsers' | 'activity' | 'connection' | 'logs';
 
 const PAGES = [
   { page: 'overview', label: 'overview.title' },
@@ -18,7 +18,6 @@ const PAGES = [
   { page: 'activity', label: 'console.calls' },
   { page: 'connection', label: 'console.connection' },
   { page: 'logs', label: 'nav.logs' },
-  { page: 'maintenance', label: 'console.maintenance' },
 ] as const;
 
 const DESCRIPTIONS = {
@@ -27,7 +26,6 @@ const DESCRIPTIONS = {
   activity: 'console.activityDescription',
   connection: 'console.connectionDescription',
   logs: 'logs.pageSubtitle',
-  maintenance: 'console.maintenanceDescription',
 } as const;
 
 function NavIcon({ page }: { page: ConsolePage }) {
@@ -69,12 +67,6 @@ function NavIcon({ page }: { page: ConsolePage }) {
       {page === 'logs' && (
         <>
           <path d="M4 5h16M4 12h16M4 19h12" />
-        </>
-      )}
-      {page === 'maintenance' && (
-        <>
-          <path d="M4 6h16M4 12h16M4 18h16" />
-          <path d="M9 3v6M15 9v6M9 15v6" />
         </>
       )}
     </svg>

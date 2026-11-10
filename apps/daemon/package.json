@@ -9,6 +9,7 @@
     "dev": "tsx src/main.ts"
   },
   "dependencies": {
+    "@avru/runner": "workspace:*",
     "fastify": "5.12.8",
     "ws": "8.22.1",
     "@modelcontextprotocol/sdk": "1.32.2"

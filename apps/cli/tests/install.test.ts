@@ -35,7 +35,7 @@ async function fixture() {
   const root = join(base, 'avru');
   const sourceRoot = join(base, 'payload');
   await mkdir(join(sourceRoot, 'web'), { recursive: true });
-  await writeFile(join(sourceRoot, 'daemon.cjs'), '// payload');
+  await writeFile(join(sourceRoot, 'daemon.mjs'), '// payload');
   await writeFile(join(sourceRoot, 'web/index.html'), 'web');
   await mkdir(join(sourceRoot, 'extension'));
   await writeFile(
@@ -73,7 +73,7 @@ it('installs a stable payload, repairs and upgrades preserving data', async () =
         options.root,
         'program/releases',
         first.active.release,
-        'daemon.cjs',
+        'daemon.mjs',
       ),
       'utf8',
     ),
@@ -287,9 +287,9 @@ it('rejects concurrent runs, invalid payload/runtime and unowned directories', a
   await expect(install({ ...options, version: ' ' })).rejects.toThrow(
     'Runtime',
   );
-  await rm(join(options.sourceRoot, 'daemon.cjs'));
+  await rm(join(options.sourceRoot, 'daemon.mjs'));
   await expect(install(options)).rejects.toThrow();
-  await mkdir(join(options.sourceRoot, 'daemon.cjs'));
+  await mkdir(join(options.sourceRoot, 'daemon.mjs'));
   await expect(install(options)).rejects.toThrow('Incomplete');
   await rm(join(options.root, 'program/.avru-owned'));
   await expect(ownedProgram(options.root)).rejects.toThrow('unowned');
@@ -306,7 +306,7 @@ it('validates pointer contents and filesystem ownership', async () => {
   await expect(readActive(program)).rejects.toThrow();
   await expect(lockRoot('/')).rejects.toThrow('filesystem root');
   await expect(
-    rejectLinks(join(options.sourceRoot, 'daemon.cjs', 'child')),
+    rejectLinks(join(options.sourceRoot, 'daemon.mjs', 'child')),
   ).rejects.toThrow();
 });
 it('rejects links in root and payload without following them', async () => {

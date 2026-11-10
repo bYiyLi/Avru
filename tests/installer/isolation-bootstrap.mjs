@@ -38,7 +38,7 @@ childProcess.spawn = function (command, args, options) {
   if (
     Array.isArray(args) &&
     typeof args[0] === 'string' &&
-    basename(args[0]) === 'daemon.cjs'
+    basename(args[0]) === 'daemon.mjs'
   ) {
     const path = relative(resolve(testRoot), resolve(args[0]));
     if (path === '..' || path.startsWith(`..${sep}`) || isAbsolute(path))

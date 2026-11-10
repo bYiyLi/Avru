@@ -147,7 +147,7 @@ test(
       await assert.rejects(
         execute(
           process.execPath,
-          [join(prod.options.sourceRoot, 'daemon.cjs')],
+          [join(prod.options.sourceRoot, 'daemon.mjs')],
           {
             env: {
               ...process.env,

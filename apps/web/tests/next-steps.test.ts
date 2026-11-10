@@ -3,7 +3,8 @@ import type * as React from 'react';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { App, Dashboard } from '../src/App.js';
+import { App } from '../src/App.js';
+import { MaintenancePage } from '../src/WorkspacePages.js';
 import { deriveNextSteps } from '../src/Overview.js';
 import type { BrowserProfile, ViewState } from '../src/controller.js';
 import { createController } from '../src/controller.js';
@@ -169,10 +170,12 @@ it('derives next steps from known state only, in impact order', () => {
 it('renders an explicit unknown or empty state instead of guessing', () => {
   for (const locale of ['zh', 'en'] as const) {
     const unknown = renderToStaticMarkup(
-      createElement(Dashboard, {
+      createElement(MaintenancePage, {
         state: stateWith({ system: null }),
         locale,
-        onOpenLogs: openLogs,
+        onOpenInstall: openInstall,
+        onOpenConnection: openLogs,
+        runDiagnostics,
       }),
     );
     expect(unknown).toContain(
@@ -182,13 +185,15 @@ it('renders an explicit unknown or empty state instead of guessing', () => {
       locale === 'zh' ? '尚未连接浏览器' : 'No paired browsers',
     );
     const empty = renderToStaticMarkup(
-      createElement(Dashboard, {
+      createElement(MaintenancePage, {
         state: stateWith({
           browsers: [connectedProfile],
           system: { ...system, mcp: 'oauthReadOnly' },
         }),
         locale,
-        onOpenLogs: openLogs,
+        onOpenInstall: openInstall,
+        onOpenConnection: openLogs,
+        runDiagnostics,
       }),
     );
     expect(empty).toContain(
@@ -203,15 +208,15 @@ it('renders each step with its versions and keeps impact order', () => {
   };
   for (const locale of ['zh', 'en'] as const) {
     const html = renderToStaticMarkup(
-      createElement(Dashboard, {
+      createElement(MaintenancePage, {
         state: stateWith({
           browsers: [mismatched],
           system: { ...system, frpc: 'managed' },
           connection: unconfigured,
         }),
         locale,
-        onOpenLogs: openLogs,
         onOpenInstall: openInstall,
+        onOpenConnection: openLogs,
         runDiagnostics,
       }),
     );
@@ -234,19 +239,21 @@ it('renders each step with its versions and keeps impact order', () => {
 });
 it('routes browser and version steps to the guide, and MCP steps in place', () => {
   const browserOnly = renderToStaticMarkup(
-    createElement(Dashboard, {
+    createElement(MaintenancePage, {
       state: stateWith({}),
       locale: 'zh',
-      onOpenLogs: openLogs,
       onOpenInstall: openInstall,
+      onOpenConnection: openLogs,
+      runDiagnostics,
     }),
   );
   expect(browserOnly).toContain('打开安装手册');
-  const view = createElement(Dashboard, {
+  const view = createElement(MaintenancePage, {
     state: stateWith({}),
     locale: 'zh',
-    onOpenLogs: openLogs,
     onOpenInstall: openInstall,
+    onOpenConnection: openLogs,
+    runDiagnostics,
   });
   clickButtons(view);
   expect(openInstall).toHaveBeenCalledWith();
@@ -254,14 +261,15 @@ it('routes browser and version steps to the guide, and MCP steps in place', () =
     ...connectedProfile,
     metadata: { ...metadata, extensionVersion: '0.0.2' },
   };
-  const versionView = createElement(Dashboard, {
+  const versionView = createElement(MaintenancePage, {
     state: stateWith({
       browsers: [mismatched],
       system: { ...system, mcp: 'oauthReadOnly' },
     }),
     locale: 'zh',
-    onOpenLogs: openLogs,
     onOpenInstall: openInstall,
+    onOpenConnection: openLogs,
+    runDiagnostics,
   });
   clickButtons(versionView);
   expect(openInstall).toHaveBeenCalledWith(INSTALL_VERSION_ANCHOR);

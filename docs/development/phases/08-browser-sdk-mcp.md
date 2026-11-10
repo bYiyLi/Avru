@@ -127,6 +127,33 @@
 
 阶段 **未完成**：M5 剩余接口与浏览器原生限制需要逐成员补齐代码和真实验收；M6 的 Windows/macOS 当前精确提交 CI、用户现有 Chrome 与发行前检查仍未通过。不得因 `pnpm check` 和局部真实 E2E 为绿而宣称 08 整体完成。开发安全扫描存在此前记录的 1 个 moderate 依赖风险，不能称零漏洞。
 
+### 2026-11-10 主分支集成后继续修复（Nexum / Yi Mac）
+
+本轮基线为已合入 `main` 的 `077f7330da8e7dd575f2b034fdabe03390c4f0b9`。只通过 Nexum 修改本机仓库；本轮变更尚未提交或推送。
+
+**已定位并修复的 CI 构建合同问题（当前本机工作树）：**
+
+- daemon 直接引用 `packages/runner/dist/*.js`，但未声明 workspace 依赖，pnpm 的递归构建无法据此保证 runner 先构建。已在 `apps/daemon/package.json` 声明 `@avru/runner: workspace:*`，并更新锁文件。
+- 根 `typecheck` 原先先运行各包 `--noEmit`，daemon 对 runner 生成产物的类型导入因此在干净环境失败。已让根类型检查先构建 runner，再运行递归类型检查。
+- 以上修改后，本机 `pnpm --filter @avru/daemon build`、根 `pnpm typecheck` 和全 workspace `pnpm build` 均通过。最新 GitHub CI 尚未对这些未提交修复重新运行，不能把本机通过记为远端 CI 通过。
+
+**回归测试修复：**
+
+- daemon 执行桥接与生命周期测试的 mock 返回类型改为真实 `Connections.sendAction` 合同；修正 exact optional property 的 runner 删除方式。
+- Web 待办事项在当时的实现中属于独立维护诊断页，旧测试错误地从总览断言其内容；当轮测试改为验证 `MaintenancePage`。后续 2026-11-10 按新确认的页面布局归并至总览底部，见[管理 Web 阶段](03-management-web.md)。
+- Web 总览测试已改为验证当前聚合健康概况，不再断言已移出总览的单浏览器 ID 复制控件。
+- 新增事件日志过滤器、导出/复制通知及分页边界测试。
+- 根 `pnpm typecheck` 通过；受影响 daemon/Web 定向测试 38 项通过；Web 全部 18 个测试文件、110 项测试通过。
+
+**仍未通过的门禁与验收：**
+
+- 当前本机完整 `pnpm check` 已通过格式、类型、ESLint、类型覆盖（99.13%）、依赖边界、零重复和 Secretlint；覆盖率门禁仍失败。覆盖报告显示 `apps/web/src/App.tsx` 为 89.41% lines / 87.5% functions / 86.56% branches，`EventLogs.tsx` 为 75% lines / 53.84% functions，`WorkspacePages.tsx` 为 92.85% lines / 83.33% functions / 60% branches。新增的 `EventLogControls.tsx` 测试覆盖已补齐，但 EventLogs 的导出、复制、异步失败、过滤和分页状态以及 App/Workspace 剩余分支仍需补测。
+- 最新完整隔离 Chromium 结果仍为 3/8 通过、5/8 失败（旧工作树对应日志：稳定目录安装、控制台流程、升级版本提示、OAuth daemon 启动、双扩展重启恢复）。本轮尚未在修复后的新工作树重新执行 E2E，因此不将这些失败标记为已解决。
+- 最新 `077f733` 的 GitHub Actions 在 daemon 类型检查阶段因 runner dist 依赖顺序失败；npm 候选构建同样失败，validate 被跳过。修复未提交，尚无精确 SHA 的新 Windows/macOS CI。
+- 76 项 SDK capability 声明仍不等于设计要求的 22 接口/148 成员逐项实现与真实浏览器验收。完整成员映射、原生限制、错误码和测试证据仍未闭环；M5、M6 继续保持未完成。
+
+本节仅更新本轮实测证据，不改变原始验收标准，不降低逐文件 90% 覆盖率、跨平台 CI、真实浏览器及 22/148 成员对照要求。
+
 ## 风险与注意事项
 
 - 安装器重构已合并（`336c105`，2026-11-08），M1 在此基础上搭建。

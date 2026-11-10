@@ -16,7 +16,7 @@ const exact = new Set([
   'package.json',
   'THIRD_PARTY_NOTICES.txt',
   'README.md',
-  'payload/daemon.cjs',
+  'payload/daemon.mjs',
   'payload/runner/worker.mjs',
   'payload/runner/dist/worker.js',
   'payload/runner/dist/emscripten-module.wasm',

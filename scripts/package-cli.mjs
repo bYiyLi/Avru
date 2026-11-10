@@ -63,8 +63,11 @@ metas.push(
       ...common,
       entryPoints: ['apps/daemon/src/main.ts'],
       plugins: [releaseIdentity(version), obfuscationPlugin],
-      outfile: `${out}/payload/daemon.cjs`,
-      format: 'cjs',
+      outfile: `${out}/payload/daemon.mjs`,
+      format: 'esm',
+      banner: {
+        js: 'import {createRequire as __createRequire} from "node:module";const require=__createRequire(import.meta.url);',
+      },
     })
   ).metafile,
 );

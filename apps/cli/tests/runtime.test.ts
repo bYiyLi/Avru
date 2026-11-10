@@ -148,7 +148,7 @@ test('start reuses healthy daemon and starts detached payload with private log',
   ).toEqual(descriptor);
   expect(mocks.spawn).toHaveBeenCalledWith(
     'node',
-    [expect.stringContaining('daemon.cjs')],
+    [expect.stringContaining('daemon.mjs')],
     expect.objectContaining({ detached: true }),
   );
 });

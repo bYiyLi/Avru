@@ -49,9 +49,8 @@ test('package upgrade preserves pairing and reports the running version until br
     await page.goto(daemon.url);
     await page.getByRole('button', { name: '进入 Avru', exact: true }).click();
     await waitForProfile(profile, page);
-    await expect(
-      page.getByText('不一致 · 期望 0.0.1', { exact: true }),
-    ).toBeVisible();
+    await page.getByRole('button', { name: '浏览器', exact: true }).click();
+    await expect(page.getByText('建议更新', { exact: true })).toBeVisible();
     await daemon.stop();
     await install(options);
     expect(JSON.parse(await readFile(manifestPath, 'utf8'))).toMatchObject({
@@ -69,9 +68,8 @@ test('package upgrade preserves pairing and reports the running version until br
         { timeout: 20000 },
       )
       .toBe('0.0.0');
-    await expect(
-      page.getByText('不一致 · 期望 0.0.1', { exact: true }),
-    ).toBeVisible();
+    await page.getByRole('button', { name: '浏览器', exact: true }).click();
+    await expect(page.getByText('建议更新', { exact: true })).toBeVisible();
     // Restart the same real browser profile to load the updated files and recover its saved pairing.
     await profile.context.close();
     profile = await openProfile(join(root, 'browser'), 'zh-CN', extension);
@@ -83,9 +81,7 @@ test('package upgrade preserves pairing and reports the running version until br
         { timeout: 20000 },
       )
       .toBe('0.0.1');
-    await expect(
-      page.getByText('一致 · 期望 0.0.1', { exact: true }),
-    ).toBeVisible();
+    await expect(page.getByText('一致', { exact: true })).toBeVisible();
     expect((await readProfiles(page, current.url)).browsers).toHaveLength(1);
   } finally {
     await profile?.context.close();
