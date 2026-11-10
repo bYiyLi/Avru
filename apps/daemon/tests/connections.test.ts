@@ -1,60 +1,40 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Connections } from '../src/connections.js';
-import { BrowserStore } from '../src/store.js';
-import { record } from '../src/messages.js';
-const origin = `chrome-extension://${'a'.repeat(32)}`;
-const stores: BrowserStore[] = [];
+import {
+  client,
+  closeStores,
+  origin,
+  pair,
+  setup,
+} from './connection-helpers.js';
 afterEach(() => {
-  for (const store of stores.splice(0)) store.close();
+  closeStores();
 });
-function setup() {
-  const store = new BrowserStore(':memory:');
-  stores.push(store);
-  let time = 1000;
-  const hub = new Connections(store, () => time);
-  return {
-    hub,
-    store,
-    advance: (milliseconds: number) => {
-      time += milliseconds;
-    },
-  };
-}
-function client(hub: Connections, source = origin) {
-  const messages: Record<string, unknown>[] = [];
-  const close = vi.fn();
-  const peer = hub.attach(
-    {
-      close,
-      send: (raw) => {
-        const value: unknown = JSON.parse(raw);
-        if (!record(value)) throw new Error('Bad response');
-        messages.push(value);
-      },
-    },
-    source,
-  );
-  return {
-    ...peer,
-    close,
-    messages,
-    send: (message: object) => {
-      peer.receive(JSON.stringify({ v: 1, ...message }));
-    },
-  };
-}
-function pair(hub: Connections) {
-  const peer = client(hub);
-  peer.send({ type: 'pair', name: 'Chrome', profileId: 'profile' });
-  const pending = hub.pairings()[0];
-  if (!pending) throw new Error('Missing pairing');
-  expect(hub.approve(pending.id)).toBe(true);
-  const issued = peer.messages.find((message) => message.type === 'paired');
-  if (typeof issued?.browserId !== 'string' || typeof issued.token !== 'string')
-    throw new Error('Missing credential');
-  return { peer, id: issued.browserId, token: issued.token };
-}
+
 describe('authenticated browser lifecycle', () => {
+  it('accepts a valid debugger-stop message when optional cancellation handler is absent', () => {
+    const { hub } = setup();
+    const { peer, id } = pair(hub);
+    peer.send({ type: 'control-interrupted', tabId: 7 });
+    expect(hub.browsers().find((browser) => browser.id === id)?.connected).toBe(
+      true,
+    );
+    expect(peer.messages.at(-1)?.type).toBe('ready');
+  });
+  it('routes a debugger cancellation only from the currently authenticated socket', () => {
+    const { hub } = setup();
+    const interrupted = vi.fn();
+    hub.onInterrupted(interrupted);
+    const { peer, id, token } = pair(hub);
+    peer.send({ type: 'control-interrupted', tabId: 7 });
+    expect(interrupted).toHaveBeenCalledExactlyOnceWith(id, 7);
+    const replacement = client(hub);
+    replacement.send({ type: 'authenticate', browserId: id, token });
+    peer.send({ type: 'control-interrupted', tabId: 8 });
+    expect(interrupted).toHaveBeenCalledTimes(1);
+    replacement.send({ type: 'control-interrupted', tabId: 9 });
+    expect(interrupted).toHaveBeenCalledTimes(2);
+    expect(interrupted).toHaveBeenLastCalledWith(id, 9);
+  });
   it('binds pairing to the original socket, hides credentials and clears stale tabs', () => {
     const { hub } = setup();
     const { peer, id, token } = pair(hub);
@@ -73,7 +53,7 @@ describe('authenticated browser lifecycle', () => {
     peer.send({ type: 'ping' });
     expect(peer.messages.at(-1)?.type).toBe('pong');
     expect(hub.browsers()[0]?.tabs).toEqual([
-      { id: 3, title: 'Example', url: 'https://example.com/' },
+      { id: 3, title: 'Example', url: 'https://example.com/', active: false },
     ]);
     expect(JSON.stringify(hub.browsers())).not.toContain(token);
     peer.disconnect();

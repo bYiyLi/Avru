@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   credentials,
+  frameMessage,
   record,
   snapshot,
   socketUrl,
@@ -41,8 +42,13 @@ describe('extension trust boundary', () => {
         { id: 2, url: 'http://example.com' },
       ]),
     ).toEqual([
-      { id: 1, url: 'https://example.com/a', title: 'x'.repeat(256) },
-      { id: 2, url: 'http://example.com/', title: '' },
+      {
+        id: 1,
+        url: 'https://example.com/a',
+        title: 'x'.repeat(256),
+        active: false,
+      },
+      { id: 2, url: 'http://example.com/', title: '', active: false },
     ]);
     expect(
       snapshot([
@@ -80,5 +86,61 @@ describe('extension trust boundary', () => {
       credentials({ ...value, endpoint: 'http://evil.test' }),
     ).toBeUndefined();
     expect(record([])).toBeUndefined();
+  });
+});
+
+describe('action framing', () => {
+  it('sends small messages directly and splits large ones into bounded chunks', () => {
+    const direct = frameMessage(
+      'request',
+      { type: 'action', requestId: 'request' },
+      8192,
+    );
+    expect(direct).toEqual([{ v: 1, type: 'action', requestId: 'request' }]);
+    const payload = 'x'.repeat(9000);
+    const frames = frameMessage(
+      'request',
+      { type: 'action', requestId: 'request', args: [payload] },
+      8192,
+    );
+    expect(frames.length).toBeGreaterThan(1);
+    for (const frame of frames) {
+      expect(
+        new TextEncoder().encode(JSON.stringify(frame)).length,
+      ).toBeLessThanOrEqual(8192);
+      expect(frame.type).toBe('chunk');
+      expect(frame.requestId).toBe('request');
+    }
+    const joined = frames.map((frame) => frame.payload as string).join('');
+    expect(JSON.parse(joined)).toEqual({
+      v: 1,
+      type: 'action',
+      requestId: 'request',
+      args: [payload],
+    });
+    frames.forEach((frame, index) => {
+      expect(frame.index).toBe(index);
+      expect(frame.total).toBe(frames.length);
+    });
+  });
+  it('keeps chunked results inside the 1 MiB frame limit', () => {
+    const frames = frameMessage(
+      'request',
+      {
+        type: 'action_result',
+        requestId: 'request',
+        ok: true,
+        value: 'x'.repeat(1_200_000),
+      },
+      1_048_576,
+    );
+    expect(frames.length).toBeGreaterThan(1);
+    for (const frame of frames)
+      expect(
+        new TextEncoder().encode(JSON.stringify(frame)).length,
+      ).toBeLessThanOrEqual(1_048_576);
+    expect(frames.map((frame) => frame.payload as string).join('')).toContain(
+      'x'.repeat(100),
+    );
   });
 });

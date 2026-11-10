@@ -1,3 +1,5 @@
+import { ActionChannel, sendActionInputError } from './actions.js';
+import type { ActionOutcome, SendActionInput } from './actions.js';
 import { AutoPairing } from './auto-pairing.js';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import type { Consent } from './oauth/authority.js';
@@ -28,6 +30,11 @@ interface Pairing {
   session: Session;
 }
 export class Connections {
+  private interrupted?: (browserId: string, tabId: number) => void;
+  private readonly actionChannel = new ActionChannel<Session>(
+    (session, value) => this.send(session, value),
+  );
+  private readonly generations = new Map<string, number>();
   private readonly automatic: AutoPairing<Session>;
   private readonly sessions = new Set<Session>();
   private readonly pending = new Map<string, Pairing>();
@@ -109,6 +116,111 @@ export class Connections {
       };
     });
   }
+  /**
+   * Current connection generation for a browser (B5): incremented on every
+   * new connection, starting at 1. Callers pass it to sendAction so a
+   * reconnect invalidates actions aimed at the previous connection.
+   */
+  generation(browserId: string): number | undefined {
+    return this.generations.get(browserId);
+  }
+  /** Only the currently authenticated extension session may report a stop. */
+  onInterrupted(handler: (browserId: string, tabId: number) => void): void {
+    this.interrupted = handler;
+  }
+  /**
+   * Send one SDK method call to the extension and await its result.
+   * `method` matches an SDK method name one-to-one and `args` is a JSON
+   * array. The request is framed into ≤8 KiB frames (the extension's inbound
+   * limit) and the result reassembled from `chunk` frames. Timeout defaults
+   * to the task-level default method timeout (30 s) and never replays: a
+   * timeout resolves TIMEOUT, and a disconnect resolves EXTENSION_OFFLINE
+   * (M1 only routes read-only calls, which the failure matrix calls failed
+   * on extension disconnect).
+   */
+  sendAction(input: SendActionInput): Promise<ActionOutcome> {
+    const invalid = sendActionInputError(input);
+    if (invalid)
+      return Promise.resolve({
+        ok: false,
+        error: { code: 'INVALID_ARGUMENT', message: invalid },
+      });
+    const live = this.active.get(input.browserId);
+    if (!live)
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: 'EXTENSION_OFFLINE',
+          message: 'Browser extension is offline',
+        },
+      });
+    if (this.generations.get(input.browserId) !== input.generation)
+      return Promise.resolve({
+        ok: false,
+        error: {
+          code: 'INVALID_TARGET',
+          message: 'Stale connection generation',
+        },
+      });
+    return this.actionChannel.sendAction(live.session, input);
+  }
+  /**
+   * Pre-T8 adapter for the execution manager: same signature and behaviour
+   * as the minimal action path (tab must be known, method allowlist,
+   * AbortSignal, 32 in-flight cap), now routed over sendAction. An abort
+   * rejects the returned promise at once; the underlying sendAction stays
+   * registered until it settles (at most the action timeout) and its late
+   * result is dropped. New callers must use sendAction directly.
+   */
+  action(
+    browserId: string,
+    tabId: number,
+    method: string,
+    signal: AbortSignal,
+  ): Promise<unknown> {
+    const live = this.active.get(browserId);
+    if (!live || !live.tabs.some((tab) => tab.id === tabId))
+      return Promise.reject(new Error('INVALID_TARGET'));
+    if (!['tab.title', 'tab.url', 'tab.snapshot'].includes(method))
+      return Promise.reject(new Error('CAPABILITY_NOT_ALLOWED'));
+    if (signal.aborted) return Promise.reject(new Error('CANCELLED'));
+    if (this.actionChannel.size >= 32)
+      return Promise.reject(new Error('QUEUE_FULL'));
+    const generation = this.generations.get(browserId);
+    if (generation === undefined)
+      return Promise.reject(new Error('INVALID_TARGET'));
+    return new Promise<unknown>((resolve, reject) => {
+      let settled = false;
+      const onAbort = (): void => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', onAbort);
+        reject(new Error('CANCELLED'));
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+      this.sendAction({
+        browserId,
+        tabId,
+        generation,
+        method,
+        args: [],
+      }).then(
+        (outcome) => {
+          if (settled) return;
+          settled = true;
+          signal.removeEventListener('abort', onAbort);
+          if (outcome.ok) resolve(outcome.value);
+          else reject(new Error(outcome.error.code));
+        },
+        () => {
+          if (settled) return;
+          settled = true;
+          signal.removeEventListener('abort', onAbort);
+          reject(new Error('TARGET_GONE'));
+        },
+      );
+    });
+  }
   issueConnectionTicket(challenge: string) {
     this.sweep();
     return this.automatic.issue(challenge);
@@ -179,6 +291,7 @@ export class Connections {
     }
   }
   private disconnect(session: Session): void {
+    this.actionChannel.failForSession(session);
     this.sessions.delete(session);
     this.automatic.remove(session);
     if (session.pendingId) this.pending.delete(session.pendingId);
@@ -202,6 +315,7 @@ export class Connections {
     if (previous) this.fail(previous.session, 'replaced');
     session.browserId = browserId;
     session.deadline = this.now() + 60_000;
+    this.generations.set(browserId, (this.generations.get(browserId) ?? 0) + 1);
     this.active.set(browserId, { session, tabs: [] });
     this.send(session, {
       type: 'ready',
@@ -325,8 +439,14 @@ export class Connections {
     if (message.type === 'ping') this.send(session, { type: 'pong' });
     else if (message.type === 'metadata') live.metadata = message.metadata;
     else if (message.type === 'tabs') live.tabs = message.tabs;
+    else if (message.type === 'action_result')
+      this.actionChannel.receiveResult(session.browserId ?? '', message);
+    else if (message.type === 'chunk')
+      this.actionChannel.receiveChunk(session.browserId ?? '', message);
     else if (message.type === 'oauth-decision')
       this.decide?.(session.connectionId, session.browserId ?? '', message);
+    else if (message.type === 'control-interrupted')
+      this.interrupted?.(session.browserId ?? '', message.tabId);
     else this.fail(session, 'invalid');
   }
 }

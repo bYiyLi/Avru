@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { scope, validateConfig } from './config.js';
+import { parseScopes, validateConfig } from './config.js';
 import type { OAuthConfig } from './config.js';
 
 const secret = () => randomBytes(32).toString('base64url');
@@ -11,7 +11,7 @@ export interface Consent {
   clientName: string;
   redirectUri: string;
   resource: string;
-  scope: typeof scope;
+  scope: string;
   expiresAt: number;
 }
 export interface ConsentBridge {
@@ -25,6 +25,7 @@ interface Request {
   challenge: string;
   state: string;
   sessions: string[];
+  scopes: string[];
   finish: (redirect: string) => void;
 }
 interface Grant {
@@ -32,6 +33,7 @@ interface Grant {
   browserId: string;
   clientId: string;
   expiresAt: number;
+  scopes: string[];
 }
 interface Code {
   request: Request;
@@ -68,6 +70,7 @@ export class Authority {
     const redirectUri = values.get('redirect_uri') ?? '';
     const challenge = values.get('code_challenge') ?? '';
     const state = values.get('state') ?? '';
+    const grantedScopes = parseScopes(values.get('scope'));
     if (
       !client ||
       !client.redirectUris.includes(redirectUri) ||
@@ -77,7 +80,7 @@ export class Authority {
       !state ||
       state.length > 512 ||
       values.get('resource') !== this.resource ||
-      values.get('scope') !== scope
+      grantedScopes === undefined
     )
       throw new Error('invalid_request');
     if (this.now() - this.windowStart >= 300_000) {
@@ -97,7 +100,7 @@ export class Authority {
       clientName: client.name,
       redirectUri,
       resource: this.resource,
-      scope,
+      scope: grantedScopes.join(' '),
       expiresAt: this.now() + 120_000,
     };
     this.nextRequestAt = this.now() + 10_000;
@@ -109,6 +112,7 @@ export class Authority {
       state,
       finish,
       sessions: [],
+      scopes: grantedScopes,
     };
     this.pending.sessions = this.bridge.offer(consent);
     if (!this.pending.sessions.length) {
@@ -185,6 +189,7 @@ export class Authority {
       browserId: code.browserId,
       clientId: code.request.clientId,
       expiresAt: this.now() + 600_000,
+      scopes: code.request.scopes,
     };
     code.grantId = grant.id;
     code.expiresAt = grant.expiresAt;
@@ -193,7 +198,7 @@ export class Authority {
       access_token: token,
       token_type: 'Bearer',
       expires_in: 600,
-      scope,
+      scope: code.request.scopes.join(' '),
     };
   }
   authenticate(authorization: string | undefined): Grant | undefined {
@@ -214,7 +219,10 @@ export class Authority {
   }
   grants() {
     this.sweep();
-    return [...this.tokens.values()].map((item) => ({ ...item, scope }));
+    return [...this.tokens.values()].map((item) => ({
+      ...item,
+      scope: item.scopes.join(' '),
+    }));
   }
   sweep(): void {
     if (this.pending && this.pending.consent.expiresAt <= this.now())

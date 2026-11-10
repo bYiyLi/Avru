@@ -22,6 +22,9 @@ export default tseslint.config(
   {
     ignores: [
       'artifacts/**',
+      // Archived third-party API/behavior reference: never an Avru source.
+      // Production code still lives under apps/ and packages/.
+      'docs/26.1103.32239/**',
       '**/node_modules/**',
       '**/dist/**',
       '**/.wxt/**',

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Calls } from '../src/Calls.js';
+import { Calls, eventAdvice } from '../src/Calls.js';
 import type { CallHistory, CallStatus } from '../src/call-types.js';
 import { createController } from '../src/controller.js';
 const history: CallHistory = {
@@ -59,8 +59,9 @@ it('renders actual identities and chronological safe events, with accessible dis
     expect(html).toContain('request-1');
     expect(html).toContain('browsers_list');
     expect(html.indexOf('Span root')).toBeLessThan(html.indexOf('Span child'));
-    expect(html.indexOf('&lt;script&gt;')).toBeLessThan(
-      html.indexOf('dispatch.completed'),
+    const traceContent = html.slice(html.indexOf('class="trace-spans"'));
+    expect(traceContent.indexOf('&lt;script&gt;')).toBeLessThan(
+      traceContent.indexOf('dispatch.completed'),
     );
     expect(html).not.toContain('<script>');
     expect(history.calls[0]?.spans[0]?.spanId).toBe('child');
@@ -184,4 +185,41 @@ it('does not present an unknown outcome as a completed duration', () => {
   expect(html).toContain('Outcome unknown');
   expect(html).toContain('Do not retry blindly');
   expect(html).not.toContain('0 ms');
+});
+it('maps fixed event codes to repair guidance without inventing advice for other codes', () => {
+  const codes = [
+    'notification_accepted',
+    'authorized',
+    'invalid_token',
+    'unsupported_protocol_version',
+    'not_acceptable',
+    'completed',
+    'protocol_error',
+    'internal_error',
+  ];
+  for (const code of codes) {
+    expect(eventAdvice(code, 'en')).not.toBeNull();
+    expect(eventAdvice(code, 'zh')).not.toBeNull();
+  }
+  expect(eventAdvice('dispatch.completed', 'en')).toBeNull();
+  expect(eventAdvice('authorization.denied', 'zh')).toBeNull();
+  const first = requiredCall();
+  const root = first.spans[1];
+  if (!root) throw new Error('missing root span');
+  const advised = {
+    ...first,
+    spans: [
+      {
+        ...root,
+        events: codes.map((code, index) => ({ at: 1000 + index, code })),
+      },
+    ],
+  };
+  for (const locale of ['zh', 'en'] as const) {
+    const html = renderToStaticMarkup(
+      Calls({ history: { ...history, calls: [advised] }, locale }),
+    );
+    for (const code of codes)
+      expect(html).toContain(eventAdvice(code, locale) ?? '');
+  }
 });

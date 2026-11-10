@@ -78,12 +78,12 @@
 
 本次共四步：
 
-| 步骤 | 性质 | 状态 |
-| --- | --- | --- |
+| 步骤    | 性质                                                         | 状态                                 |
+| ------- | ------------------------------------------------------------ | ------------------------------------ |
 | 第 0 步 | 合同：修订 `docs/design/web.md` 与本文件，定下原型优化的合同 | 本次执行；只改文档，不改代码，不提交 |
-| 第 1 步 | 纯前端 | 待实施 |
-| 第 2 步 | 前端+文案 | 待实施 |
-| 第 3 步 | 开关类 | 待实施 |
+| 第 1 步 | 纯前端                                                       | 待实施                               |
+| 第 2 步 | 前端+文案                                                    | 待实施                               |
+| 第 3 步 | 开关类                                                       | 待实施                               |
 
 各步的具体改动清单以 web.md 合同为准，本节只定验收与边界，不另造清单。
 
@@ -101,3 +101,37 @@
 - `call-traces.ts` 的 tool 白名单扩展。
 - SDK 步骤链路：日志中 SDK/执行/扩展步骤的真实 span 接入；本次日志页只渲染已有的 request / authorization / dispatch 三类 span，不造占位 span。
 - `/api/diagnostics`：本次诊断为前端自查（复用已有轮询端点 + `GET /health`），不新增该端点。
+
+## 总览页面重构（2026-11-09，本机未提交）
+
+按本地设计参考 HTML 的深色控制台布局，在现有管理页实现侧边导航、四项核心指标、调用结果环图和连接健康度；原有浏览器版本列表、真实调用、远程连接、待办和前端诊断继续保留。新增 `OverviewInsights.tsx` 与独立样式，仅使用已取得的 `ViewState` 派生指标，不复制参考 HTML 的演示数据：在线率以已登记浏览器为分母，扩展版本一致性只统计在线连接，结果未知单列统计；授权客户端数量因无可信数据源展示未知。远程配置已导入不等于公网可达或 ChatGPT 已连接。
+
+本机 macOS / Node 24.22.1 验证：Web TypeScript、定向 ESLint、24 项相关测试及生产 Web build 通过；全仓库 Prettier、ESLint、严格类型覆盖、依赖边界、重复检测和秘密扫描通过。完整单测执行 132 个测试文件、919 项均通过；新增 `OverviewInsights.tsx` 的 statements / functions / lines 为 100%，branches 为 98.68%。Chromium 使用当前 daemon API 与新构建前端静态资源进行联合渲染，中文深色、导航跳转及宽度 1600 / 768 / 390 / 320 的无页面级横向溢出检查通过。
+
+完整 `pnpm check` **尚未通过**：仓库级 TypeScript 在 `apps/daemon/tests/execution-lifecycle.test.ts` 第 64、95 行遇到独立的类型错误；单测覆盖率检查虽 919 项均通过，其他未在本轮改动的 daemon/extension/runner 模块仍未达到逐文件 90% 门槛。依赖审计的 high/critical 门槛通过，保留 1 个 moderate 公告。这些结果不构成完整工程验收。
+
+本机正在运行的 `:43822` 为此前安装的 dev release，仍托管旧静态资源；本轮只生成 `apps/web/dist`，没有覆盖安装实例、重启 daemon、提交、推送或部署。完整 daemon 托管新产物与 Windows/macOS E2E、对应提交 CI 均尚未验收。
+
+## 浏览器资料页面（2026-11-10，本机未提交）
+
+依据本轮浏览器页面设计参考，在管理 Web 新增 `Browsers.tsx` 与 `browsers.css`，接入侧边栏「浏览器」独立视图、「添加浏览器 → 插件安装手册」交互和中英文文案，沿用总览的实际 `ViewState`。六列表格展示连接及版本状态，资料展开可查看配置 ID 与已认证连接的标签页；离线元数据不作为在线版本，服务失联不保留旧连接。最后响应时间因接口未提供可信字段，一律显示未知；不复制参考 HTML 的演示数据。
+
+本轮验证（Yi Mac / macOS / Node 24.22.1）：`corepack pnpm exec vitest run apps/web/tests/browsers.test.ts --coverage --coverage.include=apps/web/src/Browsers.tsx --coverage.reporter=text`，3 项通过，新增组件 statements / branches / functions / lines 均为 100%；定向 ESLint、Prettier 通过，Vite Web 生产资源构建成功。使用 **43990 临时端口**、隔离数据目录和实际 Chromium 连接该构建的 daemon 托管页面，中文暗色桌面 1440px、手机 390px 验证了无页面级横向溢出、真实空态和手动安装入口，页面无运行异常；临时进程与数据已清理，没有覆盖原 `:43822` 服务。
+
+当前并行中的日志页面正在修改 `LogEvents.tsx`、`EventLogs.tsx` 和关联文案，Web TypeScript 曾因这些文件中的翻译调用参数错误而阻塞；综合回归的 `App.test.ts` 亦曾因日志页标题从「调用日志」变为「调用记录」出现一项旧断言失败。这些不属于本轮浏览器数据逻辑，仍需并行工作完成后重新集成验证；不能据浏览器页的定向通过宣称全仓库 `pnpm check` 或 Windows/macOS E2E 已通过。无提交、推送、安装、发布或部署。
+
+## 全站视觉统一与宽屏适配（2026-11-10，本机未提交）
+
+按本轮明确反馈，管理 Web 不是独立品牌产品：欢迎页作为全站视觉基准。在 `apps/web/src/style.css` 抽出 `--surface-raised`、`--surface-tint`、`--surface-shadow` 共用亮暗变量，原欢迎页保持视觉计算值不变；`console-shell.css` 改为沿用 `--paper`、`--accent`、`--line`、共享表面等全局变量，`overview.css` 移除另一套控制台亮暗硬编码主题。左侧选中态、品牌标识和顶部“添加浏览器”动作跟随与欢迎页相同的品牌蓝；连接在线状态保留独立语义绿色。
+
+Yi Mac 的本地 Vite `:5173` 预览中以真实 Chromium 对照欢迎页与总览页：深色卡片背景同为 `rgb(23,27,35)`，选中浅蓝背景同为 `rgb(27,45,72)`，品牌蓝同为 `rgb(91,140,255)`；亮色表面同为纯白、强调浅底 `rgb(239,246,255)`、品牌蓝 `rgb(37,99,235)`。主按钮计算色/字体一致，亮暗主题均未触发页面 JS 错误。1600px 宽度下导航 260px、右侧 1340px、图表约 1238px；1600、1024、768、390、320px 的六个页面切换与页面级横向溢出均已用 Chromium 检查，均为 0 溢出。
+
+**仍未完成的独立范围**：本轮 `apps/web/tests` 共收集 105 项、92 项通过、13 项失败，失败涉及此前页面拆分的旧 Dashboard/待办断言和并行中的安装页断言。Web 全量 TypeScript 当前被 `apps/web/src/Install.tsx` 与其翻译资源未同步的错误阻塞；不将这些视为视觉验收通过，也未为凑绿色修改无关功能。旧 dev 服务 `:43822` 未部署新前端。本轮未提交、推送、安装或发布。
+
+## 安装扩展向导（2026-11-10，本机未提交）
+
+依照本机参考 HTML 和用户高保真截图，将 `Install.tsx` 改为三步可切换引导（扩展管理 / 准备加载 / 加载并检查），新增 `install.css`，并使 `App.tsx` 中安装页有独立顶栏和主题/语言切换。真实状态来自原有 `ViewState`：Chrome/Edge 选择只影响说明与复制地址，不推断当前浏览器；安装目录仅显示 daemon 已确认的路径，未取得时说明未知；连接和版本显示已认证扩展报告，不冒充自动安装或实际检测。模拟扩展管理界面仅作 `aria-hidden` 操作示意。
+
+Yi Mac / macOS / Node 24.22.1 / pnpm 11.25.0：`@avru/web typecheck`、定向 ESLint、Prettier、Vite 前端资源 build 均通过；`vitest run apps/web/tests/install.test.ts apps/web/tests/App.test.ts apps/web/tests/i18n.test.ts` 的 24 项测试通过（5 项安装、14 项页面集成、5 项语言）。Chromium 连接隔离临时 daemon（`:43991`）使用新构建的 Web，检查 1728px 深色中文和 390px 浅色英文的三步切换、Chrome/Edge 地址切换、真实剪贴板复制、未知状态、主题语言切换和返回操作，均通过，无 JS 异常与页面级横向溢出。临时进程/临时数据已清理，不影响现有 `:43822`、`:43823` 服务。此范围没有验证实际安装新扩展、品牌浏览器矩阵、npm 发布或真实用户浏览器重新加载；全仓库门禁结果需独立记录。
+
+补充门禁回读：安装组件 `Install.tsx` 定向 V8 覆盖率 statements 96.66%、branches 93.65%、functions 93.1%、lines 96.29%，均达到逐文件 90% 阈值。全仓库独立执行的 Prettier、ESLint、所有实现包类型检查、严格类型覆盖、依赖边界、重复检查、Secretlint 均通过；依赖 audit 高危/严重阈值通过，仍有 1 个 moderate。仓库 `pnpm check` 总入口在当前 Nexum 进程 PATH 中因内部 `pnpm: command not found` 提前中断（顶层 `corepack pnpm` 可用），因此不视作通过。工具链 `tsc -p tsconfig.tooling.json` 仍有 daemon 执行测试及 Web 日志预览测试类型错误；完整 V8 单测共 991 项，986 项通过、5 项失败（旧管理页拆分相关断言，非安装组件定向测试），不能认定全仓门禁完成。Windows/macOS CI、真实新扩展加载 E2E 未运行。全部改动留在未提交工作树，原安装实例未覆盖。

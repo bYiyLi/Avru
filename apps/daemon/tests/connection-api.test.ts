@@ -74,7 +74,7 @@ it('protects imported credentials, auto-applies only the matching environment an
       (await app.inject({ url: '/api/status', headers })).json(),
     ).toMatchObject({
       frpc: 'managed',
-      mcp: 'oauthReadOnly',
+      mcp: 'browserControl',
       chatgpt: 'notVerified',
     });
     expect(

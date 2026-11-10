@@ -4,13 +4,18 @@ import type { Connections } from '../connections.js';
 import { Authority } from './authority.js';
 import { buildRemote } from './http.js';
 import type { OAuthConfig } from './config.js';
+import type { Executions } from '../executions.js';
 export class OAuthListener {
   authority: Authority | undefined;
   private remote: ReturnType<typeof buildRemote> | undefined;
   private port = 0;
   constructor(
     private readonly connections: Connections,
-    private readonly local: { port: number; traces?: CallTraces },
+    private readonly local: {
+      port: number;
+      traces?: CallTraces;
+      executions?: Executions;
+    },
   ) {}
   prepare(config: OAuthConfig & { port: number }): Authority {
     if (
@@ -30,8 +35,8 @@ export class OAuthListener {
     this.port = config.port;
     this.remote = buildRemote(
       this.authority,
-      () => ({ browsers: this.connections.browsers() }),
       this.local.traces,
+      this.local.executions,
     );
     return this.authority;
   }

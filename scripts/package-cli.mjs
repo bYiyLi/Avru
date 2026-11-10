@@ -1,5 +1,7 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
 import {
   releaseChannel,
   RELEASE_VERSION,
@@ -13,7 +15,11 @@ import { verifyPackage } from './release/verify.mjs';
 const metas = [];
 const version = process.argv.includes('--prod') ? '0.1.0' : RELEASE_VERSION;
 const channel = releaseChannel(version);
-const out = channel === 'prod' ? 'artifacts/avru-prod' : 'artifacts/avru';
+const out = process.argv.includes('--e2e')
+  ? 'artifacts/avru-e2e'
+  : channel === 'prod'
+    ? 'artifacts/avru-prod'
+    : 'artifacts/avru';
 await rm(out, { recursive: true, force: true });
 await mkdir(`${out}/payload`, { recursive: true });
 const common = {
@@ -70,6 +76,32 @@ await cp(
   { recursive: true },
 );
 await cp('artifacts/frpc', `${out}/payload/frpc`, { recursive: true });
+// The daemon executes untrusted SDK scripts only in its standalone QuickJS
+// worker; bundle the worker with its own runtime dependencies for offline use.
+await mkdir(`${out}/payload/runner/dist`, { recursive: true });
+await cp('packages/runner/worker.mjs', `${out}/payload/runner/worker.mjs`);
+const runnerRequire = createRequire(resolve('packages/runner/package.json'));
+const quickjsEntry = runnerRequire.resolve('quickjs-emscripten');
+const wasmModule = createRequire(quickjsEntry).resolve(
+  '@jitl/quickjs-wasmfile-release-sync',
+);
+await cp(
+  resolve(dirname(wasmModule), 'emscripten-module.wasm'),
+  `${out}/payload/runner/dist/emscripten-module.wasm`,
+);
+metas.push(
+  (
+    await build({
+      ...common,
+      entryPoints: ['packages/runner/src/worker.ts'],
+      outfile: `${out}/payload/runner/dist/worker.js`,
+      format: 'esm',
+      banner: {
+        js: 'import {createRequire as __createRequire} from "node:module";const require=__createRequire(import.meta.url);',
+      },
+    })
+  ).metafile,
+);
 await writeFile(
   `${out}/payload/release.json`,
   JSON.stringify({ version, channel, frpcVersion: FRPC_VERSION }),
@@ -109,6 +141,7 @@ const extension = await build({
   entryPoints: [
     'apps/extension/entrypoints/background.ts',
     'apps/extension/entrypoints/consent/main.ts',
+    'apps/extension/entrypoints/visual.content.ts',
   ],
   bundle: true,
   write: false,

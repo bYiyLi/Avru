@@ -6,8 +6,20 @@ export interface ConsentRequest {
   clientName: string;
   redirectUri: string;
   resource: string;
-  scope: 'browser:read';
+  // Space-joined granted scopes, a non-empty subset of browser:read /
+  // browser:control. Keep in sync with the daemon oauth/config.ts.
+  scope: string;
   expiresAt: number;
+}
+const knownScopes = new Set(['browser:read', 'browser:control']);
+function validScope(value: unknown): value is string {
+  if (typeof value !== 'string' || !value) return false;
+  const scopes = value.split(' ');
+  return (
+    scopes.length > 0 &&
+    new Set(scopes).size === scopes.length &&
+    scopes.every((scope) => knownScopes.has(scope))
+  );
 }
 export function consentRequest(
   value: unknown,
@@ -22,7 +34,7 @@ export function consentRequest(
         data[key].length > 0 &&
         data[key].length <= 2048,
     ) ||
-    data.scope !== 'browser:read' ||
+    !validScope(data.scope) ||
     typeof data.expiresAt !== 'number' ||
     !Number.isFinite(data.expiresAt) ||
     data.expiresAt <= now ||

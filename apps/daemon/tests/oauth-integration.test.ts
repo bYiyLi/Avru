@@ -194,6 +194,7 @@ it('guards optional remote startup and retains local-only grant management', asy
               host: 'avru.example',
               authorization: `Bearer ${token}`,
               'content-type': 'application/json',
+              accept: 'application/json, text/event-stream',
             },
           },
           (response) => {
@@ -207,7 +208,7 @@ it('guards optional remote startup and retains local-only grant management', asy
             jsonrpc: '2.0',
             id: 1,
             method: 'tools/call',
-            params: { name: 'browsers_list' },
+            params: { name: 'browser_list' },
           }),
         );
       },

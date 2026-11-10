@@ -39,15 +39,15 @@ D-12 已确定 QuickJS 采用 WASM 版，放在由守护进程管理的单个独
 - 信封：每条消息含 `{ v: 1, type, taskId, seq }`；`seq` 为每个方向、每个任务内单调递增的序号，从 1 开始。
 - 校验：收到错任务、重复序号、越界序号或超大消息时拒绝该消息并记日志；不自动重放。
 
-| 方向 | 消息 | 关键字段 | 说明 |
-| --- | --- | --- | --- |
-| daemon → runner | run_task | taskId、script、target、limits | 启动任务；target 为 { browserId, tabId, generation }；limits 为 { timeoutMs, maxOutputBytes, maxBridgeCalls } |
-| daemon → runner | cancel_task | taskId、reason | 取消任务；runner 向任务发出 AbortSignal |
-| daemon → runner | ping | — | 保活 |
-| runner → daemon | bridge_call | taskId、callId、method、args | SDK 方法调用请求；method 为 SDK 方法名，args 为 JSON 数组 |
-| runner → daemon | task_result | taskId、state、result?、error? | 任务终态；state 为 queued / running / succeeded / failed / cancelled / unknown |
-| runner → daemon | pong | — | 保活响应 |
-| daemon → runner | bridge_result | callId、ok、value?、error? | 对 bridge_call 的回答 |
+| 方向            | 消息          | 关键字段                       | 说明                                                                                                          |
+| --------------- | ------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| daemon → runner | run_task      | taskId、script、target、limits | 启动任务；target 为 { browserId, tabId, generation }；limits 为 { timeoutMs, maxOutputBytes, maxBridgeCalls } |
+| daemon → runner | cancel_task   | taskId、reason                 | 取消任务；runner 向任务发出 AbortSignal                                                                       |
+| daemon → runner | ping          | —                              | 保活                                                                                                          |
+| runner → daemon | bridge_call   | taskId、callId、method、args   | SDK 方法调用请求；method 为 SDK 方法名，args 为 JSON 数组                                                     |
+| runner → daemon | task_result   | taskId、state、result?、error? | 任务终态；state 为 queued / running / succeeded / failed / cancelled / unknown                                |
+| runner → daemon | pong          | —                              | 保活响应                                                                                                      |
+| daemon → runner | bridge_result | callId、ok、value?、error?     | 对 bridge_call 的回答                                                                                         |
 
 - `bridge_call` 与 `bridge_result` 用 `callId` 一一对应。
 - `task_result` 发出后，该任务的后续桥接调用一律拒绝；迟到的 `bridge_result` 不转发。
@@ -58,14 +58,14 @@ D-12 已确定 QuickJS 采用 WASM 版，放在由守护进程管理的单个独
 
 1. **任务仍活跃**：任务未取消、未超时、未进入终态；`bridge_call` 的 taskId 与当前运行任务一致，`callId` 未重复。
 2. **授权仍有效**：MCP OAuth grant 仍有效且未撤销；目标浏览器仍处于配对状态；grant 的能力范围包含本次调用。
-3. **目标仍有效**：标签页存在；连接代次与认领时一致；认领属于本任务；目标不是受限页面。
-4. **能力在允许范围内**：方法名在 SDK 允许清单内；`cdp.send` 的方法在白名单内；当前后端支持该方法。
-5. **敏感动作已确认**：需要确认的动作必须已有用户确认；未确认时桥接调用挂起等待确认，确认超时或被拒绝时返回 `CONFIRMATION_REQUIRED` / `CONFIRMATION_DENIED`，不执行。
+3. **目标仍有效**：标签页存在且属于已连接的可信设备；连接代次与当前任务一致；目标不是浏览器原生无法访问的系统页面。内部自动认领仅用于并发互斥，无须人工批准。
+4. **协议与能力有效**：SDK 桥接方法及参数符合当前 SDK 合同；`cdp.send` 直接传递全部 CDP 命令，不设 CDP 命令白名单、单 origin 限制或业务敏感命令过滤；浏览器若不支持某命令，如实返回后端错误。
+5. **自动执行**：已认证客户端的 AI 不需要逐次用户确认或操作时挂起。任务操作仍按超时、取消、断线和结果未知状态机处理，不自动重放可能已生效的副作用。
 
 - 任一检查失败，daemon 返回 `bridge_result`（`ok: false`），`error.code` 为对应错误码（错误码表见[浏览器 SDK](browser-sdk.md)）；不把失败调用发往扩展。
-- 桥接绝不返回凭据、Cookie 或超出快照合同的页面正文；Token、Cookie、输入文本、网页正文、带敏感参数的完整 URL 不进入桥接返回值与日志。
+- CDP/SDK 可向任务返回浏览器允许读取的 Cookie、页面正文和 JavaScript 结果；**内部连接 Token 与 OAuth 凭据不得泄露**。审计日志默认不持久保存 Cookie 值、输入文本、网页正文或含敏感查询参数的完整 URL。
 - 取消用 AbortSignal 协作取消：daemon 发 `cancel_task` 后，runner 向任务发出 AbortSignal；在途桥接调用标记取消，daemon 收到取消后不再下发新调用；迟到结果丢弃，不转发给已结束的任务。
-- 生产适配器必须检查 AbortSignal 并执行独立业务授权；AbortSignal 不保证撤回已发生副作用。
+- 生产适配器必须检查 AbortSignal、已认证客户端、有效目标连接及任务互斥；不进行逐业务动作授权或人工确认。AbortSignal 不保证撤回已发生副作用。
 
 ### 超时、取消与崩溃
 
@@ -76,5 +76,5 @@ D-12 已确定 QuickJS 采用 WASM 版，放在由守护进程管理的单个独
 ### 墙钟：5 秒基础上限与生产 timeoutMs
 
 - 独立基础的任务墙钟 5 秒是基础的保守上限，只适用于无副作用的 mock 基础，不适用于真实网页任务。
-- 生产任务由 daemon 按任务传入 `timeoutMs`（拟定默认 60 秒、上限 300 秒）；未传入时沿用 5 秒基础上限；runner 的墙钟按 daemon 传入值执行，5 秒基础上限不作为生产任务的上限。
+- 生产任务由 daemon 按任务传入 `timeoutMs`（已决定默认 60 秒、上限 300 秒，M0，2026-11-08）；未传入时沿用 5 秒基础上限；runner 的墙钟按 daemon 传入值执行，5 秒基础上限不作为生产任务的上限。
 - 单步 SDK 调用等待随任务 timeoutMs 计入总时长。脚本中止不保证网页动作未发生。

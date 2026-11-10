@@ -2,12 +2,49 @@ export interface Tab {
   id: number;
   title: string;
   url: string;
+  active: boolean;
 }
 export interface BrowserMetadata {
   browserName: string;
   browserVersion: string;
   versionSource: 'clientHints' | 'userAgent' | 'unknown';
   extensionVersion: string;
+}
+export interface ActionError {
+  code: string;
+  message: string;
+}
+export interface ActionMessage {
+  v: 1;
+  type: 'action';
+  requestId: string;
+  tabId: number;
+  generation: number;
+  method: string;
+  args: unknown[];
+}
+export type ActionResultMessage =
+  | {
+      v: 1;
+      type: 'action_result';
+      requestId: string;
+      ok: true;
+      value?: unknown;
+    }
+  | {
+      v: 1;
+      type: 'action_result';
+      requestId: string;
+      ok: false;
+      error: ActionError;
+    };
+export interface ChunkMessage {
+  v: 1;
+  type: 'chunk';
+  requestId: string;
+  index: number;
+  total: number;
+  payload: string;
 }
 export type Message =
   | {
@@ -34,7 +71,21 @@ export type Message =
       approved: boolean;
     }
   | { v: 1; type: 'auto-redeem'; ticket: string }
+  | { v: 1; type: 'control-interrupted'; tabId: number }
+  | ActionMessage
+  | ActionResultMessage
+  | ChunkMessage
   | { v: 1; type: 'ping' };
+
+function interruptedMessage(value: Record<string, unknown>): Message {
+  if (
+    !Number.isSafeInteger(value.tabId) ||
+    typeof value.tabId !== 'number' ||
+    value.tabId < 0
+  )
+    throw new Error('Invalid interrupted tab');
+  return { v: 1, type: 'control-interrupted', tabId: value.tabId };
+}
 
 export function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -63,7 +114,12 @@ function tab(value: unknown): Tab {
   url.password = '';
   url.search = '';
   url.hash = '';
-  return { id: value.id, title: value.title, url: url.href };
+  return {
+    id: value.id,
+    title: value.title,
+    url: url.href,
+    active: value.active === true,
+  };
 }
 function tabs(value: unknown): Tab[] {
   if (!Array.isArray(value) || value.length > 500)
@@ -89,6 +145,82 @@ function metadata(value: unknown): BrowserMetadata {
     browserVersion: value.browserVersion,
     extensionVersion: value.extensionVersion,
     versionSource: value.versionSource,
+  };
+}
+function actionMessage(value: Record<string, unknown>): ActionMessage {
+  if (
+    !text(value.requestId, 64) ||
+    !Number.isSafeInteger(value.tabId) ||
+    typeof value.tabId !== 'number' ||
+    value.tabId < 0 ||
+    !Number.isSafeInteger(value.generation) ||
+    typeof value.generation !== 'number' ||
+    value.generation < 0 ||
+    !text(value.method, 128) ||
+    !Array.isArray(value.args) ||
+    value.args.length > 1024
+  )
+    throw new Error('Invalid action');
+  return {
+    v: 1,
+    type: 'action',
+    requestId: value.requestId,
+    tabId: value.tabId,
+    generation: value.generation,
+    method: value.method,
+    args: value.args,
+  };
+}
+function actionResultMessage(
+  value: Record<string, unknown>,
+): ActionResultMessage {
+  if (!text(value.requestId, 64) || typeof value.ok !== 'boolean')
+    throw new Error('Invalid action result');
+  if (value.ok)
+    return {
+      v: 1,
+      type: 'action_result',
+      requestId: value.requestId,
+      ok: true,
+      ...(value.value !== undefined ? { value: value.value } : {}),
+    };
+  if (
+    !record(value.error) ||
+    !text(value.error.code, 64) ||
+    typeof value.error.message !== 'string' ||
+    value.error.message.length > 512
+  )
+    throw new Error('Invalid action result');
+  return {
+    v: 1,
+    type: 'action_result',
+    requestId: value.requestId,
+    ok: false,
+    error: { code: value.error.code, message: value.error.message },
+  };
+}
+function chunkMessage(value: Record<string, unknown>): ChunkMessage {
+  if (
+    !text(value.requestId, 64) ||
+    !Number.isSafeInteger(value.index) ||
+    typeof value.index !== 'number' ||
+    !Number.isSafeInteger(value.total) ||
+    typeof value.total !== 'number' ||
+    value.index < 0 ||
+    value.total < 1 ||
+    value.index >= value.total ||
+    value.total > 4096 ||
+    typeof value.payload !== 'string' ||
+    Buffer.byteLength(value.payload, 'utf8') > 1_048_576
+  )
+    throw new Error('Invalid chunk');
+  return {
+    v: 1,
+    type: 'chunk',
+    requestId: value.requestId,
+    index: value.index,
+    total: value.total,
+    payload: value.payload,
   };
 }
 export function parseMessage(raw: string): Message {
@@ -148,6 +280,14 @@ export function parseMessage(raw: string): Message {
         nonce: value.nonce,
         approved: value.approved,
       };
+    case 'control-interrupted':
+      return interruptedMessage(value);
+    case 'action':
+      return actionMessage(value);
+    case 'action_result':
+      return actionResultMessage(value);
+    case 'chunk':
+      return chunkMessage(value);
     case 'metadata':
       return { v: 1, type: 'metadata', metadata: metadata(value.metadata) };
     case 'tabs':

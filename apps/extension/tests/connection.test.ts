@@ -43,7 +43,9 @@ describe('browser connection lifecycle', () => {
       JSON.stringify({
         v: 1,
         type: 'tabs',
-        tabs: [{ id: 1, title: '', url: 'https://example.com/' }],
+        tabs: [
+          { id: 1, title: '', url: 'https://example.com/', active: false },
+        ],
       }),
     );
     await vi.advanceTimersByTimeAsync(20000);

@@ -10,7 +10,7 @@ MCP 不把每个 SDK 函数都复制成独立工具。用少量 MCP 工具管理
 
 ### browser_list —— 列出已连接的浏览器与标签页
 
-只读，只发现，不取得控制权。入参 `{ limit?: number; cursor?: string; browserId?: BrowserId }`。返回 `{ browsers: [{ browserId, name, type: 'extension' | 'cdp', profileName?, tabs: [{ tabId, title?, url?, claimed }] }], nextCursor?: string, total: number }`，total 为符合过滤条件的浏览器总数。默认 limit 拟定 100；cursor 为不透明翻页标记。标题与 URL 敏感、只发给已授权客户端。守护进程连不上时报 `DAEMON_UNAVAILABLE`；没有已连接的浏览器时返回空列表，不算错。
+只读，只发现，不取得控制权。入参 `{ limit?: number; cursor?: string; browserId?: BrowserId }`。返回 `{ browsers: [{ browserId, name, type: 'extension' | 'cdp', profileName?, tabs: [{ tabId, title?, url?, claimed }] }], nextCursor?: string, total: number }`，total 为符合过滤条件的浏览器总数。默认 limit 100（已决定，M0，2026-11-08）；cursor 为不透明翻页标记。标题与 URL 敏感、只发给已授权客户端。守护进程连不上时报 `DAEMON_UNAVAILABLE`；没有已连接的浏览器时返回空列表，不算错。
 
 ### browser_claim_tab —— 认领标签页
 
@@ -34,7 +34,7 @@ MCP 不把每个 SDK 函数都复制成独立工具。用少量 MCP 工具管理
 
 不填时返回 `{ version, index: [{ topic, title, description }] }`，索引只列主题名、标题与一句话说明，AI 按需再取全文。填了时返回 `{ version, documents: [{ topic, title, content }] }`，按请求顺序返回。请求的任一主题不存在时报 `TOPIC_NOT_FOUND`，并指明是哪个主题。
 
-数字限制（超时、输出大小、步数、排队数）待阶段 0 确定。直接读页面的 MCP 工具首版不列入，简单任务先走“认领 + 执行一段只读脚本”；SDK 说明先用工具，不单独设 Resource。
+数字限制（超时、输出大小、步数、排队数）已决定（M0，2026-11-08），见[浏览器 SDK](browser-sdk.md)限制数值表。直接读页面的 MCP 工具首版不列入，简单任务先走“认领 + 执行一段只读脚本”；SDK 说明先用工具，不单独设 Resource。
 
 公开接口应区分协议错误、授权失败、目标离线、标签页不存在、页面已变化、页面不可访问、动作不支持、排队冲突、超时与结果未知。错误不能一律包装为成功文本。
 
@@ -58,7 +58,7 @@ MCP 不把每个 SDK 函数都复制成独立工具。用少量 MCP 工具管理
 
 用户确认：批准只能由目标电脑上**已配对扩展的自有弹窗**提交，不提供管理 Web 的 OAuth 批准按钮。拿到 URL 不等于批准；远程桌面操作者可以使用这台电脑上的弹窗。无需用户记忆 token，不代表内部协议没有凭据。
 
-现有本机扩展配对继续使用连接阶段的可信管理入口；它不是 OAuth 批准，不在本阶段替换。OAuth 流程开始前必须至少有一个已认证且在线的扩展连接。此实现只授予 `browser:read`，对现有 `browsers_list` 工具开放浏览器元数据与已清洗的普通标签快照；尚未实现的动作、QuickJS、文件访问不因批准而开放。
+现有本机扩展配对继续使用连接阶段的可信管理入口；它不是 OAuth 批准，不在本阶段替换。OAuth 流程开始前必须至少有一个已认证且在线的扩展连接。此实现授予 `browser:read`（读工具：`browser_list`、`browser_get_execution`、`browser_sdk_docs`，开放浏览器元数据与已清洗的普通标签快照）与 `browser:control`（控制工具：`browser_claim_tab`、`browser_run_script`、`browser_cancel_execution`；M1 暂定，需 Emma 确认）。动作、QuickJS、文件访问的开放范围以 grant 的 scope 为准，不因批准而越权开放。
 
 ### 组件和协议
 
@@ -103,7 +103,7 @@ HTTP不接受浏览器跨源Origin请求，不提供CORS授权端点或Web批准
 
 连接配置、TLS材料和私密运行描述符只保存在各环境私有根；macOS 使用 0700/0600，Windows 限当前用户 ACL。配置切换串行，旧进程未确认停止时不启动第二个实例、不删除现场。FRPC 管理 API 仅监听随机 loopback 端口，使用每实例随机用户名/密码；只代理 OAuth 端口，不代理管理 API。崩溃恢复先用私密描述符证明旧实例归属，再停止或复用其管理状态；不能只凭 PID 杀进程。进程异常确认退出后以 1 秒起、最多 30 秒退避恢复，公网故障由 FRPC 自身重连。
 
-状态为 unconfigured、applying、connecting、registered、unavailable、unknown；registered 只说明 FRPC 管理 API 报告本环境 HTTPS 代理运行。公网可达性和 ChatGPT 联调另记为未验证。固定活动事件持久化到对应 SQLite，不保存配置、token、证书/私钥或原始 FRPC 输出。OAuth 仍为 browser:read、预登记客户端、PKCE S256 和本机可信扩展确认。
+状态为 unconfigured、applying、connecting、registered、unavailable、unknown；registered 只说明 FRPC 管理 API 报告本环境 HTTPS 代理运行。公网可达性和 ChatGPT 联调另记为未验证。固定活动事件持久化到对应 SQLite，不保存配置、token、证书/私钥或原始 FRPC 输出。OAuth 仍为 browser:read / browser:control（M1 暂定，需 Emma 确认）、预登记客户端、PKCE S256 和本机可信扩展确认。
 
 内嵌官方 FRP v0.72.0 的 darwin-amd64、darwin-arm64、windows-amd64、windows-arm64 FRPC。资产在构建准备时下载，校验固定 archive/程序 SHA-256 与可执行文件架构，许可随包；终端用户无需另装或下载。仅支持 Windows/macOS。此次验收只执行替身进程与模拟管理 API；不运行官方 FRPC（包括 --version/verify）、不部署 FRPS、不做公网或真实 ChatGPT 联调。
 

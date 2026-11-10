@@ -92,22 +92,27 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
       .access_token;
     const call = () =>
       page.request.post(`${remote}/mcp`, {
-        headers: { ...headers, authorization: `Bearer ${token}` },
+        headers: {
+          ...headers,
+          authorization: `Bearer ${token}`,
+          accept: 'application/json, text/event-stream',
+        },
         data: {
           jsonrpc: '2.0',
           id: 1,
           method: 'tools/call',
-          params: { name: 'browsers_list' },
+          params: { name: 'browser_list' },
         },
       });
     expect((await call()).status()).toBe(200);
+    await page.getByRole('button', { name: '日志', exact: true }).click();
     const history = page.locator('.calls');
     await expect(
-      history.getByText('browsers_list', { exact: true }),
+      history.getByText('browser_list', { exact: true }),
     ).toBeVisible();
     const successful = history
       .locator('tbody tr')
-      .filter({ hasText: 'browsers_list' });
+      .filter({ hasText: 'browser_list' });
     await expect(successful).toContainText('已完成');
     await successful.locator('summary').click();
     await expect(successful).toContainText('链路 ID');
@@ -139,10 +144,11 @@ test('real paired extension popup alone approves OAuth and revoked grants stop M
     daemon = await startDaemon(join(directory, 'data'), configuration);
     await page.goto(daemon.url);
     await page.getByRole('button', { name: '进入 Avru' }).click();
+    await page.getByRole('button', { name: '日志', exact: true }).click();
     const restored = page.locator('.calls');
     await expect(restored).toContainText('本机保存');
     await expect(
-      restored.getByText('browsers_list', { exact: true }).first(),
+      restored.getByText('browser_list', { exact: true }).first(),
     ).toBeVisible();
     await expect(restored).not.toContainText(token);
   } finally {

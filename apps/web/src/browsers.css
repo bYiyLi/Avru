@@ -1,0 +1,223 @@
+/* Dedicated browser inventory; no demo connections or simulated timestamps. */
+.browser-page-heading,
+.browser-page-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.browser-page-heading h1 {
+  margin: 0 0 5px;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+.browser-page-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.browser-page-actions {
+  flex-shrink: 0;
+  align-items: center;
+  gap: 24px;
+}
+.browser-page-actions button {
+  border-radius: 9px;
+  background: var(--console-surface);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 550;
+}
+.browser-data-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.browser-data-indicator i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--console-unknown);
+}
+.browser-data-indicator i.is-current {
+  background: var(--console-success);
+}
+.browser-table-section {
+  margin-top: 57px;
+}
+.shell--console .browsers-page .browser-page-heading {
+  display: none;
+}
+.shell--console .browser-table-section {
+  margin-top: 0;
+}
+.browser-count {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.browser-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.browser-table {
+  min-width: 790px;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.browser-table th {
+  padding: 17px 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 550;
+}
+.browser-table th:first-child {
+  border-left: 1px solid var(--line);
+  border-top-left-radius: 8px;
+}
+.browser-table th:last-child {
+  border-right: 1px solid var(--line);
+  border-top-right-radius: 8px;
+}
+.browser-table td {
+  height: 94px;
+  padding: 19px 18px;
+  vertical-align: middle;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  background: var(--console-surface);
+  white-space: nowrap;
+}
+.browser-table td:first-child {
+  min-width: 195px;
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+}
+.browser-table td:last-child {
+  border-right: 1px solid var(--line);
+}
+.browser-table tbody tr:last-child td {
+  border-bottom: 1px solid var(--line);
+}
+.browser-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 8px;
+}
+.browser-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 8px;
+}
+.browser-profile-details {
+  max-width: 300px;
+}
+.browser-profile-details summary {
+  list-style: none;
+  cursor: pointer;
+}
+.browser-profile-details summary::-webkit-details-marker {
+  display: none;
+}
+.browser-profile-details summary strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink);
+}
+.browser-profile-details summary span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.browser-profile-details summary:hover strong {
+  color: var(--accent);
+}
+.browser-profile-extra {
+  margin-top: 14px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.browser-profile-extra code {
+  color: var(--muted);
+  font-size: 10px;
+}
+.browser-profile-extra p {
+  margin: 9px 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.browser-profile-extra ul {
+  max-width: 265px;
+  margin: 0;
+  padding-left: 18px;
+}
+.browser-profile-extra li {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.browser-profile-extra li small {
+  white-space: normal;
+}
+.browser-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+}
+.browser-connection i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--console-unknown);
+}
+.browser-connection--online {
+  color: var(--console-online);
+}
+.browser-connection--online i {
+  background: var(--console-online);
+}
+.browser-check--match {
+  color: var(--ink);
+}
+.browser-check--mismatch {
+  color: var(--warning);
+}
+.browser-check--unknown,
+.browser-last-response {
+  color: var(--muted);
+}
+.browser-table-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.browser-page-empty {
+  padding: 38px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--console-surface);
+  color: var(--muted);
+  text-align: center;
+}
+@media (max-width: 520px) {
+  .browser-page-heading {
+    flex-direction: column;
+    gap: 18px;
+  }
+  .browser-page-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .browser-table-section {
+    margin-top: 36px;
+  }
+}

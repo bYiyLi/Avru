@@ -10,7 +10,7 @@ it('records bounded server-owned IDs and fixed events without arbitrary request 
   const active = traces.begin({
     method: 'tools/call',
     id: secret,
-    params: { name: 'browsers_list', arguments: { secret } },
+    params: { name: 'browser_list', arguments: { secret } },
   });
   active.step('authorization', 'succeeded', 'authorized');
   active.step('dispatch', 'succeeded', 'completed');
@@ -22,7 +22,7 @@ it('records bounded server-owned IDs and fixed events without arbitrary request 
   const call = snapshot.calls[0];
   expect(call?.requestId).not.toBe(secret);
   expect(call?.traceId).toBe(active.traceId);
-  expect(call?.tool).toBe('browsers_list');
+  expect(call?.tool).toBe('browser_list');
   expect(call?.status).toBe('succeeded');
   expect(call?.spans).toHaveLength(3);
   expect(call?.spans[1]?.parentSpanId).toBe(call?.spans[0]?.spanId);
@@ -68,7 +68,7 @@ it('persists sanitized calls and leaves interrupted requests unknown across rest
     const completed = first.begin({
       method: 'tools/call',
       id: secret,
-      params: { name: 'browsers_list', arguments: { secret } },
+      params: { name: 'browser_list', arguments: { secret } },
     });
     completed.step('authorization', 'succeeded', 'authorized');
     completed.finish('succeeded', 'completed');

@@ -4,9 +4,15 @@ import { App } from './App.js';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './style.css';
-import { language } from './presentation.js';
-import { localizeDocument } from './i18n.js';
-localizeDocument(document, language(navigator.language));
+import './browsers.css';
+import {
+  applyLocalePreference,
+  applyThemePreference,
+  initialLocale,
+  initialTheme,
+} from './preferences.js';
+applyLocalePreference(initialLocale(navigator.language));
+applyThemePreference(initialTheme());
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing application root');
 bootstrapManagement(

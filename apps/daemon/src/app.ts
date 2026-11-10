@@ -8,12 +8,15 @@ import type { ConnectionDriver } from './transports/frpc-process.js';
 import type { OAuthConfig } from './oauth/config.js';
 import { releaseInfo } from './release-info.js';
 import { randomBytes } from 'node:crypto';
+import { basename, dirname, join } from 'node:path';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { BrowserStore } from './store.js';
 import { Connections } from './connections.js';
 import { secureHttp, secureErrors } from './http-security.js';
 import { serveWeb } from './static-web.js';
 import { connectWebSockets } from './websocket.js';
+import { Executions } from './executions.js';
+import { ExecutionAudit } from './execution-audit.js';
 
 export interface AppOptions {
   channel?: ReleaseChannel;
@@ -42,10 +45,23 @@ export function buildApp(options: AppOptions = {}) {
     },
     options.channel,
   );
-  const traces = new CallTraces(options.databasePath);
+  const executionAuditPath =
+    options.databasePath && options.databasePath !== ':memory:'
+      ? join(
+          dirname(options.databasePath),
+          `${basename(options.databasePath, '.sqlite')}-execution-audit.sqlite`,
+        )
+      : undefined;
+  const executionAudit = new ExecutionAudit(executionAuditPath);
+  const traces = new CallTraces(executionAuditPath);
+  if (options.databasePath && options.databasePath !== ':memory:')
+    traces.migrateLegacy(options.databasePath);
+  const executions = new Executions(connections, executionAudit);
+  connections.onInterrupted(executions.interruptByUser.bind(executions));
   const remote = new OAuthListener(connections, {
     port,
     traces,
+    executions,
   });
   if (options.oauth) remote.prepare(options.oauth);
   const connection =
@@ -66,24 +82,14 @@ export function buildApp(options: AppOptions = {}) {
     await connection?.initialize();
   });
   app.addHook('preClose', async () => {
+    executions.close();
     await connection?.close();
     await remote.close();
   });
   secureHttp(app, port, options.adminKey ?? randomBytes(32).toString('hex'));
-  app.get('/health', () => ({
-    service: 'avru',
-    state: 'browser-connection',
-    browserControl: false,
-  }));
-  app.get('/api/status', () => ({
-    ...releaseInfo,
-    extensionFiles: options.installedExtension ?? null,
-    channel: options.channel,
-    mcp: remote.authority ? 'oauthReadOnly' : 'notImplemented',
-    chatgpt: 'notVerified',
-    frpc: connection ? 'managed' : 'notImplemented',
-  }));
+  statusRoutes(app, options, remote, connection);
   app.get('/api/calls', () => traces.snapshot());
+  app.get('/api/execution-audit', () => executionAudit.snapshot());
   connectionRoutes(app, connection);
   app.get('/api/grants', () => ({ grants: remote.authority?.grants() ?? [] }));
   app.delete<{ Params: { id: string } }>(
@@ -113,9 +119,31 @@ export function buildApp(options: AppOptions = {}) {
     closeSockets();
     done();
   });
-  app.addHook('onClose', closeStores(traces, store));
+  app.addHook('onClose', closeStores(traces, store, executionAudit));
   return app;
 }
+
+function statusRoutes(
+  app: FastifyInstance,
+  options: AppOptions,
+  remote: OAuthListener,
+  connection: ConnectionManager | undefined,
+): void {
+  app.get('/health', () => ({
+    service: 'avru',
+    state: 'browser-connection',
+    browserControl: true,
+  }));
+  app.get('/api/status', () => ({
+    ...releaseInfo,
+    extensionFiles: options.installedExtension ?? null,
+    channel: options.channel,
+    mcp: remote.authority ? 'browserControl' : 'notImplemented',
+    chatgpt: 'notVerified',
+    frpc: connection ? 'managed' : 'notImplemented',
+  }));
+}
+
 function browserRoutes(app: FastifyInstance, connections: Connections): void {
   app.get('/api/pairings', () => ({ pairings: connections.pairings() }));
   app.post<{ Params: { id: string } }>(
@@ -199,9 +227,14 @@ function connectionTicketRoute(
   });
 }
 
-function closeStores(traces: CallTraces, store: BrowserStore) {
+function closeStores(
+  traces: CallTraces,
+  store: BrowserStore,
+  audit: ExecutionAudit,
+) {
   return (_instance: FastifyInstance, done: () => void) => {
     traces.close();
+    audit.close();
     store.close();
     done();
   };

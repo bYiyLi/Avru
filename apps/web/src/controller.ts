@@ -1,9 +1,3 @@
-import {
-  detectCurrent,
-  connectCurrent,
-  extensionMessaging,
-} from './current-browser.js';
-import type { CurrentBrowser, ExtensionMessage } from './current-browser.js';
 import type { CallHistory } from './call-types.js';
 import type { ConnectionStatus } from '../../../packages/protocol/connection.d.ts';
 export interface BrowserProfile {
@@ -40,7 +34,6 @@ export interface SystemStatus {
   frpc: 'notImplemented' | 'managed';
 }
 export interface ViewState {
-  current?: CurrentBrowser;
   history?: CallHistory | null;
   connection?: ConnectionStatus | null;
   system?: SystemStatus | null;
@@ -58,7 +51,6 @@ function resetView(message: ViewState['message']): Partial<ViewState> {
   return {
     browsers: [],
     pairings: [],
-    current: { status: 'unavailable' },
     system: null,
     history: null,
     connection: null,
@@ -96,12 +88,12 @@ function createApi(
     return response.status === 204 ? null : response.json();
   };
 }
-function createModel(session: Session) {
+function createModel() {
   let state: ViewState = {
     browsers: [],
     pairings: [],
     message: '',
-    authorized: !!session.key,
+    authorized: true,
     busy: false,
   };
   const listeners = new Set<() => void>();
@@ -126,9 +118,8 @@ function createModel(session: Session) {
 export function createController(
   session: Session,
   request: typeof fetch = fetch,
-  send: ExtensionMessage = extensionMessaging(),
 ) {
-  const model = createModel(session);
+  const model = createModel();
   const { update } = model;
   let running = false;
   let generation = 0;
@@ -138,7 +129,7 @@ export function createController(
   async function poll(epoch: number) {
     const started = revision;
     try {
-      const result = await readCurrentState(api, send);
+      const result = await readCurrentState(api);
       if (
         running &&
         epoch === generation &&
@@ -147,7 +138,6 @@ export function createController(
       )
         update({
           ...result,
-          current: retainFailure(model.state.current, result.current),
           message: '',
         });
     } catch {
@@ -200,16 +190,83 @@ export function createController(
       generation++;
       clearTimeout(timer);
     },
-    connectCurrent: createCurrentConnector(model, api, send, () => {
-      revision++;
-    }),
     ...connectionActions(model, api, () => {
       revision++;
     }),
     ...actions(action),
+    runDiagnostics: () => runDiagnostics(api, request),
   };
 }
 export type Controller = ReturnType<typeof createController>;
+export type DiagnosticStepId = 'daemon' | 'session' | 'extension' | 'mcp';
+export type DiagnosticStepStatus = 'passed' | 'failed' | 'unknown';
+export interface DiagnosticStep {
+  id: DiagnosticStepId;
+  status: DiagnosticStepStatus;
+}
+export interface DiagnosticReport {
+  steps: DiagnosticStep[];
+}
+async function runDiagnostics(
+  api: ReturnType<typeof createApi>,
+  request: typeof fetch,
+): Promise<DiagnosticReport> {
+  const steps: DiagnosticStep[] = [];
+  const daemonOk = await request('/health', { cache: 'no-store' })
+    .then((response) => response.ok)
+    .catch(() => false);
+  steps.push({ id: 'daemon', status: daemonOk ? 'passed' : 'failed' });
+  if (!daemonOk) {
+    steps.push(
+      { id: 'session', status: 'unknown' },
+      { id: 'extension', status: 'unknown' },
+      { id: 'mcp', status: 'unknown' },
+    );
+    return { steps };
+  }
+  let status: SystemStatus | null = null;
+  try {
+    status = (await api('status')) as SystemStatus;
+    steps.push({ id: 'session', status: 'passed' });
+  } catch {
+    steps.push({ id: 'session', status: 'failed' });
+  }
+  if (!status) {
+    steps.push(
+      { id: 'extension', status: 'unknown' },
+      { id: 'mcp', status: 'unknown' },
+    );
+    return { steps };
+  }
+  try {
+    const { browsers } = (await api('browsers')) as {
+      browsers: BrowserProfile[];
+    };
+    steps.push({
+      id: 'extension',
+      status: extensionStepStatus(browsers, status.expectedExtensionVersion),
+    });
+  } catch {
+    steps.push({ id: 'extension', status: 'failed' });
+  }
+  steps.push({
+    id: 'mcp',
+    status: status.mcp === 'oauthReadOnly' ? 'passed' : 'failed',
+  });
+  return { steps };
+}
+function extensionStepStatus(
+  browsers: BrowserProfile[],
+  expected: string,
+): DiagnosticStepStatus {
+  if (!browsers.some((browser) => browser.connected)) return 'failed';
+  const actual = browsers
+    .filter((browser) => browser.connected)
+    .map((browser) => browser.metadata?.extensionVersion)
+    .find((version) => version);
+  if (!actual) return 'unknown';
+  return actual === expected ? 'passed' : 'failed';
+}
 function connectionActions(
   model: ReturnType<typeof createModel>,
   api: ReturnType<typeof createApi>,
@@ -259,44 +316,7 @@ function actionError(state: ViewState): ViewState['message'] {
   return state.authorized ? 'request.failed' : 'session.expired';
 }
 
-function createCurrentConnector(
-  model: ReturnType<typeof createModel>,
-  api: ReturnType<typeof createApi>,
-  send: ExtensionMessage,
-  bump: () => void,
-) {
-  let attempted = false;
-  const { update } = model;
-  return async () => {
-    const files = model.state.system?.extensionFiles;
-    if (
-      attempted ||
-      !files ||
-      !model.state.authorized ||
-      model.state.busy ||
-      model.state.current?.status !== 'detected'
-    )
-      return;
-    bump();
-    attempted = true;
-    update({ busy: true, current: { status: 'connecting' } });
-    try {
-      await connectCurrent(files.extensionId, send, (challenge) =>
-        api('connection-ticket', 'POST', { challenge }),
-      );
-    } catch {
-      update({ current: { status: 'failed' } });
-    } finally {
-      bump();
-      update({ busy: false });
-    }
-  };
-}
-
-async function readCurrentState(
-  api: ReturnType<typeof createApi>,
-  send: ExtensionMessage,
-) {
+async function readCurrentState(api: ReturnType<typeof createApi>) {
   const { browsers } = (await api('browsers')) as {
     browsers: BrowserProfile[];
   };
@@ -307,17 +327,5 @@ async function readCurrentState(
     system.frpc === 'managed'
       ? ((await api('connection')) as ConnectionStatus)
       : null;
-  const current = system.extensionFiles
-    ? await detectCurrent(system.extensionFiles.extensionId, send)
-    : { status: 'unavailable' as const };
-  return { browsers, pairings, system, history, current, connection };
-}
-
-function retainFailure(
-  previous: CurrentBrowser | undefined,
-  current: CurrentBrowser,
-) {
-  return previous?.status === 'failed' && current.status === 'detected'
-    ? previous
-    : current;
+  return { browsers, pairings, system, history, connection };
 }

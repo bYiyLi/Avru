@@ -7,7 +7,17 @@ export interface OAuthConfig {
   issuer: string;
   clients: OAuthClient[];
 }
-export const scope = 'browser:read';
+export const readScope = 'browser:read';
+export const controlScope = 'browser:control';
+export const scopes = [readScope, controlScope];
+/** Parse a space-delimited scope request into the granted subset (undefined when invalid). */
+export function parseScopes(value: string | null): string[] | undefined {
+  if (value === null || value === '') return undefined;
+  const requested = value.split(' ');
+  if (new Set(requested).size !== requested.length) return undefined;
+  if (requested.some((scope) => !scopes.includes(scope))) return undefined;
+  return requested;
+}
 export function validateConfig(config: OAuthConfig): OAuthConfig {
   const issuer = new URL(config.issuer);
   if (issuer.protocol !== 'https:' || issuer.origin !== config.issuer)

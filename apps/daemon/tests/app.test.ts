@@ -30,7 +30,7 @@ describe('local daemon HTTP trust boundary', () => {
     expect(health.json<unknown>()).toEqual({
       service: 'avru',
       state: 'browser-connection',
-      browserControl: false,
+      browserControl: true,
     });
     expect(
       (await instance.inject({ url: '/api/status', headers: { host } }))

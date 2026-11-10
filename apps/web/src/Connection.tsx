@@ -43,7 +43,7 @@ export function Connection({
       });
   };
   return (
-    <section className="connection-settings">
+    <section className="connection-settings" id="connection">
       <div className="section-heading">
         <h2>{t(locale, 'connection.title')}</h2>
         <span>
@@ -79,6 +79,16 @@ export function Connection({
             >
               {t(locale, 'connection.remove')}
             </button>
+            {busy && status.configured && (
+              <span className="muted">
+                {t(locale, 'connection.removeBusy')}
+              </span>
+            )}
+            {!status.configured && (
+              <span className="muted">
+                {t(locale, 'connection.removeNotConfigured')}
+              </span>
+            )}
           </div>
           <ConnectionActivity status={status} locale={locale} />
         </>

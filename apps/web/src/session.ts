@@ -7,7 +7,7 @@ export interface SessionHost {
 export function managementSession(host: SessionHost) {
   const fragment = new URLSearchParams(host.location.hash.slice(1));
   const incoming = fragment.get('key');
-  if (host.location.hash) {
+  if (host.location.hash && host.location.hash !== '#overview') {
     host.history.replaceState(
       null,
       '',
@@ -41,7 +41,8 @@ export function bootstrapManagement(
   reload: () => void,
   mount: (session: ReturnType<typeof managementSession>) => void,
 ) {
-  const hadFragment = Boolean(host.location.hash);
+  const hadFragment =
+    Boolean(host.location.hash) && host.location.hash !== '#overview';
   const session = managementSession(host);
   if (hadFragment) reload();
   else mount(session);

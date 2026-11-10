@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ConnectionBundle } from '../src/transports/connection-bundle.js';
@@ -11,6 +11,23 @@ export function connectionBundle(): ConnectionBundle {
 function generate(): ConnectionBundle {
   const root = mkdtempSync(join(tmpdir(), 'avru-cert-'));
   try {
+    const config = join(root, 'openssl.cnf');
+    writeFileSync(
+      config,
+      [
+        '[req]',
+        'prompt = no',
+        'distinguished_name = dn',
+        'x509_extensions = v3_ca',
+        '[dn]',
+        'CN = avru.example',
+        '[v3_ca]',
+        'basicConstraints = critical,CA:TRUE',
+        'keyUsage = critical,keyCertSign,digitalSignature',
+        'subjectAltName = DNS:avru.example',
+        '',
+      ].join('\n'),
+    );
     execFileSync(
       'openssl',
       [
@@ -21,12 +38,10 @@ function generate(): ConnectionBundle {
         '-nodes',
         '-days',
         '2',
-        '-subj',
-        '/CN=avru.example',
-        '-addext',
-        'subjectAltName=DNS:avru.example',
-        '-addext',
-        'basicConstraints=critical,CA:TRUE',
+        '-config',
+        config,
+        '-extensions',
+        'v3_ca',
         '-keyout',
         join(root, 'key.pem'),
         '-out',

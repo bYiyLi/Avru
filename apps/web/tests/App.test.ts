@@ -2,20 +2,33 @@ import { createElement, isValidElement } from 'react';
 import type * as React from 'react';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { App, Dashboard } from '../src/App.js';
+import { BrowsersPage } from '../src/Browsers.js';
 import { Welcome } from '../src/Welcome.js';
 import { Install } from '../src/Install.js';
 import { createController } from '../src/controller.js';
 import type { ViewState } from '../src/controller.js';
-import { browserGuide, language, versionStatus } from '../src/presentation.js';
+import { language, versionStatus } from '../src/presentation.js';
 let page = 'welcome';
+let initialPage = '';
+beforeEach(() => {
+  vi.stubGlobal('location', { hash: '' });
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 const setPage = vi.fn();
+const openLogs = vi.fn();
 vi.mock('react', async (importOriginal) => ({
   ...(await importOriginal<typeof React>()),
-  useState: () => [page, setPage],
-  useEffect: (effect: () => () => void) => {
-    effect()();
+  useState: (initial: string | (() => string)) => {
+    if (typeof initial === 'function') initialPage = initial();
+    return [typeof initial === 'function' ? page : initial, setPage];
+  },
+  useEffect: (effect: () => unknown) => {
+    const cleanup = effect();
+    if (typeof cleanup === 'function') (cleanup as () => void)();
   },
   useSyncExternalStore: (_subscribe: unknown, snapshot: () => ViewState) =>
     snapshot(),
@@ -74,16 +87,18 @@ const state: ViewState = {
   ],
 };
 
-it('selects only supported guide and system language without asserting extension installation', () => {
+it('opens the explicit toolbar route directly while plain entry retains welcome', () => {
+  const controller = createController({ key: null, clear: vi.fn() });
+  page = 'welcome';
+  App({ controller, preferredLanguage: 'zh' });
+  expect(initialPage).toBe('welcome');
+  vi.stubGlobal('location', { hash: '#overview' });
+  App({ controller, preferredLanguage: 'zh' });
+  expect(initialPage).toBe('overview');
+});
+it('selects system language and compares reported versions', () => {
   expect(language('zh-TW')).toBe('zh');
   expect(language('de')).toBe('en');
-  expect(browserGuide('Edg/100 Chrome/100').address).toBe('edge://extensions');
-  expect(browserGuide('Chrome/100').address).toBe('chrome://extensions');
-  expect(browserGuide('Firefox')).toEqual({ name: '', address: '' });
-  expect(browserGuide('Version/18 Safari/605')).toEqual({
-    name: '',
-    address: '',
-  });
   expect(versionStatus()).toBe('unknown');
   expect(versionStatus('1')).toBe('unknown');
   expect(versionStatus('1', '1')).toBe('match');
@@ -92,40 +107,67 @@ it('selects only supported guide and system language without asserting extension
 it('renders welcome and honest local installation guidance in both languages', () => {
   const next = vi.fn();
   for (const locale of ['zh', 'en'] as const) {
-    const welcome = Welcome({ locale, next });
+    const welcome = Welcome({
+      locale,
+      next,
+      history: null,
+      onOpenLogs: openLogs,
+    });
     clickButtons(welcome);
     expect(renderToStaticMarkup(welcome)).toContain('Avru');
-    for (const agent of ['Chrome/100', 'Edg/100', 'unknown']) {
-      const install = Install({ locale, agent, next });
+    for (let repeat = 0; repeat < 3; repeat++) {
+      const install = Install({ locale, next });
       clickButtons(install);
       const html = renderToStaticMarkup(install);
       expect(html).toContain(
         locale === 'zh'
-          ? '未检测到已准备的扩展目录'
-          : 'No prepared extension folder',
+          ? '选择安装指引对应的浏览器'
+          : 'Choose the browser for these instructions',
       );
-      expect(html).toContain('npx');
     }
   }
-  expect(next).toHaveBeenCalledTimes(8);
+  expect(next).toHaveBeenCalledTimes(4);
+});
+it('renders the localized welcome story, trustworthy connection guidance and real-log entry', () => {
+  for (const locale of ['zh', 'en'] as const) {
+    const next = vi.fn();
+    const onOpenLogs = vi.fn();
+    const welcome = Welcome({
+      locale,
+      next,
+      history: null,
+      onOpenLogs,
+    });
+    const html = renderToStaticMarkup(welcome);
+    expect(html).toContain('class="welcome-story"');
+    expect(html).toContain('class="welcome-assurance"');
+    expect(html).toContain('class="welcome-trust"');
+    expect(html).toContain('class="welcome-start"');
+    expect(html).toContain(
+      locale === 'zh'
+        ? '本机已连接，不等于远程可用或 AI 已获授权。'
+        : 'A local connection does not mean remote access or AI authorization.',
+    );
+    expect(html).toContain(
+      locale === 'zh' ? '调用记录暂不可用' : 'Call history unavailable',
+    );
+    expect(html).not.toContain('示例调用');
+    clickButtons(welcome);
+    expect(next).toHaveBeenCalledTimes(2);
+    expect(onOpenLogs).toHaveBeenCalledTimes(2);
+  }
 });
 it('renders real pairing and version states, hides stale tabs and never invents MCP calls', () => {
-  const approve = vi.fn();
-  const reject = vi.fn();
-  const revoke = vi.fn();
   for (const locale of ['zh', 'en'] as const) {
-    const view = Dashboard({ state, locale, approve, reject, revoke });
+    const view = BrowsersPage({ state, locale, onAddBrowser: openLogs });
     const html = renderToStaticMarkup(view);
     expect(html).toContain('&lt;script&gt;');
-    expect(html).toContain('123456');
+    expect(html).not.toContain('123456');
     expect(html).toContain('https://example.com');
     expect(html).not.toContain('STALE');
     expect(html).not.toContain('<a');
     clickButtons(view);
   }
-  expect(approve).toHaveBeenCalledWith('p');
-  expect(reject).toHaveBeenCalledWith('p');
-  expect(revoke).toHaveBeenCalledTimes(4);
   const metadata = {
     browserName: 'Chrome',
     browserVersion: '150.0.1',
@@ -134,7 +176,8 @@ it('renders real pairing and version states, hides stale tabs and never invents 
   } as const;
   for (const version of ['0.0.1', '0.0.2']) {
     const html = renderToStaticMarkup(
-      createElement(Dashboard, {
+      createElement(BrowsersPage, {
+        locale: 'zh',
         state: {
           ...state,
           system,
@@ -149,9 +192,7 @@ it('renders real pairing and version states, hides stale tabs and never invents 
             },
           ],
         },
-        approve,
-        reject,
-        revoke,
+        onAddBrowser: openLogs,
       }),
     );
     expect(html).toContain('150.0.1');
@@ -160,14 +201,13 @@ it('renders real pairing and version states, hides stale tabs and never invents 
   }
   expect(
     renderToStaticMarkup(
-      createElement(Dashboard, {
+      createElement(BrowsersPage, {
+        locale: 'zh',
         state: { ...state, browsers: [], pairings: [], busy: true },
-        approve,
-        reject,
-        revoke,
+        onAddBrowser: openLogs,
       }),
     ),
-  ).toContain('尚未连接浏览器');
+  ).toContain('暂无浏览器连接');
 });
 it('starts and stops controller, preserves welcome entry and routes without pretending current browser detection', () => {
   const controller = createController({ key: null, clear: vi.fn() });
@@ -177,13 +217,12 @@ it('starts and stops controller, preserves welcome entry and routes without pret
   const first = App({
     controller,
     preferredLanguage: 'zh-CN',
-    agent: 'Chrome/100',
   });
-  expect(renderToStaticMarkup(first)).toContain('请重新打开');
+  expect(renderToStaticMarkup(first)).toContain('进入 Avru');
   expect(start).toHaveBeenCalled();
   expect(stop).toHaveBeenCalled();
   clickButtons(first);
-  expect(setPage).toHaveBeenCalledWith('install');
+  expect(setPage).toHaveBeenCalledWith('logs');
   expect(setPage).toHaveBeenCalledWith('overview');
   const authorized = {
     ...controller,
@@ -195,14 +234,25 @@ it('starts and stops controller, preserves welcome entry and routes without pret
       const view = App({
         controller: authorized,
         preferredLanguage,
-        agent: 'Chrome/100',
       });
-      expect(renderToStaticMarkup(view)).toContain('123456');
+      expect(renderToStaticMarkup(view)).not.toContain('123456');
       clickButtons(view);
     }
   }
   page = 'overview';
   expect(renderToStaticMarkup(App({ controller }))).not.toContain('123456');
+});
+
+it('shows navigation on the welcome page and routes to the logs page', () => {
+  const controller = createController({ key: null, clear: vi.fn() });
+  setPage.mockClear();
+  page = 'welcome';
+  const first = App({ controller, preferredLanguage: 'zh' });
+  const html = renderToStaticMarkup(first);
+  expect(html).toContain('日志');
+  expect(html).toContain('安装扩展');
+  clickButtons(first);
+  expect(setPage).toHaveBeenCalledWith('logs');
 });
 
 function metadataView(
@@ -217,12 +267,10 @@ function metadataView(
   },
 ) {
   return renderToStaticMarkup(
-    createElement(Dashboard, {
-      approve: vi.fn(),
-      reject: vi.fn(),
-      revoke: vi.fn(),
+    createElement(BrowsersPage, {
       locale,
       state: { ...state, pairings: [], system, browsers: [browser] },
+      onAddBrowser: openLogs,
     }),
   );
 }
@@ -275,12 +323,10 @@ it('keeps offline metadata unknown even if a stale value is supplied', () => {
 it('distinguishes unavailable browser state from a verified empty list', () => {
   for (const locale of ['zh', 'en'] as const) {
     const html = renderToStaticMarkup(
-      createElement(Dashboard, {
-        approve: vi.fn(),
-        reject: vi.fn(),
-        revoke: vi.fn(),
+      createElement(BrowsersPage, {
         locale,
         state: { ...state, system: null, browsers: [], pairings: [] },
+        onAddBrowser: openLogs,
       }),
     );
     expect(html).not.toContain('0 / 0');
@@ -292,7 +338,14 @@ it('distinguishes unavailable browser state from a verified empty list', () => {
     expect(html).not.toContain(
       locale === 'zh' ? '尚未连接浏览器' : 'No paired browsers',
     );
-    expect(html).toContain(
+    const overviewHtml = renderToStaticMarkup(
+      createElement(Dashboard, {
+        locale,
+        state: { ...state, system: null, browsers: [], pairings: [] },
+        onOpenLogs: openLogs,
+      }),
+    );
+    expect(overviewHtml).toContain(
       locale === 'zh' ? '状态未确认' : 'Status not confirmed',
     );
   }
@@ -300,15 +353,11 @@ it('distinguishes unavailable browser state from a verified empty list', () => {
 
 it('does not misidentify unsupported browsers as Chromium', () => {
   const next = vi.fn();
-  for (const agent of ['Firefox/150', 'Version/18 Safari/605']) {
-    const chinese = renderToStaticMarkup(
-      Install({ locale: 'zh', agent, next }),
-    );
-    const english = renderToStaticMarkup(
-      Install({ locale: 'en', agent, next }),
-    );
-    expect(chinese).toContain('未识别的浏览器');
-    expect(english).toContain('Unknown browser');
+  for (let repeat = 0; repeat < 2; repeat++) {
+    const chinese = renderToStaticMarkup(Install({ locale: 'zh', next }));
+    const english = renderToStaticMarkup(Install({ locale: 'en', next }));
+    expect(chinese).toContain('chrome://extensions');
+    expect(english).toContain('edge://extensions');
     expect(chinese).not.toContain('Chromium');
     expect(english).not.toContain('Chromium');
   }
@@ -347,20 +396,59 @@ it('shows the real prepared directory without claiming browser installation', ()
   };
   for (const locale of ['zh', 'en'] as const) {
     const html = renderToStaticMarkup(
-      Install({ locale, agent: 'Edg/150', files, next: vi.fn() }),
+      Install({ locale, files, next: vi.fn() }),
     );
-    expect(html).toContain(files.directory);
-    expect(html).toContain(files.version);
+    expect(html).toContain(
+      locale === 'zh' ? '准备加载扩展' : 'Prepare to load',
+    );
     expect(html).toContain('edge://extensions');
-    expect(html).not.toContain('chrome://extensions');
+    expect(html).toContain('chrome://extensions');
     expect(html).toContain(
       locale === 'zh'
-        ? '不代表当前浏览器已安装'
-        : 'does not mean the browser has installed',
+        ? 'Avru 不会自动安装扩展'
+        : 'Avru does not automatically install',
     );
-    expect(html).toContain(locale === 'zh' ? '重新加载' : 'Reload');
     expect(html).not.toContain(
       locale === 'zh' ? '未检测到已准备' : 'No prepared extension',
     );
   }
+});
+
+it('renders the call history route and the unauthorized notice without inventing state', () => {
+  const controller = createController({ key: null, clear: vi.fn() });
+  page = 'activity';
+  const logs = renderToStaticMarkup(
+    App({ controller, preferredLanguage: 'zh' }),
+  );
+  expect(logs).toContain('调用记录');
+  expect(logs).toContain('暂不可用');
+  const withHistory = {
+    ...controller,
+    snapshot: () => ({
+      ...state,
+      history: { calls: [], retention: { limit: 200, persistent: true } },
+    }),
+  };
+  const empty = renderToStaticMarkup(
+    App({ controller: withHistory, preferredLanguage: 'en' }),
+  );
+  expect(empty).toContain('Call history');
+  expect(empty).toContain('No real call records');
+  const noSystem = {
+    ...controller,
+    snapshot: () => ({ ...state, system: null }),
+  };
+  const unavailable = renderToStaticMarkup(
+    App({ controller: noSystem, preferredLanguage: 'en' }),
+  );
+  expect(unavailable).toContain('Call history unavailable');
+  const unauthorized = {
+    ...controller,
+    snapshot: () => ({ ...state, authorized: false }),
+  };
+  page = 'welcome';
+  const denied = renderToStaticMarkup(
+    App({ controller: unauthorized, preferredLanguage: 'zh' }),
+  );
+  expect(denied).toContain('role="alert"');
 });

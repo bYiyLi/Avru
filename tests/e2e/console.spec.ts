@@ -55,8 +55,9 @@ test('English system-dark console keeps truthful three-page empty states', async
     await expect(page.getByText('No real call records')).toBeVisible();
     await expect(page.getByText(/No browser connections/)).toBeVisible();
     await expect(
-      page.getByRole('button', { name: /theme|language|save/i }),
-    ).toHaveCount(0);
+      page.getByRole('button', { name: 'Switch to dark theme' }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: '中文' })).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,
     );

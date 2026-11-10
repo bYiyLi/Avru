@@ -11,7 +11,7 @@
 | [架构](design/architecture.md)             | 系统上下文、组件责任、信任边界、技术栈与工程目录         | R-01–R-03、R-07、R-15–R-17 |
 | [浏览器连接](design/browser-connection.md) | 多连接目标、WS/CDP 分层、配对、消息、管理 API 与会话恢复 | R-02–R-04、R-10、R-17      |
 | [MCP 与授权](design/mcp.md)                | 对外接口候选、同机 OAuth 与公网/本机隔离                 | R-05–R-10                  |
-| [浏览器 SDK](design/browser-sdk.md)        | 浏览器 SDK 能力面、执行与安全边界、确认策略、调用链日志 | R-16、D-15、D-16           |
+| [浏览器 SDK](design/browser-sdk.md)        | 浏览器 SDK 能力面、执行与安全边界、确认策略、调用链日志  | R-16、D-15、D-16           |
 | [运行器](design/runner.md)                 | QuickJS WASM 独立复用进程、受控 SDK 与资源隔离边界       | R-16                       |
 | [安装运行](design/installation.md)         | 稳定目录、更新事务、恢复、认证生命周期、登录启动         | R-11–R-14                  |
 | [管理 Web](design/web.md)                  | 人的管理交互、状态及原型/实现边界                        | R-04、R-15、R-18–R-21      |

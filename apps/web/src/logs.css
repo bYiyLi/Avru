@@ -1,0 +1,579 @@
+/* The log viewer shares the overview console chrome, but has its own layout. */
+.console-logs .logs-filters .logs-search {
+  order: -1;
+}
+.console-logs .calls {
+  min-width: 0;
+  margin-top: 24px;
+  border-top: 0;
+}
+.console-logs .calls .section-heading {
+  margin-bottom: 13px;
+}
+.console-logs .calls .section-heading h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.console-logs .calls .empty {
+  margin: 0;
+  padding: 54px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--console-surface);
+  color: var(--muted);
+  text-align: center;
+}
+.console-logs .call-table {
+  min-width: 850px;
+}
+.console-logs .call-table td:first-child {
+  min-width: 170px;
+}
+.console-logs .call-tool-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.console-logs .call-trace-short,
+.console-logs .call-event-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.console-logs .call-table .logs-event-message {
+  width: auto;
+  min-width: 150px;
+}
+.console-logs .call-table .logs-event-trace {
+  min-width: 185px;
+}
+.console-logs .call-detail summary {
+  color: var(--console-success);
+  cursor: pointer;
+  font-weight: 600;
+}
+.console-logs .call-detail .trace-spans {
+  max-width: 370px;
+  min-width: 0;
+}
+.console-logs .call-detail .trace-identifiers {
+  margin-top: 16px;
+  max-width: 370px;
+}
+.console-logs .call-detail .trace-identifiers dd {
+  word-break: break-all;
+}
+.console-logs .logs-page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 34px;
+  padding-bottom: 27px;
+  border-bottom: 1px solid var(--line);
+}
+.console-logs .logs-page-head h1 {
+  margin: 0 0 3px;
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.8px;
+}
+.console-logs .logs-page-head .lead {
+  max-width: none;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: left;
+}
+.console-logs .logs-head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.console-logs .logs-data-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.console-logs .logs-data-state::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--console-unknown);
+}
+.console-logs .logs-data-state--available::before {
+  background: var(--console-success);
+}
+.console-logs .logs-actions {
+  margin: 0;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.console-logs .logs-actions button {
+  min-height: 34px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--console-surface);
+  font-size: 11px;
+}
+.console-logs .logs-actions button:hover:not(:disabled) {
+  background: var(--soft);
+}
+.console-logs .logs-filters {
+  display: flex;
+  gap: 9px;
+  align-items: stretch;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+}
+.console-logs .logs-filters label {
+  display: block;
+  flex: 0 0 auto;
+  min-width: 105px;
+  margin: 0;
+}
+.console-logs .logs-filters label > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.console-logs .logs-filters .logs-search {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+.console-logs .logs-filters input,
+.console-logs .logs-filters select {
+  width: 100%;
+  height: 43px;
+  padding: 0 14px;
+  background: var(--console-surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 12px;
+  outline-offset: 2px;
+}
+.console-logs .logs-filters select {
+  max-width: 160px;
+  padding-inline: 10px;
+}
+.console-logs .logs-filters input:focus,
+.console-logs .logs-filters select:focus {
+  border-color: var(--console-success);
+}
+.console-logs .logs-filters input::placeholder {
+  color: var(--muted);
+  opacity: 0.75;
+}
+.console-logs .logs-result-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0 17px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.console-logs .logs-result-line span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+.console-logs .logs-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--console-bg);
+}
+.console-logs .logs-event-table {
+  width: 100%;
+  min-width: 780px;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 12px;
+}
+.console-logs .logs-event-table th {
+  padding: 17px 15px;
+  background: var(--console-surface);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+}
+.console-logs .logs-event-table th:first-child,
+.console-logs .logs-event-table td:first-child {
+  padding-left: 19px;
+}
+.console-logs .logs-event-table td {
+  padding: 16px 15px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.console-logs .logs-event-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.console-logs .logs-event-table tbody tr:hover {
+  background: var(--console-surface);
+}
+.console-logs .logs-event-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 11px;
+  font-weight: 600;
+}
+.console-logs .logs-event-status {
+  white-space: nowrap;
+  color: var(--console-unknown);
+  font-size: 11px;
+  font-weight: 550;
+}
+.console-logs .logs-event-status--succeeded {
+  color: var(--console-success);
+}
+.console-logs .logs-event-status--failed {
+  color: var(--console-failure);
+}
+.console-logs .logs-event-status--rejected {
+  color: var(--console-rejected);
+}
+.console-logs .logs-event-stage {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.console-logs .logs-event-message {
+  width: 48%;
+  min-width: 245px;
+  overflow-wrap: anywhere;
+}
+.console-logs .logs-event-message strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.6;
+  font-weight: 550;
+}
+.console-logs .logs-event-message small {
+  margin: 6px 0 0;
+  font-size: 11px;
+}
+.console-logs .logs-event-message code,
+.console-logs .logs-event-trace code {
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.console-logs .logs-event-trace {
+  min-width: 135px;
+  font-size: 11px;
+}
+.console-logs .logs-event-trace summary {
+  color: var(--console-success);
+  cursor: pointer;
+  white-space: nowrap;
+  list-style: none;
+}
+.console-logs .logs-event-trace summary::-webkit-details-marker {
+  display: none;
+}
+.console-logs .logs-trace-body {
+  width: min(380px, 72vw);
+  margin-top: 13px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--console-surface);
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.65;
+}
+.console-logs .logs-trace-body dl {
+  display: grid;
+  grid-template-columns: 85px minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0 0 15px;
+}
+.console-logs .logs-trace-body dt {
+  color: var(--muted);
+}
+.console-logs .logs-trace-body dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.console-logs .logs-trace-body ol {
+  padding-left: 22px;
+  margin: 0;
+}
+.console-logs .logs-trace-body li {
+  padding: 0 0 12px 10px;
+  border-left: 1px solid var(--line);
+}
+.console-logs .logs-trace-body li:last-child {
+  padding-bottom: 0;
+}
+.console-logs .logs-trace-body li strong {
+  font-weight: 600;
+}
+.console-logs .logs-trace-body li > div {
+  margin-top: 8px;
+}
+.console-logs .logs-trace-warning {
+  margin: 12px 0 0;
+  color: var(--console-rejected);
+}
+.console-logs .logs-empty {
+  margin: 0;
+  padding: 60px 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--console-surface);
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+}
+.console-logs .logs-pagination {
+  justify-content: flex-end;
+  margin: 18px 0 24px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.console-logs .logs-pagination button {
+  background: var(--console-surface);
+  padding: 7px 12px;
+  font-size: 11px;
+}
+.console-logs .logs-call-archive {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.console-logs .logs-call-archive > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+.console-logs .logs-call-archive .calls {
+  margin: 20px 0 0;
+  border: 0;
+}
+.console-logs .logs-data-note {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 1050px) {
+  .console-logs .logs-page-head {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .console-logs .logs-head-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
+@media (max-width: 520px) {
+  .console-logs .logs-filters .logs-search {
+    flex-basis: 100%;
+  }
+  .console-logs .logs-filters label:not(.logs-search) {
+    flex: 1 1 120px;
+  }
+  .console-logs .logs-filters select {
+    max-width: none;
+  }
+  .console-logs .logs-head-actions {
+    align-items: flex-start;
+  }
+  .console-logs .logs-actions {
+    justify-content: flex-start;
+  }
+  .console-logs .logs-event-table th,
+  .console-logs .logs-event-table td {
+    padding: 13px 11px;
+  }
+}
+
+/* Event-level logs: the shared console topbar already supplies the title.
+   Keep only filters before the data grid; all secondary actions live below it. */
+.shell--console > main > .console-logs.console-logs--events {
+  padding-top: 20px;
+}
+.console-logs--events .logs-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(105px, 145px));
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.console-logs--events .logs-filters .logs-search {
+  grid-column: auto;
+  order: 0;
+  min-width: 0;
+}
+.console-logs--events .logs-filters label {
+  min-width: 0;
+}
+.console-logs--events .logs-filters input,
+.console-logs--events .logs-filters select {
+  height: 38px;
+  max-width: none;
+  border-radius: 7px;
+}
+.console-logs--events .logs-filters select {
+  padding-inline: 9px;
+}
+.console-logs--events .logs-table-block {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--console-surface);
+}
+.console-logs--events .logs-table-scroll {
+  overflow-x: auto;
+  border: 0;
+  border-radius: 0;
+}
+.console-logs--events .logs-empty {
+  display: grid;
+  min-height: 170px;
+  place-items: center;
+  padding: 34px 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.console-logs--events .logs-event-table th {
+  padding-block: 13px;
+}
+.console-logs--events .logs-event-table td {
+  padding-block: 12px;
+}
+.console-logs--events .logs-table-footer {
+  display: flex;
+  margin: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  min-height: 58px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--console-surface);
+  color: var(--muted);
+  font-size: 11px;
+}
+.console-logs--events .logs-table-footer-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.console-logs--events .logs-table-footer-meta > span + span {
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+}
+.console-logs--events .logs-footer-time {
+  opacity: 0.86;
+}
+.console-logs--events .logs-footer-notice {
+  color: var(--accent);
+}
+.console-logs--events .logs-table-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.console-logs--events .logs-table-footer-actions > button,
+.console-logs--events .logs-pagination button {
+  height: 32px;
+  padding: 6px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--console-bg);
+  color: var(--ink);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.console-logs--events .logs-table-footer-actions > button:hover:not(:disabled),
+.console-logs--events .logs-pagination button:hover:not(:disabled) {
+  background: var(--soft);
+}
+.console-logs--events .logs-table-footer-actions button:disabled {
+  cursor: not-allowed;
+}
+.console-logs--events .logs-pagination {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 0;
+  padding-left: 11px;
+  border-left: 1px solid var(--line);
+  white-space: nowrap;
+  font-size: 11px;
+}
+.console-logs--events .logs-data-note {
+  margin: 9px 2px 0;
+  line-height: 1.5;
+}
+@media (max-width: 1150px) {
+  .console-logs--events .logs-filters {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .console-logs--events .logs-filters .logs-search {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 850px) {
+  .console-logs--events .logs-table-footer {
+    align-items: stretch;
+  }
+  .console-logs--events .logs-table-footer-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+    width: 100%;
+  }
+}
+@media (max-width: 630px) {
+  .shell--console > main > .console-logs.console-logs--events {
+    padding-top: 14px;
+  }
+  .console-logs--events .logs-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 10px;
+  }
+  .console-logs--events .logs-table-footer {
+    padding: 12px;
+  }
+  .console-logs--events .logs-footer-time {
+    flex-basis: 100%;
+    border-left: 0 !important;
+    padding-left: 0 !important;
+  }
+  .console-logs--events .logs-table-footer-actions {
+    gap: 7px;
+  }
+  .console-logs--events .logs-pagination {
+    padding-left: 0;
+    border-left: 0;
+  }
+}

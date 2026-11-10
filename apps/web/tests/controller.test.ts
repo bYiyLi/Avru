@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { createController } from '../src/controller.js';
+import type { BrowserProfile } from '../src/controller.js';
 const profile = {
   id: 'one',
   name: 'Chrome',
@@ -174,91 +175,143 @@ it('keeps stable expired-session errors on actions and never exposes raw excepti
   expect(controller.snapshot().message).toBe('session.expired');
   expect(controller.snapshot().authorized).toBe(false);
 });
-it('connects only the detected current browser once with authenticated ticket issuance', async () => {
-  vi.useFakeTimers();
-  const challenge = 'a'.repeat(64),
-    ticket = 'b'.repeat(64);
-  const request = vi.fn<typeof fetch>().mockImplementation((input) =>
-    Promise.resolve(
-      Response.json(
-        (input as string).endsWith('status')
-          ? {
-              extensionFiles: {
-                directory: '/extension',
-                version: '1',
-                extensionId: 'id',
-              },
-            }
-          : (input as string).endsWith('browsers')
-            ? { browsers: [] }
-            : (input as string).endsWith('pairings')
-              ? { pairings: [] }
-              : (input as string).endsWith('connection-ticket')
-                ? { ticket }
-                : { calls: [] },
-      ),
-    ),
-  );
-  const send = vi
-    .fn()
-    .mockImplementation((_id: string, message: { type: string }) =>
-      Promise.resolve(
-        message.type === 'avru-detect'
-          ? { version: '1', autoAllowed: true }
-          : message.type === 'avru-probe'
-            ? { challenge }
-            : { accepted: true },
-      ),
-    );
-  const controller = createController(
-    { key: 'admin-secret', clear: vi.fn() },
-    request,
-    send,
-  );
-  await controller.connectCurrent();
-  controller.start();
-  await vi.advanceTimersByTimeAsync(0);
-  expect(controller.snapshot().current?.status).toBe('detected');
-  await controller.connectCurrent();
-  await controller.connectCurrent();
-  expect(
-    request.mock.calls.filter(([path]) =>
-      (path as string).endsWith('connection-ticket'),
-    ),
-  ).toHaveLength(1);
-  expect(request.mock.calls.at(-1)?.[1]).toMatchObject({
-    method: 'POST',
-    body: JSON.stringify({ challenge }),
-    headers: { Authorization: 'Bearer admin-secret' },
+function diagnosticsSetup(options: {
+  health?: 'ok' | 'down' | 'throws';
+  status?: 'ok' | 'expired' | 'down';
+  mcp?: 'notImplemented' | 'oauthReadOnly';
+  browsers?: BrowserProfile[] | 'down';
+}) {
+  const request = vi.fn<typeof fetch>().mockImplementation((input) => {
+    const url = input as string;
+    if (url === '/health') {
+      if (options.health === 'throws')
+        return Promise.reject(new Error('offline'));
+      if (options.health === 'down')
+        return Promise.resolve(new Response(null, { status: 503 }));
+      return Promise.resolve(
+        Response.json({
+          service: 'avru',
+          state: 'browser-connection',
+          browserControl: false,
+        }),
+      );
+    }
+    if (url.endsWith('/api/status')) {
+      if (options.status === 'expired')
+        return Promise.resolve(new Response(null, { status: 401 }));
+      if (options.status === 'down')
+        return Promise.resolve(new Response(null, { status: 503 }));
+      return Promise.resolve(
+        Response.json({
+          daemonVersion: '0.1.0-dev.1',
+          expectedExtensionVersion: '0.0.1',
+          mcp: options.mcp ?? 'notImplemented',
+          chatgpt: 'notImplemented',
+          frpc: 'notImplemented',
+        }),
+      );
+    }
+    if (url.endsWith('/api/browsers')) {
+      if (options.browsers === 'down')
+        return Promise.resolve(new Response(null, { status: 503 }));
+      return Promise.resolve(
+        Response.json({ browsers: options.browsers ?? [] }),
+      );
+    }
+    return Promise.resolve(new Response(null, { status: 404 }));
   });
-  controller.stop();
+  const clear = vi.fn();
+  const controller = createController({ key: 'secret', clear }, request);
+  return { controller, request, clear };
+}
+const healthyBrowser: BrowserProfile = {
+  id: 'one',
+  name: 'Chrome',
+  connected: true,
+  connectionId: 'ws1',
+  tabs: [],
+  metadata: {
+    browserName: 'Chrome',
+    browserVersion: '150.0.1',
+    versionSource: 'clientHints',
+    extensionVersion: '0.0.1',
+  },
+};
+it('diagnoses the call chain step by step without inventing causes', async () => {
+  const healthy = diagnosticsSetup({
+    mcp: 'oauthReadOnly',
+    browsers: [healthyBrowser],
+  });
+  expect((await healthy.controller.runDiagnostics()).steps).toEqual([
+    { id: 'daemon', status: 'passed' },
+    { id: 'session', status: 'passed' },
+    { id: 'extension', status: 'passed' },
+    { id: 'mcp', status: 'passed' },
+  ]);
+  const down = diagnosticsSetup({ health: 'down' });
+  expect((await down.controller.runDiagnostics()).steps).toEqual([
+    { id: 'daemon', status: 'failed' },
+    { id: 'session', status: 'unknown' },
+    { id: 'extension', status: 'unknown' },
+    { id: 'mcp', status: 'unknown' },
+  ]);
+  const offline = diagnosticsSetup({ health: 'throws' });
+  expect((await offline.controller.runDiagnostics()).steps[0]).toEqual({
+    id: 'daemon',
+    status: 'failed',
+  });
+  const expired = diagnosticsSetup({ status: 'expired' });
+  expect((await expired.controller.runDiagnostics()).steps).toEqual([
+    { id: 'daemon', status: 'passed' },
+    { id: 'session', status: 'failed' },
+    { id: 'extension', status: 'unknown' },
+    { id: 'mcp', status: 'unknown' },
+  ]);
+  expect(expired.clear).toHaveBeenCalled();
+  expect(expired.controller.snapshot().authorized).toBe(false);
+  const statusDown = diagnosticsSetup({ status: 'down' });
+  expect((await statusDown.controller.runDiagnostics()).steps[1]).toEqual({
+    id: 'session',
+    status: 'failed',
+  });
 });
-it('does not endlessly retry failed current-browser enrollment', async () => {
-  vi.useFakeTimers();
-  const request = vi
-    .fn<typeof fetch>()
-    .mockImplementation((input) =>
-      Promise.resolve(
-        Response.json(
-          (input as string).endsWith('status')
-            ? { extensionFiles: { extensionId: 'id' } }
-            : (input as string).endsWith('browsers')
-              ? { browsers: [] }
-              : { pairings: [], calls: [] },
-        ),
-      ),
-    );
-  const send = vi.fn().mockResolvedValue({ version: '1', autoAllowed: true });
-  const controller = createController(
-    { key: 'admin', clear: vi.fn() },
-    request,
-    send,
-  );
-  controller.start();
-  await vi.advanceTimersByTimeAsync(0);
-  await controller.connectCurrent();
-  expect(controller.snapshot().current?.status).toBe('failed');
-  await controller.connectCurrent();
-  expect(controller.snapshot().busy).toBe(false);
-  controller.stop();
+it('reports the observed extension breakpoint, not an install verdict', async () => {
+  const none = diagnosticsSetup({});
+  expect((await none.controller.runDiagnostics()).steps[2]).toEqual({
+    id: 'extension',
+    status: 'failed',
+  });
+  const browsersDown = diagnosticsSetup({ browsers: 'down' });
+  expect((await browsersDown.controller.runDiagnostics()).steps[2]).toEqual({
+    id: 'extension',
+    status: 'failed',
+  });
+  const mismatch = diagnosticsSetup({
+    mcp: 'oauthReadOnly',
+    browsers: [
+      {
+        ...healthyBrowser,
+        metadata: {
+          browserName: 'Chrome',
+          browserVersion: '150.0.1',
+          versionSource: 'clientHints',
+          extensionVersion: '0.0.2',
+        },
+      },
+    ],
+  });
+  expect((await mismatch.controller.runDiagnostics()).steps).toEqual([
+    { id: 'daemon', status: 'passed' },
+    { id: 'session', status: 'passed' },
+    { id: 'extension', status: 'failed' },
+    { id: 'mcp', status: 'passed' },
+  ]);
+  const unknownVersion = diagnosticsSetup({
+    mcp: 'oauthReadOnly',
+    browsers: [{ ...healthyBrowser, metadata: null }],
+  });
+  expect((await unknownVersion.controller.runDiagnostics()).steps[2]).toEqual({
+    id: 'extension',
+    status: 'unknown',
+  });
 });

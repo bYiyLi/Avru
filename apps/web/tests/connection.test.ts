@@ -54,6 +54,9 @@ it('shows configured, unknown and disconnected states honestly in both languages
       expect(html).toContain('ChatGPT');
       expect(html).toContain('https://avru.example/mcp');
       expect(html).not.toContain('FRPC');
+      expect(html).not.toContain(
+        locale === 'zh' ? '尚未配置连接，无需移除' : 'Nothing to remove',
+      );
     }
     expect(
       renderToStaticMarkup(
@@ -74,6 +77,9 @@ it('shows configured, unknown and disconnected states honestly in both languages
       }),
     );
     expect(html).toContain('disabled');
+    expect(html).toContain(
+      locale === 'zh' ? '尚未配置连接，无需移除' : 'Nothing to remove',
+    );
     expect(html).not.toContain('https://avru.example/mcp');
   }
 });
@@ -132,4 +138,18 @@ it('announces configuration failures as alerts and successful saves as status me
     ).toContain(`role="${role}"`);
   }
   message = '';
+});
+it('explains a busy remove button when a connection is configured', () => {
+  for (const locale of ['zh', 'en'] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Connection, { status, locale, busy: true }),
+    );
+    expect(html).toContain('disabled');
+    expect(html).toContain(
+      locale === 'zh' ? '正在处理连接变更' : 'in progress',
+    );
+    expect(html).not.toContain(
+      locale === 'zh' ? '尚未配置连接，无需移除' : 'Nothing to remove',
+    );
+  }
 });

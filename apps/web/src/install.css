@@ -1,0 +1,476 @@
+/* Local extension guide: visually separate from the six-page console. */
+.shell--install {
+  --install-bg: #f7f8fb;
+  --install-panel: #fff;
+  --install-rail: #f1f2f6;
+  --install-field: #f8f9fc;
+  --install-selected: #e3e5f3;
+  --install-primary: #626bd4;
+  --install-border: #e1e3ec;
+  max-width: none;
+  min-height: 100vh;
+  padding: 0;
+  background: var(--install-bg);
+}
+:root[data-theme='dark'] .shell--install {
+  --install-bg: #0f1014;
+  --install-panel: #18191f;
+  --install-rail: #101115;
+  --install-field: #101115;
+  --install-selected: #272938;
+  --install-primary: #6771df;
+  --install-border: #292b35;
+}
+.shell--install > .install-site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+  padding: 0 34px;
+  border-bottom: 1px solid var(--install-border);
+  background: var(--install-panel);
+}
+.install-wordmark {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -1.5px;
+}
+.install-wordmark > span {
+  padding-right: 4px;
+  color: #9398e4;
+  font-size: 39px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -5px;
+}
+.shell--install .install-site-header nav {
+  display: flex;
+  align-items: center;
+  gap: 23px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  white-space: nowrap;
+}
+.shell--install .install-site-header nav > span,
+.shell--install .install-site-header nav > button {
+  margin: 0;
+  padding: 5px 2px;
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.shell--install .install-site-header nav > span[aria-current] {
+  color: var(--accent);
+  font-weight: 650;
+}
+.shell--install .install-site-header nav > button:hover {
+  color: var(--ink);
+}
+.shell--install .install-site-header nav > button:nth-last-child(-n + 2) {
+  font-size: 10px;
+  opacity: 0.75;
+}
+.shell--install .install-guide {
+  width: min(100% - 56px, 1188px);
+  max-width: none;
+  margin: 0 auto;
+  padding: 0 0 70px;
+}
+.install-guide .install-breadcrumb {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  height: 79px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.install-breadcrumb i {
+  margin: 0 18px;
+  font-style: normal;
+  opacity: 0.55;
+}
+.install-guide-badge {
+  border: 1px solid var(--install-border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.install-guide .install-introduction {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 28px;
+  padding: 16px 0 0;
+}
+.install-guide .install-eyebrow {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+.install-guide .install-introduction h1 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 3vw, 36px);
+  font-weight: 650;
+  letter-spacing: -1px;
+  line-height: 1.35;
+}
+.install-guide .install-introduction p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.install-browser-choice {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 4px;
+  border: 1px solid var(--install-border);
+  border-radius: 8px;
+  background: var(--install-rail);
+}
+.install-guide .install-browser-choice button {
+  padding: 7px 12px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+.install-guide .install-browser-choice button[aria-pressed='true'] {
+  background: var(--install-selected);
+  color: var(--ink);
+}
+.install-guide .install-guide-grid {
+  display: grid;
+  grid-template-columns: 282px minmax(0, 1fr);
+  margin-top: 39px;
+  overflow: hidden;
+  border: 1px solid var(--install-border);
+  border-radius: 12px;
+  background: var(--install-panel);
+}
+.install-guide .install-step-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 7px;
+  min-width: 0;
+  padding: 33px 22px 38px;
+  border: none;
+  border-right: 1px solid var(--install-border);
+  background: var(--install-rail);
+}
+.install-rail-title {
+  margin: 0 10px 18px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.install-guide .install-step-rail > button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 15px;
+  width: 100%;
+  min-height: 74px;
+  padding: 12px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+.install-guide .install-step-rail > button:hover {
+  background: var(--install-selected);
+}
+.install-guide .install-step-rail > button.is-active {
+  background: var(--install-selected);
+  color: var(--ink);
+}
+.install-step-rail .install-step-number {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  border: 1px solid var(--install-border);
+  border-radius: 50%;
+  background: var(--install-panel);
+  font-size: 11px;
+}
+.install-step-rail > button.is-active .install-step-number {
+  background: var(--install-primary);
+  color: white;
+  border-color: var(--install-primary);
+}
+.install-step-rail button strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 560;
+}
+.install-step-rail button small {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.install-guide .install-rail-note {
+  margin: 45px 11px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.9;
+}
+.install-guide .install-guide-body {
+  min-width: 0;
+  padding: 39px 40px 36px;
+}
+.install-guide .install-step-copy {
+  min-height: 172px;
+}
+.install-step-copy h2 {
+  margin: 0 0 13px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.35px;
+}
+.install-guide .install-step-copy p {
+  margin: 10px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+.install-address-block {
+  margin-top: 16px;
+}
+.install-address-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.install-address-row code,
+.install-folder-path {
+  display: inline-block;
+  max-width: 100%;
+  padding: 12px 13px;
+  border: 1px solid var(--install-border);
+  border-radius: 6px;
+  background: var(--install-field);
+  color: var(--ink);
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.install-address-row button {
+  padding: 11px 15px;
+  border-radius: 7px;
+  background: var(--install-panel);
+  color: var(--ink);
+  font-size: 12px;
+}
+.install-address-block > small {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.install-guide .install-step-meta {
+  color: var(--ink);
+  font-weight: 550;
+}
+.install-guide .install-illustration {
+  min-height: 278px;
+  margin-top: 42px;
+  overflow: hidden;
+  border: 1px solid var(--install-border);
+  border-radius: 9px;
+  background: var(--install-field);
+}
+.install-illustration-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 53px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--install-border);
+}
+.install-dots {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+  letter-spacing: 3px;
+}
+.install-illustration-top code {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 13px;
+  border: 1px solid var(--install-border);
+  border-radius: 6px;
+  background: var(--install-panel);
+  color: var(--muted);
+  font-size: 11px;
+}
+.install-faux-browser {
+  padding: 23px 20px 24px;
+}
+.install-faux-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.install-faux-heading strong {
+  font-size: 14px;
+}
+.install-faux-heading > span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.install-faux-toggle {
+  display: inline-block;
+  position: relative;
+  width: 26px;
+  height: 13px;
+  border-radius: 15px;
+  background: var(--install-primary);
+}
+.install-faux-toggle::after {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: white;
+  content: '';
+}
+.install-faux-load {
+  display: inline-block;
+  padding: 9px 11px;
+  margin-bottom: 16px;
+  border: 1px solid var(--install-border);
+  border-radius: 5px;
+  color: var(--muted);
+  background: var(--install-panel);
+  font-size: 11px;
+}
+.install-faux-load.is-highlighted,
+.install-faux-extension.is-highlighted {
+  outline: 2px solid var(--install-primary);
+  outline-offset: 2px;
+}
+.install-faux-extension {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--install-border);
+  border-radius: 8px;
+  background: var(--install-panel);
+}
+.install-faux-icon {
+  font-size: 26px;
+  color: #8994e6;
+}
+.install-faux-extension > span:nth-child(2) {
+  flex: 1;
+}
+.install-faux-extension strong {
+  display: block;
+  font-size: 12px;
+}
+.install-faux-extension small {
+  font-size: 10px;
+}
+.install-step-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 24px;
+}
+.install-step-actions .primary {
+  margin: 0;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--install-primary);
+  color: white;
+  font-size: 12px;
+}
+.install-guide .install-guide-note {
+  margin: 17px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+@media (max-width: 900px) {
+  .shell--install .install-guide-grid {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .install-guide .install-guide-body {
+    padding: 30px 25px;
+  }
+  .install-guide .install-step-rail {
+    padding: 25px 12px;
+  }
+}
+@media (max-width: 720px) {
+  .shell--install > .install-site-header {
+    height: auto;
+    min-height: 68px;
+    padding: 13px 20px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .shell--install .install-site-header nav {
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .shell--install .install-guide {
+    width: min(100% - 32px, 600px);
+  }
+  .install-guide .install-introduction {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+  .shell--install .install-guide-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .install-guide .install-step-rail {
+    padding: 19px 15px;
+    border-right: none;
+    border-bottom: 1px solid var(--install-border);
+  }
+  .install-rail-title {
+    margin: 0 5px 8px;
+  }
+  .install-guide .install-step-rail > button {
+    min-height: 56px;
+    padding: 8px 10px;
+  }
+  .install-guide .install-rail-note {
+    margin: 12px 10px 0;
+  }
+  .install-guide .install-guide-body {
+    padding: 24px 18px 30px;
+  }
+  .install-guide .install-illustration {
+    margin-top: 23px;
+  }
+}

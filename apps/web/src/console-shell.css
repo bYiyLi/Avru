@@ -1,0 +1,468 @@
+/* Shared six-page frame: inherit the same palette and surfaces as the welcome page. */
+.shell--console {
+  --console-bg: var(--paper);
+  --console-sidebar: var(--paper);
+  --console-surface: var(--surface-raised);
+  --console-track: var(--line);
+  --console-success: var(--accent);
+  --console-failure: #c79388;
+  --console-rejected: #c5a270;
+  --console-unknown: var(--muted);
+  --console-online: #44b995;
+  background: var(--console-bg);
+  min-height: 100vh;
+}
+:root .shell.shell--console {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.shell--console > nav.console-nav {
+  position: fixed;
+  z-index: 5;
+  inset: 0 auto 0 0;
+  width: 260px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  overflow-y: auto;
+  padding: 0 17px 22px;
+  background: var(--console-sidebar);
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+}
+.shell--console .console-brand {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 92px;
+  flex: 0 0 92px;
+  gap: 6px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--ink);
+}
+.shell--console .console-brand:hover {
+  background: transparent;
+}
+.console-brand-mark {
+  font-size: 39px;
+  line-height: 1;
+  font-weight: 900;
+  color: var(--accent);
+  letter-spacing: -6px;
+  margin-right: 7px;
+}
+.console-brand strong {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -1.4px;
+}
+.console-brand-badge {
+  margin-left: auto;
+  padding: 2px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.shell--console .console-nav-caption {
+  display: block;
+  margin: 14px 13px 13px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.console-nav-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.shell--console .console-nav-pages > button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 45px;
+  min-height: 45px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 450;
+  text-align: left;
+  gap: 12px;
+}
+.shell--console .console-nav-pages > button[aria-current='page'] {
+  background: var(--surface-tint);
+  color: var(--accent);
+  font-weight: 650;
+}
+.shell--console .console-nav-pages > button:hover:not([aria-current='page']) {
+  background: var(--soft);
+  color: var(--ink);
+}
+.shell--console .console-nav-pages > button:nth-child(6) {
+  margin-top: 28px;
+}
+.console-nav-icon {
+  display: inline-flex;
+  flex: 0 0 22px;
+  justify-content: center;
+}
+.console-nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.console-nav-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin-top: auto;
+  padding: 24px 13px 0;
+  color: var(--muted);
+}
+.console-device {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+}
+.console-device svg {
+  width: 17px;
+  height: 17px;
+}
+.console-version {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+.console-version small {
+  display: inline;
+  margin: 0;
+  font-size: 10px;
+}
+.console-preferences {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.shell--console .console-preferences button {
+  width: auto;
+  height: auto;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.shell--console > main {
+  width: calc(100% - 260px);
+  min-width: 0;
+  margin-left: 260px;
+}
+.shell--console > main > .console-topbar {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  width: 100%;
+  height: 102px;
+  padding: 22px 40px;
+  background: var(--console-bg);
+  border-bottom: 1px solid var(--line);
+}
+.console-topbar-heading {
+  min-width: 0;
+}
+.shell--console .console-topbar h1 {
+  font-size: 24px;
+  font-weight: 660;
+  line-height: 1.35;
+  margin: 0 0 5px;
+  letter-spacing: -0.5px;
+}
+.console-topbar p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.console-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.console-live-state {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+.console-live-state i {
+  width: 6px;
+  height: 6px;
+  background: var(--console-unknown);
+  border-radius: 50%;
+}
+.console-live-state.is-ready i {
+  background: var(--console-online);
+}
+.console-topbar-actions button {
+  height: 40px;
+  padding: 0 18px;
+  background: var(--button);
+  color: var(--button-ink);
+  border-color: var(--button);
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.console-topbar-actions button:hover {
+  filter: brightness(1.1);
+  background: var(--button);
+}
+.shell--console > main > .notice {
+  margin: 0;
+  border-radius: 0;
+}
+.shell--console > main > .console-overview,
+.shell--console > main > .browsers-page,
+.shell--console > main > .console-logs,
+.shell--console > main > .console-content-page {
+  width: 100%;
+  max-width: 1560px;
+  min-height: calc(100vh - 102px);
+  margin: 0 auto;
+  padding: 34px clamp(24px, 3.2vw, 52px) 64px;
+  background: var(--console-bg);
+}
+.shell--console .console-overview .console-page-heading,
+.shell--console .browsers-page .browser-page-heading > div:first-child,
+.shell--console .browsers-page .browser-page-actions > button,
+.shell--console .console-logs .logs-page-head > div:first-child,
+.shell--console .console-logs .logs-head-actions > button {
+  display: none;
+}
+.shell--console .browsers-page .browser-page-heading {
+  justify-content: flex-end;
+}
+.shell--console .browsers-page .browser-page-actions {
+  justify-content: flex-end;
+}
+.shell--console .console-logs .logs-page-head {
+  justify-content: flex-end;
+}
+.shell--console .console-logs .logs-head-actions {
+  justify-content: flex-end;
+}
+.shell--console .console-overview {
+  padding-top: 35px;
+}
+.shell--console .console-overview,
+.shell--console .browsers-page,
+.shell--console .console-logs {
+  margin-left: auto;
+  margin-right: auto;
+}
+.shell--console .console-content-page > .console-section-intro {
+  margin: 0 0 24px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.shell--console .console-content-page .connection-settings,
+.shell--console .console-content-page .recent-calls {
+  margin-top: 16px;
+}
+.shell--console .console-content-page .console-utility-grid {
+  margin-top: 28px;
+}
+.shell--console .console-content-page .console-utility-grid > section {
+  align-self: start;
+}
+.console-activity-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: center;
+}
+.console-activity-heading button {
+  font-size: 12px;
+  background: var(--console-surface);
+}
+.shell--console .console-activity .calls {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.console-connection-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin: 24px 0 32px;
+}
+.console-connection-overview > div {
+  border: 1px solid var(--line);
+  background: var(--console-surface);
+  border-radius: 10px;
+  padding: 24px;
+}
+.console-connection-overview h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.console-connection-overview p {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.console-connection-overview small {
+  margin-top: 11px;
+}
+.console-connection-unavailable {
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+.console-connections .connection-settings {
+  border-top: 1px solid var(--line);
+  padding-top: 24px;
+}
+@media (max-width: 900px) {
+  .shell--console > nav.console-nav {
+    width: 216px;
+    padding: 0 12px 18px;
+  }
+  .shell--console > main {
+    width: calc(100% - 216px);
+    margin-left: 216px;
+  }
+  .shell--console > main > .console-topbar {
+    padding: 20px 28px;
+  }
+}
+@media (max-width: 700px) {
+  .shell--console > nav.console-nav {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    padding: 0 14px 9px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .shell--console .console-brand {
+    height: 54px;
+    flex-basis: 54px;
+    padding: 0 6px;
+    width: 145px;
+  }
+  .console-brand-mark {
+    font-size: 29px;
+  }
+  .console-brand strong {
+    font-size: 23px;
+  }
+  .shell--console .console-nav-caption,
+  .shell--console .console-device,
+  .shell--console .console-version {
+    display: none;
+  }
+  .shell--console .console-brand-badge {
+    display: none;
+  }
+  .shell--console .console-nav-footer {
+    display: flex;
+    position: absolute;
+    top: 11px;
+    right: 14px;
+    margin: 0;
+    padding: 0;
+    width: auto;
+  }
+  .shell--console .console-preferences {
+    margin: 0;
+    gap: 6px;
+  }
+  .console-nav-pages {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+  .shell--console .console-nav-pages > button {
+    width: auto;
+    flex: 0 0 auto;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 10px;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .shell--console .console-nav-pages > button:nth-child(6) {
+    margin-top: 0;
+  }
+  .console-nav-icon {
+    flex-basis: 17px;
+    width: 17px;
+  }
+  .console-nav-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+  .shell--console > main {
+    width: 100%;
+    margin-left: 0;
+  }
+  .shell--console > main > .console-topbar {
+    position: static;
+    height: auto;
+    min-height: 90px;
+    padding: 17px 20px;
+  }
+  .shell--console .console-topbar h1 {
+    font-size: 21px;
+  }
+  .console-topbar-actions {
+    gap: 8px;
+  }
+  .console-live-state {
+    display: none;
+  }
+  .console-topbar-actions button {
+    padding: 0 10px;
+    font-size: 11px;
+    height: 34px;
+  }
+  .shell--console > main > .console-overview,
+  .shell--console > main > .browsers-page,
+  .shell--console > main > .console-logs,
+  .shell--console > main > .console-content-page {
+    padding: 24px 19px 48px;
+  }
+  .console-connection-overview {
+    grid-template-columns: 1fr;
+  }
+  .console-activity-heading {
+    align-items: flex-start;
+  }
+}

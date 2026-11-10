@@ -4,6 +4,7 @@ import type { ConnectionStatus } from './connection-status';
 import type { ReleaseChannel } from '../../../packages/protocol/environment.js';
 import { consentRequest } from './oauth-consent';
 import type { ConsentRequest } from './oauth-consent';
+import { ActionChannel } from './action-channel';
 import {
   credentials,
   record,
@@ -34,6 +35,11 @@ export interface Ports {
   save: (value: Credentials) => Promise<void>;
   clear: () => Promise<void>;
   tabs: () => Promise<Tab[]>;
+  action?: (
+    tabId: number,
+    method: string,
+    args?: unknown[],
+  ) => Promise<unknown>;
   socket(url: string): Socket;
   uuid(): string;
   later(callback: () => void, delay: number): ReturnType<typeof setTimeout>;
@@ -41,6 +47,18 @@ export interface Ports {
 }
 export class Connection {
   private readonly challenge = new AutoChallenge();
+  private readonly actionChannel = new ActionChannel({
+    tabs: () => this.ports.tabs(),
+    action: (tabId, method, args) =>
+      args === undefined
+        ? this.ports.action?.(tabId, method)
+        : this.ports.action?.(tabId, method, args),
+    send: (data) => {
+      this.send(data);
+    },
+    isReady: () => this.ready,
+    isCurrentGeneration: (generation) => generation === this.generation,
+  });
   private socket: Socket | undefined;
   private saved: Credentials | undefined;
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -228,6 +246,11 @@ export class Connection {
         approved,
       });
   }
+  /** The trusted browser Cancel button interrupts only its current tab. */
+  interrupt(tabId: number): void {
+    if (this.ready && Number.isSafeInteger(tabId) && tabId >= 0)
+      this.send({ v: 1, type: 'control-interrupted', tabId });
+  }
   private write(operation: () => Promise<void>): Promise<void> {
     this.writes = this.writes.then(operation, operation);
     return this.writes;
@@ -241,6 +264,7 @@ export class Connection {
   }
   private stop(): void {
     this.challenge.cancel();
+    this.actionChannel.clear();
     this.generation++;
     this.ready = false;
     this.ports.resetOAuth?.();
@@ -302,6 +326,7 @@ export class Connection {
       this.challenge.accept(message.challenge);
       return;
     }
+    if (await this.actionChannel.receiveMessage(message, generation)) return;
     if (await this.receiveOAuth(message)) return;
     if (message.type === 'error') {
       await this.reject(message.code);

@@ -2,6 +2,7 @@ import {
   channelPort,
   type ReleaseChannel,
 } from '../../../packages/protocol/environment.js';
+import { frameMessage } from '../../../packages/protocol/action-framing.js';
 export interface Credentials {
   channel?: ReleaseChannel;
   endpoint: string;
@@ -19,11 +20,13 @@ export interface Tab {
   title?: string | undefined;
   url?: string | undefined;
   incognito?: boolean | undefined;
+  active?: boolean | undefined;
 }
 export interface SnapshotTab {
   id: number;
   title: string;
   url: string;
+  active: boolean;
 }
 export function socketUrl(endpoint: string, channel?: ReleaseChannel): string {
   if (!/^http:\/\/127\.0\.0\.1(?::[0-9]{1,5})?\/?$/.test(endpoint))
@@ -71,6 +74,7 @@ export function snapshot(tabs: Tab[]): SnapshotTab[] {
           id: tab.id,
           title: (tab.title ?? '').slice(0, 256),
           url: url.href,
+          active: tab.active === true,
         });
     } catch {
       continue;
@@ -104,3 +108,14 @@ export function credentials(
   }
   return data as unknown as Credentials;
 }
+
+/** Largest single WS frame the extension accepts inbound (receive() rejects more). */
+export const DAEMON_TO_EXTENSION_MAX_FRAME_BYTES = 8192;
+/** WS single-message limit; larger action results are chunked at this size. */
+export const EXTENSION_TO_DAEMON_MAX_FRAME_BYTES = 1_048_576;
+/** Largest reassembled inbound action JSON the extension accepts. */
+export const MAX_REASSEMBLED_ACTION_BYTES = 1_048_576;
+/** Largest number of chunks one logical message may split into. */
+export const MAX_ACTION_CHUNKS = 4096;
+
+export { frameMessage };

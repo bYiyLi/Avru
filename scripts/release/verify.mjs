@@ -1,4 +1,5 @@
 import { readdir, readFile, lstat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import {
   frpcAssets,
@@ -16,6 +17,9 @@ const exact = new Set([
   'THIRD_PARTY_NOTICES.txt',
   'README.md',
   'payload/daemon.cjs',
+  'payload/runner/worker.mjs',
+  'payload/runner/dist/worker.js',
+  'payload/runner/dist/emscripten-module.wasm',
   'payload/launcher.mjs',
   'payload/release.json',
   'payload/frpc/LICENSE',
@@ -25,6 +29,7 @@ const exact = new Set([
   'payload/extension/manifest.json',
   'payload/extension/background.js',
   'payload/extension/consent.html',
+  'payload/extension/content-scripts/visual.js',
   'payload/extension/_locales/en/messages.json',
   'payload/extension/_locales/zh_CN/messages.json',
   'payload/extension/_locales/zh_TW/messages.json',
@@ -84,6 +89,15 @@ async function verifyFile(root, path) {
     throw new Error(`Unexpected package file: ${path}`);
   if (path.startsWith('payload/frpc/')) {
     await verifyNative(root, path);
+    return;
+  }
+  if (path === 'payload/runner/dist/emscripten-module.wasm') {
+    const bytes = await readFile(join(root, path));
+    if (
+      createHash('sha256').update(bytes).digest('hex') !==
+      '105c3bed22d457e43e3d1c3c1c6959fda62a8fe06f0fc8a985303c3a2be72232'
+    )
+      throw new Error('QuickJS WASM digest mismatch');
     return;
   }
   const body = await readFile(join(root, path), 'utf8');
